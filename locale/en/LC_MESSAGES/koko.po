@@ -319,8 +319,8 @@ msgstr "Select protocol: enter number and press Enter"
 msgid "Tree progress: %d/%d"
 msgstr "Tree progress: %d/%d"
 
-msgid "Browse tree: [Enter] next line · [Space] next page"
-msgstr "Tree: [Enter] next line · [Space] next page"
+msgid "Browse tree: [enter] next line · [space] next page"
+msgstr "Tree: [enter] next line · [space] next page"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "View assets: [%c + number] + Enter"
@@ -799,3 +799,168 @@ msgstr ""
 #: pkg/proxy/parser.go
 msgid "File exceeds maximum transfer size: %s"
 msgstr "File exceeds maximum transfer size: %s"
+
+msgid "Account"
+msgstr "Account"
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "Clear"
+msgstr "Clear"
+
+msgid "Connect"
+msgstr "Connect"
+
+msgid "Confirm"
+msgstr "Confirm"
+
+msgid "Double-click"
+msgstr "Double-click"
+
+msgid "Language"
+msgstr "Language"
+
+msgid "Page"
+msgstr "Page"
+
+msgid "Quit"
+msgstr "Quit"
+
+msgid "Search"
+msgstr "Search"
+
+msgid "Select"
+msgstr "Select"
+
+msgid "Text mode"
+msgstr "Text mode"
+
+msgid "Asset tree"
+msgstr "Asset tree"
+
+msgid "Clear node"
+msgstr "Clear node"
+
+msgid "Clear search"
+msgstr "Clear search"
+
+msgid "Authorization tree"
+msgstr "Authorization tree"
+
+msgid "Type tree"
+msgstr "Type tree"
+
+msgid "Favorite tree"
+msgstr "Favorite tree"
+
+msgid "Refresh"
+msgstr "Refresh"
+
+msgid "Switch tree"
+msgstr "Switch tree"
+
+msgid "Switch language"
+msgstr "Switch language"
+
+msgid "Search assets in the current scope"
+msgstr "Search assets in the current scope"
+
+msgid "Clear the current asset search"
+msgstr "Clear the current asset search"
+
+msgid "Move the selection up or down"
+msgstr "Move the selection up or down"
+
+msgid "Go to the previous or next page"
+msgstr "Go to the previous or next page"
+
+msgid "Connect to the selected asset"
+msgstr "Connect to the selected asset"
+
+msgid "Open the asset tree"
+msgstr "Open the asset tree"
+
+msgid "Clear the selected tree node"
+msgstr "Clear the selected tree node"
+
+msgid "Switch the interface language"
+msgstr "Switch the interface language"
+
+msgid "Switch to text mode"
+msgstr "Switch to text mode"
+
+msgid "Exit the asset list"
+msgstr "Exit the asset list"
+
+msgid "Open shortcut help"
+msgstr "Open shortcut help"
+
+msgid "Close shortcut help"
+msgstr "Close shortcut help"
+
+msgid "View complete information for the selected item"
+msgstr "View complete information for the selected item"
+
+msgid "Protocols supported by the current terminal"
+msgstr "Protocols supported by the current terminal"
+
+msgid "Collapse or expand the selected node"
+msgstr "Collapse or expand the selected node"
+
+msgid "Use the selected node to filter assets"
+msgstr "Use the selected node to filter assets"
+
+msgid "Switch the asset tree type"
+msgstr "Switch the asset tree type"
+
+msgid "Reload the current asset tree"
+msgstr "Reload the current asset tree"
+
+msgid "Apply the selected language"
+msgstr "Apply the selected language"
+
+msgid "Select an authorized account"
+msgstr "Select an authorized account"
+
+msgid "Select a connection protocol"
+msgstr "Select a connection protocol"
+
+msgid "Search authorized accounts"
+msgstr "Search authorized accounts"
+
+msgid "Connect using the selected account and protocol"
+msgstr "Connect using the selected account and protocol"
+
+msgid "Path"
+msgstr "Path"
+
+msgid "Asset count"
+msgstr "Asset count"
+
+msgid "Category"
+msgstr "Category"
+
+msgid "Active"
+msgstr "Active"
+
+msgid "Actions"
+msgstr "Actions"
+
+msgid "Key"
+msgstr "Key"
+
+msgid "Details"
+msgstr "Details"
+
+msgid "Refresh the current asset list and keep search and tree filters"
+msgstr "Refresh the current asset list and keep search and tree filters"
+
+msgid "Yes"
+msgstr "Yes"
+
+msgid "No"
+msgstr "No"
+
+msgid "My Assets"
+msgstr "My Assets"

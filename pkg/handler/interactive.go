@@ -28,19 +28,29 @@ func newInteractiveHandler(sess *WrapperSession, user *model.User, jmsService *s
 	termConfig model.TerminalConfig, initialize bool) *InteractiveHandler {
 	language := getUserDefaultLangCode(user)
 	api := newLangAPIClient(jmsService, language)
-	publicSetting, err := api.GetPublicSetting()
+	publicSetting, coreVersion, err := getInteractivePublicSetting(api)
 	if err != nil {
 		logger.Errorf("Get public setting error: %s", err)
 	}
 	handler := &InteractiveHandler{
 		sess: sess, user: user, jmsService: api,
-		terminalConf: &termConfig, i18nLang: language, publicSetting: &publicSetting,
+		terminalConf: &termConfig, i18nLang: language,
+		publicSetting: &publicSetting, coreVersion: coreVersion,
 	}
 	handler.term = term.NewTerminal(handler.sess, "Opt> ")
 	if initialize {
 		handler.Initial()
 	}
 	return handler
+}
+
+func getInteractivePublicSetting(api *service.JMService) (model.PublicSetting, string, error) {
+	var response struct {
+		model.PublicSetting
+		Version string `json:"VERSION"`
+	}
+	_, err := api.Call("GET", service.PublicSettingURL, nil, &response)
+	return response.PublicSetting, response.Version, err
 }
 
 type InteractiveHandler struct {
@@ -58,6 +68,7 @@ type InteractiveHandler struct {
 	jmsService        *service.JMService
 	terminalConf      *model.TerminalConfig
 	publicSetting     *model.PublicSetting
+	coreVersion       string
 	i18nLang          string
 	manualPasswords   manualPasswordAttempts
 	classicView       classicView

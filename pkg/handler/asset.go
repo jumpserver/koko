@@ -50,6 +50,9 @@ func (u *UserSelectHandler) searchLocalTypeAsset(searches ...string) []model.Per
 	assets := u.searchLocalAsset(searches...)
 	filtered := make([]model.PermAsset, 0, len(assets))
 	for _, asset := range assets {
+		if u.selectedType.Kind == "platform" && asset.Platform.Name != u.selectedType.Name {
+			continue
+		}
 		if u.selectedType.Category != "" && string(asset.Category) != u.selectedType.Category {
 			continue
 		}
@@ -149,6 +152,11 @@ func (u *UserSelectHandler) displayAssets(searchHeader string) {
 }
 
 func (u *UserSelectHandler) showUnavailableAsset(asset model.PermAsset) {
+	message := u.unavailableAssetMessage(asset)
+	utils.IgnoreErrWriteString(u.h.term, utils.WrapperWarn(message))
+}
+
+func (u *UserSelectHandler) unavailableAssetMessage(asset model.PermAsset) string {
 	lang := i18n.NewLang(u.h.i18nLang)
 	message := lang.T("Cannot connect to this asset.")
 	if !asset.IsActive {
@@ -172,7 +180,7 @@ func (u *UserSelectHandler) showUnavailableAsset(asset model.PermAsset) {
 			}
 		}
 	}
-	utils.IgnoreErrWriteString(u.h.term, utils.WrapperWarn(message))
+	return message
 }
 
 func GetInputUsername(sess io.ReadWriteCloser) (username string, err error) {

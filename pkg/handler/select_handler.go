@@ -367,7 +367,7 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 	case TypeTypeAsset:
 		reqParam.Category = u.selectedType.Category
 		reqParam.Type = u.selectedType.AssetType
-		return u.retrieveRemoteAsset(reqParam)
+		return u.retrieveRemoteTypeAsset(reqParam)
 	case TypeFavoriteAsset:
 		return u.retrieveRemoteFavoriteAsset(reqParam)
 	case TypeAsset, TypeHost, TypeDatabase, TypeK8s:

@@ -436,8 +436,8 @@ msgstr "选择协议：输入序号并回车"
 msgid "Tree progress: %d/%d"
 msgstr "树进度：%d/%d"
 
-msgid "Browse tree: [Enter] next line · [Space] next page"
-msgstr "浏览树：[Enter] 下一行 · [Space] 下一页"
+msgid "Browse tree: [enter] next line · [space] next page"
+msgstr "浏览树：[enter] 下一行 · [space] 下一页"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "查看资产：[%c + 序号] + 回车"
@@ -934,3 +934,168 @@ msgstr "全部收藏"
 
 msgid "No matching assets"
 msgstr "没有匹配资产"
+
+msgid "Account"
+msgstr "账号"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Clear"
+msgstr "清空"
+
+msgid "Connect"
+msgstr "连接"
+
+msgid "Confirm"
+msgstr "确认"
+
+msgid "Double-click"
+msgstr "双击"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "Page"
+msgstr "翻页"
+
+msgid "Quit"
+msgstr "退出"
+
+msgid "Search"
+msgstr "搜索"
+
+msgid "Select"
+msgstr "选择"
+
+msgid "Text mode"
+msgstr "纯文本"
+
+msgid "Asset tree"
+msgstr "资产树"
+
+msgid "Clear node"
+msgstr "清除节点"
+
+msgid "Clear search"
+msgstr "清除搜索"
+
+msgid "Authorization tree"
+msgstr "授权树"
+
+msgid "Type tree"
+msgstr "类型树"
+
+msgid "Favorite tree"
+msgstr "收藏树"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Switch tree"
+msgstr "切换树"
+
+msgid "Switch language"
+msgstr "切换语言"
+
+msgid "Search assets in the current scope"
+msgstr "在当前范围内搜索资产"
+
+msgid "Clear the current asset search"
+msgstr "清除当前资产搜索"
+
+msgid "Move the selection up or down"
+msgstr "向上或向下移动选中项"
+
+msgid "Go to the previous or next page"
+msgstr "切换到上一页或下一页"
+
+msgid "Connect to the selected asset"
+msgstr "连接选中的资产"
+
+msgid "Open the asset tree"
+msgstr "打开资产树"
+
+msgid "Clear the selected tree node"
+msgstr "清除当前选中的树节点"
+
+msgid "Switch the interface language"
+msgstr "切换界面语言"
+
+msgid "Switch to text mode"
+msgstr "切换到纯文本模式"
+
+msgid "Exit the asset list"
+msgstr "退出资产列表"
+
+msgid "Open shortcut help"
+msgstr "打开快捷键帮助"
+
+msgid "Close shortcut help"
+msgstr "关闭快捷键帮助"
+
+msgid "View complete information for the selected item"
+msgstr "查看所选项目的完整信息"
+
+msgid "Protocols supported by the current terminal"
+msgstr "当前终端支持的协议"
+
+msgid "Collapse or expand the selected node"
+msgstr "折叠或展开选中的节点"
+
+msgid "Use the selected node to filter assets"
+msgstr "使用选中的节点筛选资产"
+
+msgid "Switch the asset tree type"
+msgstr "切换资产树类型"
+
+msgid "Reload the current asset tree"
+msgstr "重新加载当前资产树"
+
+msgid "Apply the selected language"
+msgstr "应用选中的语言"
+
+msgid "Select an authorized account"
+msgstr "选择授权账号"
+
+msgid "Select a connection protocol"
+msgstr "选择连接协议"
+
+msgid "Search authorized accounts"
+msgstr "搜索授权账号"
+
+msgid "Connect using the selected account and protocol"
+msgstr "使用选中的账号和协议连接"
+
+msgid "Path"
+msgstr "路径"
+
+msgid "Asset count"
+msgstr "资产数量"
+
+msgid "Category"
+msgstr "类别"
+
+msgid "Active"
+msgstr "激活"
+
+msgid "Actions"
+msgstr "动作"
+
+msgid "Key"
+msgstr "键"
+
+msgid "Details"
+msgstr "详情"
+
+msgid "Refresh the current asset list and keep search and tree filters"
+msgstr "刷新当前资产列表，并保留搜索和资产树筛选条件"
+
+msgid "Yes"
+msgstr "是"
+
+msgid "No"
+msgstr "否"
+
+msgid "My Assets"
+msgstr "我的资产"

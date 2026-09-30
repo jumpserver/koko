@@ -436,8 +436,8 @@ msgstr "Seleccionar protocolo: introduce el número y pulsa Enter"
 msgid "Tree progress: %d/%d"
 msgstr "Progreso del árbol: %d/%d"
 
-msgid "Browse tree: [Enter] next line · [Space] next page"
-msgstr "Árbol: [Enter] línea siguiente · [Space] página siguiente"
+msgid "Browse tree: [enter] next line · [space] next page"
+msgstr "Árbol: [enter] línea siguiente · [space] página siguiente"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "Ver activos: [%c + número] + Enter"
@@ -934,3 +934,168 @@ msgstr "Todos los favoritos"
 
 msgid "No matching assets"
 msgstr "No hay activos coincidentes"
+
+msgid "Account"
+msgstr "Cuenta"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Clear"
+msgstr "Limpiar"
+
+msgid "Connect"
+msgstr "Conectar"
+
+msgid "Confirm"
+msgstr "Confirmar"
+
+msgid "Double-click"
+msgstr "Doble clic"
+
+msgid "Language"
+msgstr "Idioma"
+
+msgid "Page"
+msgstr "Página"
+
+msgid "Quit"
+msgstr "Salir"
+
+msgid "Search"
+msgstr "Buscar"
+
+msgid "Select"
+msgstr "Seleccionar"
+
+msgid "Text mode"
+msgstr "Modo texto"
+
+msgid "Asset tree"
+msgstr "Árbol de activos"
+
+msgid "Clear node"
+msgstr "Borrar nodo"
+
+msgid "Clear search"
+msgstr "Borrar búsqueda"
+
+msgid "Authorization tree"
+msgstr "Árbol de autorizaciones"
+
+msgid "Type tree"
+msgstr "Árbol de tipos"
+
+msgid "Favorite tree"
+msgstr "Árbol de favoritos"
+
+msgid "Refresh"
+msgstr "Actualizar"
+
+msgid "Switch tree"
+msgstr "Cambiar árbol"
+
+msgid "Switch language"
+msgstr "Cambiar idioma"
+
+msgid "Search assets in the current scope"
+msgstr "Buscar activos en el ámbito actual"
+
+msgid "Clear the current asset search"
+msgstr "Borrar la búsqueda actual de activos"
+
+msgid "Move the selection up or down"
+msgstr "Mover la selección hacia arriba o abajo"
+
+msgid "Go to the previous or next page"
+msgstr "Ir a la página anterior o siguiente"
+
+msgid "Connect to the selected asset"
+msgstr "Conectarse al activo seleccionado"
+
+msgid "Open the asset tree"
+msgstr "Abrir el árbol de activos"
+
+msgid "Clear the selected tree node"
+msgstr "Borrar el nodo de árbol seleccionado"
+
+msgid "Switch the interface language"
+msgstr "Cambiar el idioma de la interfaz"
+
+msgid "Switch to text mode"
+msgstr "Cambiar al modo texto"
+
+msgid "Exit the asset list"
+msgstr "Salir de la lista de activos"
+
+msgid "Open shortcut help"
+msgstr "Abrir la ayuda de atajos"
+
+msgid "Close shortcut help"
+msgstr "Cerrar la ayuda de atajos"
+
+msgid "View complete information for the selected item"
+msgstr "Ver la información completa del elemento seleccionado"
+
+msgid "Protocols supported by the current terminal"
+msgstr "Protocolos compatibles con el terminal actual"
+
+msgid "Collapse or expand the selected node"
+msgstr "Contraer o expandir el nodo seleccionado"
+
+msgid "Use the selected node to filter assets"
+msgstr "Usar el nodo seleccionado para filtrar activos"
+
+msgid "Switch the asset tree type"
+msgstr "Cambiar el tipo de árbol de activos"
+
+msgid "Reload the current asset tree"
+msgstr "Recargar el árbol de activos actual"
+
+msgid "Apply the selected language"
+msgstr "Aplicar el idioma seleccionado"
+
+msgid "Select an authorized account"
+msgstr "Seleccionar una cuenta autorizada"
+
+msgid "Select a connection protocol"
+msgstr "Seleccionar un protocolo de conexión"
+
+msgid "Search authorized accounts"
+msgstr "Buscar cuentas autorizadas"
+
+msgid "Connect using the selected account and protocol"
+msgstr "Conectarse con la cuenta y el protocolo seleccionados"
+
+msgid "Path"
+msgstr "Ruta"
+
+msgid "Asset count"
+msgstr "Número de activos"
+
+msgid "Category"
+msgstr "Categoría"
+
+msgid "Active"
+msgstr "Activo"
+
+msgid "Actions"
+msgstr "Acciones"
+
+msgid "Key"
+msgstr "Clave"
+
+msgid "Details"
+msgstr "Detalles"
+
+msgid "Refresh the current asset list and keep search and tree filters"
+msgstr "Actualizar la lista de activos actual y conservar los filtros de búsqueda y árbol"
+
+msgid "Yes"
+msgstr "Sí"
+
+msgid "No"
+msgstr "No"
+
+msgid "My Assets"
+msgstr "Mis activos"

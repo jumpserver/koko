@@ -22,6 +22,7 @@ import (
 
 const tuiSearchMaxLength = 256
 const tuiDoubleClickInterval = 500 * time.Millisecond
+const tuiStatusPrefix = "▶ "
 
 const (
 	tuiCursorMarkerPrefix = "\x1b]99;koko-cursor;"
@@ -34,7 +35,7 @@ const (
 
 const (
 	tuiSelectedStyle         = "\x1b[7m"
-	tuiHeaderStyle           = tuiSelectedStyle
+	tuiBoldStyle             = "\x1b[1m"
 	tuiSelectedProtocolStyle = tuiSelectedStyle
 	tuiStyleReset            = "\x1b[0m"
 )
@@ -47,6 +48,7 @@ type assetPageMsg struct {
 	hasPrev     bool
 	hasNext     bool
 	pageSize    int
+	refresh     bool
 	err         error
 }
 
@@ -57,15 +59,34 @@ type assetChoicesMsg struct {
 	err       error
 }
 
+type assetUnavailableMsg struct {
+	message string
+}
+
 type assetTUIDialog struct {
-	asset            model.PermAsset
-	accounts         []model.PermAccount
-	protocols        []string
-	accountSearch    []rune
-	accountMatches   []int
-	searchingAccount bool
-	accountIndex     int
-	protocolIndex    int
+	asset             model.PermAsset
+	accounts          []model.PermAccount
+	protocols         []string
+	accountSearch     []rune
+	accountMatches    []int
+	searchingAccount  bool
+	accountIndex      int
+	accountScroll     int
+	protocolIndex     int
+	scrollbarDragging bool
+	scrollbarGrab     int
+}
+
+type assetTUILanguageDialog struct {
+	index        int
+	lastClickRow int
+	lastClickAt  time.Time
+}
+
+type assetTUIHelpRow struct {
+	key         string
+	description string
+	separator   bool
 }
 
 type assetTUIConnection struct {
@@ -85,22 +106,35 @@ type assetTUI struct {
 	total    int
 	cursor   int
 
-	assets         []model.PermAsset
-	connectable    []bool
-	hasPrev        bool
-	hasNext        bool
-	query          string
-	searchInput    []rune
-	searching      bool
-	loading        bool
-	loadingChoices bool
-	status         string
-	switchText     bool
-	resume         bool
-	dialog         *assetTUIDialog
-	connection     *assetTUIConnection
-	lastClickRow   int
-	lastClickAt    time.Time
+	assets            []model.PermAsset
+	connectable       []bool
+	hasPrev           bool
+	hasNext           bool
+	query             string
+	searchInput       []rune
+	searching         bool
+	loading           bool
+	loadingChoices    bool
+	status            string
+	switchText        bool
+	resume            bool
+	dialog            *assetTUIDialog
+	languageDialog    *assetTUILanguageDialog
+	helpDialog        bool
+	helpScroll        int
+	helpDragging      bool
+	helpScrollbarGrab int
+	detailDialog      *assetTUIDetailDialog
+	treeDialog        *assetTUITreeDialog
+	treeDialogStates  map[assetTUITreeKind]assetTUITreeDialog
+	lastTreeDialog    assetTUITreeKind
+	trees             map[assetTUITreeKind]*assetTUITreeCache
+	selectedTree      assetTUITreeKind
+	selectedTreeID    string
+	selectedPath      string
+	connection        *assetTUIConnection
+	lastClickRow      int
+	lastClickAt       time.Time
 }
 
 func newAssetTUI(handler *InteractiveHandler) *assetTUI {
@@ -108,6 +142,8 @@ func newAssetTUI(handler *InteractiveHandler) *assetTUI {
 	model := &assetTUI{
 		handler: handler, selector: handler.selectHandler,
 		width: width, height: height,
+		trees:            make(map[assetTUITreeKind]*assetTUITreeCache),
+		treeDialogStates: make(map[assetTUITreeKind]assetTUITreeDialog),
 	}
 	model.pageSize = model.assetRows()
 	return model
@@ -139,16 +175,21 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case assetPageMsg:
 		m.loading = false
 		if msg.err != nil {
-			m.assets, m.connectable = nil, nil
-			m.total, m.hasPrev, m.hasNext = 0, false, false
-			m.status = userFacingErrorMessage(m.tr("资产加载失败", "Failed to load assets"), msg.err)
-			return m, nil
+			if !msg.refresh {
+				m.assets, m.connectable = nil, nil
+				m.total, m.hasPrev, m.hasNext = 0, false, false
+			}
+			return m, m.showStatus(userFacingErrorMessage(m.tr("资产加载失败", "Failed to load assets"), msg.err))
 		}
 		m.assets = msg.assets
 		m.connectable = msg.connectable
 		m.offset, m.total = msg.offset, msg.total
 		m.hasPrev, m.hasNext = msg.hasPrev, msg.hasNext
-		m.cursor = 0
+		if msg.refresh {
+			m.cursor = min(m.cursor, max(0, len(m.assets)-1))
+		} else {
+			m.cursor = 0
+		}
 		desiredPageSize := m.assetRows()
 		if msg.pageSize != desiredPageSize {
 			m.pageSize = desiredPageSize
@@ -159,21 +200,55 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.loadPage(offset)
 		}
 		if len(m.assets) == 0 {
-			m.status = m.tr("没有匹配的资产", "No matching assets")
+			return m, m.showStatus(m.tr("没有匹配的资产", "No matching assets"))
 		} else {
-			m.status = ""
+			m.clearStatus()
 		}
 	case assetChoicesMsg:
 		m.loadingChoices = false
 		if msg.err != nil {
-			m.status = userFacingErrorMessage(m.tr("无法获取连接选项", "Failed to load connection options"), msg.err)
+			return m, m.showStatus(userFacingErrorMessage(m.tr("无法获取连接选项", "Failed to load connection options"), msg.err))
+		}
+		m.clearStatus()
+		m.dialog = newAssetTUIDialog(msg.asset, msg.accounts, msg.protocols)
+	case assetTUIAssetDetailMsg:
+		if m.detailDialog == nil || m.detailDialog.assetID != msg.asset.ID {
 			return m, nil
 		}
-		m.status = ""
-		m.dialog = newAssetTUIDialog(msg.asset, msg.accounts, msg.protocols)
+		if msg.err != nil {
+			m.detailDialog.loading = false
+			return m, m.showStatus(userFacingErrorMessage(m.tr("资产详情加载失败", "Failed to load asset details"), msg.err))
+		}
+		m.clearStatus()
+		m.detailDialog = m.assetDetailDialog(msg.asset, msg.protocols)
+	case assetUnavailableMsg:
+		m.loadingChoices = false
+		return m, m.showStatus(msg.message)
+	case assetTUITreeNodesMsg:
+		return m, m.updateTreeNodes(msg)
+	case assetTUITreeCountsMsg:
+		m.updateTreeCounts(msg)
 	case tea.MouseMsg:
 		return m.updateMouse(tea.MouseEvent(msg))
 	case tea.KeyMsg:
+		if m.detailDialog != nil {
+			return m.updateDetailDialogKey(msg)
+		}
+		if m.helpDialog {
+			return m.updateHelpDialogKey(msg)
+		}
+		if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 && msg.Runes[0] == '?' &&
+			!m.searching && (m.dialog == nil || !m.dialog.searchingAccount) {
+			m.helpDialog = true
+			m.helpScroll = 0
+			return m, nil
+		}
+		if m.treeDialog != nil {
+			return m.updateTreeDialogKey(msg)
+		}
+		if m.languageDialog != nil {
+			return m.updateLanguageDialogKey(msg)
+		}
 		if m.dialog != nil {
 			return m.updateDialogKey(msg)
 		}
@@ -186,6 +261,14 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 {
 				switch msg.Runes[0] {
+				case 'g', 'G':
+					if !m.loadingChoices {
+						return m.reopenTreeDialog()
+					}
+				case 's', 'S':
+					if !m.loadingChoices {
+						m.openLanguageDialog()
+					}
 				case 't', 'T':
 					m.switchText = true
 					return m, tea.Quit
@@ -195,17 +278,16 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		if tuiIsSpaceKey(msg) {
+			return m, m.openAssetDetail()
+		}
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 		case tea.KeyUp:
-			if m.cursor > 0 {
-				m.cursor--
-			}
+			m.moveAssetCursor(-1)
 		case tea.KeyDown:
-			if m.cursor+1 < len(m.assets) {
-				m.cursor++
-			}
+			m.moveAssetCursor(1)
 		case tea.KeyHome:
 			m.cursor = 0
 		case tea.KeyEnd:
@@ -213,11 +295,11 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor = len(m.assets) - 1
 			}
 		case tea.KeyLeft, tea.KeyPgUp:
-			if m.hasPrev {
+			if m.canGoPreviousPage() {
 				return m, m.loadPage(max(0, m.offset-m.pageSize))
 			}
 		case tea.KeyRight, tea.KeyPgDown:
-			if m.hasNext {
+			if m.canGoNextPage() {
 				return m, m.loadPage(m.offset + len(m.assets))
 			}
 		case tea.KeyEnter:
@@ -228,23 +310,34 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			switch msg.Runes[0] {
 			case '/':
-				m.searching = true
-				m.searchInput = []rune(m.query)
-				m.status = m.tr("输入关键字，回车搜索，Esc 取消", "Type a keyword, Enter to search, Esc to cancel")
+				m.focusSearch()
+				return m, nil
+			case 'x', 'X':
+				if m.query != "" {
+					m.query = ""
+					m.searchInput = nil
+					return m, m.loadPage(0)
+				}
+			case 'r', 'R':
+				return m, m.refreshPage()
+			case 's', 'S':
+				m.openLanguageDialog()
+			case 'g', 'G':
+				return m.reopenTreeDialog()
+			case 'c', 'C':
+				if m.selectedTree != 0 {
+					return m.clearTreeSelection()
+				}
 			case 'k':
-				if m.cursor > 0 {
-					m.cursor--
-				}
+				m.moveAssetCursor(-1)
 			case 'j':
-				if m.cursor+1 < len(m.assets) {
-					m.cursor++
-				}
+				m.moveAssetCursor(1)
 			case 'h':
-				if m.hasPrev {
+				if m.canGoPreviousPage() {
 					return m, m.loadPage(max(0, m.offset-m.pageSize))
 				}
 			case 'l':
-				if m.hasNext {
+				if m.canGoNextPage() {
 					return m, m.loadPage(m.offset + len(m.assets))
 				}
 			case 't', 'T':
@@ -252,18 +345,57 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			case 'q', 'Q':
 				return m, tea.Quit
-			case 'p', 'P':
-				if m.hasPrev {
-					return m, m.loadPage(max(0, m.offset-m.pageSize))
-				}
-			case 'n', 'N':
-				if m.hasNext {
-					return m, m.loadPage(m.offset + len(m.assets))
-				}
 			}
 		}
 	}
 	return m, nil
+}
+
+func (m *assetTUI) moveAssetCursor(delta int) {
+	count := len(m.assets)
+	if count == 0 {
+		m.cursor = 0
+		return
+	}
+	cursor := (m.cursor%count + count) % count
+	m.cursor = (cursor + delta%count + count) % count
+}
+
+func (m *assetTUI) canGoPreviousPage() bool {
+	return m.hasPrev || m.offset > 0
+}
+
+func (m *assetTUI) canGoNextPage() bool {
+	return m.hasNext || m.total > 0 && m.offset+len(m.assets) < m.total
+}
+
+func (m *assetTUI) clearTreeSelection() (tea.Model, tea.Cmd) {
+	m.selector.SetSelectType(TypeAsset)
+	m.selector.selectedNode = model.Node{}
+	m.selector.selectedType = classicTypeNode{}
+	m.selector.selectedFavorite = classicFavoriteNode{}
+	m.selector.selectedPath = ""
+	m.handler.treeOrigin = 0
+	m.handler.treeSelected = false
+	m.selectedTree = 0
+	m.selectedTreeID = ""
+	m.selectedPath = ""
+	return m, m.loadPage(0)
+}
+
+func (m *assetTUI) showStatus(message string) tea.Cmd {
+	m.status = message
+	return nil
+}
+
+func (m *assetTUI) clearStatus() {
+	m.status = ""
+}
+
+func (m *assetTUI) focusSearch() {
+	m.searching = true
+	m.searchInput = []rune(m.query)
+	m.clearStatus()
 }
 
 func (m *assetTUI) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -271,7 +403,7 @@ func (m *assetTUI) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyEsc:
 		m.searching = false
 		m.searchInput = nil
-		m.status = ""
+		m.clearStatus()
 	case tea.KeyEnter:
 		m.searching = false
 		m.query = strings.TrimSpace(strings.Map(func(r rune) rune {
@@ -302,12 +434,31 @@ func (m *assetTUI) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *assetTUI) loadPage(offset int) tea.Cmd {
+	return m.loadPageWithRefresh(offset, false)
+}
+
+func (m *assetTUI) refreshPage() tea.Cmd {
+	return m.loadPageWithRefresh(m.offset, true)
+}
+
+func (m *assetTUI) loadPageWithRefresh(offset int, refresh bool) tea.Cmd {
 	m.loading = true
-	m.status = m.tr("正在加载资产…", "Loading assets…")
+	status := m.tr("正在加载资产…", "Loading assets…")
+	if refresh {
+		status = m.tr("正在刷新资产…", "Refreshing assets…")
+	}
+	statusCmd := m.showStatus(status)
 	pageSize := m.pageSize
 	query := m.query
 	selector := m.selector
-	return func() tea.Msg {
+	loadCmd := func() tea.Msg {
+		if refresh && selector.loadingPolicy == loadingFromLocal {
+			assets, err := selector.h.jmsService.GetAllUserPermsAssets(selector.user.ID)
+			if err != nil {
+				return assetPageMsg{pageSize: pageSize, refresh: true, err: err}
+			}
+			selector.SetAllLocalData(assets)
+		}
 		var searches []string
 		if query != "" {
 			searches = []string{query}
@@ -317,9 +468,10 @@ func (m *assetTUI) loadPage(offset int) tea.Cmd {
 		return assetPageMsg{
 			assets: append([]model.PermAsset(nil), assets...), connectable: connectable,
 			offset: offset, total: selector.TotalCount(), hasPrev: selector.HasPrev(),
-			hasNext: selector.HasNext(), pageSize: pageSize, err: selector.loadErr,
+			hasNext: selector.HasNext(), pageSize: pageSize, refresh: refresh, err: selector.loadErr,
 		}
 	}
+	return tea.Batch(loadCmd, statusCmd)
 }
 
 func (m *assetTUI) openAssetDialog(index int) (tea.Model, tea.Cmd) {
@@ -327,16 +479,22 @@ func (m *assetTUI) openAssetDialog(index int) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if index >= len(m.connectable) || !m.connectable[index] {
-		m.status = m.tr("该资产当前不可连接", "This asset is unavailable")
-		return m, nil
+		m.loadingChoices = true
+		asset := m.assets[index]
+		selector := m.selector
+		statusCmd := m.showStatus(i18n.NewLang(m.handler.i18nLang).T("Cannot connect to this asset."))
+		reasonCmd := func() tea.Msg {
+			return assetUnavailableMsg{message: selector.unavailableAssetMessage(asset)}
+		}
+		return m, tea.Batch(reasonCmd, statusCmd)
 	}
 	m.loadingChoices = true
-	m.status = m.tr("正在加载账号和协议…", "Loading accounts and protocols…")
+	statusCmd := m.showStatus(m.tr("正在加载账号和协议…", "Loading accounts and protocols…"))
 	asset := m.assets[index]
 	selector := m.selector
 	mismatch := m.tr("资产信息不匹配", "Asset details do not match the selected asset")
 	noChoice := m.tr("没有可用的授权账号或终端协议", "No permitted accounts or terminal protocols")
-	return m, func() tea.Msg {
+	loadCmd := func() tea.Msg {
 		client := selector.h.assetClient(asset.OrgID)
 		detail, err := client.GetUserPermAssetDetailById(selector.user.ID, asset.ID)
 		if err != nil {
@@ -367,6 +525,7 @@ func (m *assetTUI) openAssetDialog(index int) (tea.Model, tea.Cmd) {
 		}
 		return assetChoicesMsg{asset: asset, accounts: accounts, protocols: protocols}
 	}
+	return m, tea.Batch(loadCmd, statusCmd)
 }
 
 func newAssetTUIDialog(asset model.PermAsset, accounts []model.PermAccount, protocols []string) *assetTUIDialog {
@@ -406,15 +565,33 @@ func (d *assetTUIDialog) selectedAccount() (model.PermAccount, bool) {
 	return d.accounts[index], true
 }
 
+func (d *assetTUIDialog) accountListStart(rows int) int {
+	total := len(d.accountMatches)
+	d.accountScroll = max(0, min(d.accountScroll, max(0, total-rows)))
+	if d.accountIndex < 0 || rows <= 0 {
+		return d.accountScroll
+	}
+	if d.accountIndex < d.accountScroll {
+		d.accountScroll = d.accountIndex
+	} else if d.accountIndex >= d.accountScroll+rows {
+		d.accountScroll = d.accountIndex - rows + 1
+	}
+	return d.accountScroll
+}
+
 func (m *assetTUI) updateDialogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	dialog := m.dialog
 	if dialog.searchingAccount {
 		return m.updateAccountSearch(msg)
 	}
+	if tuiIsSpaceKey(msg) {
+		m.openAccountDetail()
+		return m, nil
+	}
 	switch msg.Type {
 	case tea.KeyEsc:
 		m.dialog = nil
-		m.status = ""
+		m.clearStatus()
 	case tea.KeyLeft:
 		if dialog.protocolIndex > 0 {
 			dialog.protocolIndex--
@@ -513,18 +690,99 @@ func (m *assetTUI) chooseDialogConnection() (tea.Model, tea.Cmd) {
 	return m, tea.Quit
 }
 
-func (m *assetTUI) updateMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) {
-	if event.Action != tea.MouseActionPress {
+func (m *assetTUI) openLanguageDialog() {
+	current := i18n.NewLang(m.handler.i18nLang)
+	index := 0
+	for i, code := range i18n.AllCodes {
+		if code == current {
+			index = i
+			break
+		}
+	}
+	m.languageDialog = &assetTUILanguageDialog{index: index, lastClickRow: -1}
+}
+
+func (m *assetTUI) updateLanguageDialogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	dialog := m.languageDialog
+	dialog.lastClickRow = -1
+	dialog.lastClickAt = time.Time{}
+	switch msg.Type {
+	case tea.KeyEsc:
+		m.languageDialog = nil
+	case tea.KeyUp:
+		if dialog.index > 0 {
+			dialog.index--
+		}
+	case tea.KeyDown:
+		if dialog.index+1 < len(i18n.AllCodes) {
+			dialog.index++
+		}
+	case tea.KeyHome:
+		dialog.index = 0
+	case tea.KeyEnd:
+		dialog.index = len(i18n.AllCodes) - 1
+	case tea.KeyEnter:
+		return m.chooseLanguage()
+	case tea.KeyRunes:
+		if len(msg.Runes) != 1 {
+			return m, nil
+		}
+		switch msg.Runes[0] {
+		case 'k':
+			if dialog.index > 0 {
+				dialog.index--
+			}
+		case 'j':
+			if dialog.index+1 < len(i18n.AllCodes) {
+				dialog.index++
+			}
+		}
+	}
+	return m, nil
+}
+
+func (m *assetTUI) chooseLanguage() (tea.Model, tea.Cmd) {
+	dialog := m.languageDialog
+	if dialog == nil || dialog.index < 0 || dialog.index >= len(i18n.AllCodes) {
 		return m, nil
+	}
+	language := i18n.AllCodes[dialog.index]
+	m.languageDialog = nil
+	if language.String() == m.handler.i18nLang {
+		return m, nil
+	}
+	m.handler.i18nLang = language.String()
+	if m.handler.jmsService != nil {
+		setAPIClientLang(m.handler.jmsService, m.handler.i18nLang)
+	}
+	return m, m.showStatus(language.T("Switch language successfully"))
+}
+
+func (m *assetTUI) updateMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) {
+	if m.detailDialog != nil {
+		return m.updateDetailDialogMouse(event)
+	}
+	if m.helpDialog {
+		return m.updateHelpDialogMouse(event)
+	}
+	if m.treeDialog != nil {
+		return m.updateTreeDialogMouse(event)
+	}
+	if m.languageDialog != nil {
+		if event.Action != tea.MouseActionPress {
+			return m, nil
+		}
+		return m.updateLanguageDialogMouse(event)
 	}
 	if m.dialog != nil {
 		return m.updateDialogMouse(event)
 	}
+	if event.Action != tea.MouseActionPress {
+		return m, nil
+	}
 	if event.Button == tea.MouseButtonLeft && event.Y == 0 && event.X >= 0 && event.X < m.width {
 		if !m.searching {
-			m.searching = true
-			m.searchInput = []rune(m.query)
-			m.status = m.tr("输入关键字，回车搜索，Esc 取消", "Type a keyword, Enter to search, Esc to cancel")
+			m.focusSearch()
 		}
 		return m, nil
 	}
@@ -541,10 +799,10 @@ func (m *assetTUI) updateMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if event.Button != tea.MouseButtonLeft || m.loading || m.loadingChoices ||
-		event.X < 0 || event.X >= m.width || event.Y < 2 {
+		event.X < 0 || event.X >= m.width || event.Y < 3 {
 		return m, nil
 	}
-	row := event.Y - 2
+	row := event.Y - 3
 	if row < 0 || row >= len(m.assets) || row >= m.visibleAssetRows() {
 		return m, nil
 	}
@@ -574,14 +832,20 @@ func (m *assetTUI) View() string {
 		lines[1] = m.footerLine()
 		return m.viewWithCursor(lines)
 	}
-	lines[m.height-1] = m.footerLine()
 	if m.height == 3 {
-		lines[1] = tuiRightAlign(m.pageLine(), m.width)
+		lines[1] = m.statusPageLine()
+		lines[2] = m.footerLine()
+		return m.viewWithCursor(lines)
+	}
+	lines[1] = strings.Repeat("─", m.width)
+	if m.height == 4 {
+		lines[2] = m.statusPageLine()
+		lines[3] = m.footerLine()
 		return m.viewWithCursor(lines)
 	}
 
 	columns := m.columns()
-	lines[1] = tuiHeaderStyle + m.renderColumns(columns, nil, -1) + tuiStyleReset
+	lines[2] = tuiBoldStyle + m.renderColumns(columns, nil, -1) + tuiStyleReset
 	rowCount := min(len(m.assets), m.visibleAssetRows())
 	for i := 0; i < rowCount; i++ {
 		row := m.renderColumns(columns, &m.assets[i], i)
@@ -590,13 +854,28 @@ func (m *assetTUI) View() string {
 		} else if i >= len(m.connectable) || !m.connectable[i] {
 			row = "\x1b[2m" + row + tuiStyleReset
 		}
-		lines[i+2] = row
+		lines[i+3] = row
 	}
-	if m.hasPagination() {
-		lines[rowCount+2] = tuiRightAlign(m.pageLine(), m.width)
+	infoRow := rowCount + 3
+	if m.hasPagination() && infoRow+2 < m.height {
+		lines[infoRow] = strings.Repeat("─", m.width)
 	}
+	lines[m.height-2] = m.statusPageLine()
+	lines[m.height-1] = m.footerLine()
 	if m.dialog != nil {
 		m.renderDialog(lines)
+	}
+	if m.languageDialog != nil {
+		m.renderLanguageDialog(lines)
+	}
+	if m.treeDialog != nil {
+		m.renderTreeDialog(lines)
+	}
+	if m.helpDialog {
+		m.renderHelpDialog(lines)
+	}
+	if m.detailDialog != nil {
+		m.renderDetailDialog(lines)
 	}
 	return m.viewWithCursor(lines)
 }
@@ -608,19 +887,23 @@ func (m *assetTUI) viewWithCursor(lines []string) string {
 }
 
 func (m *assetTUI) terminalCursor() (x, y int, visible bool) {
+	if m.detailDialog != nil || m.helpDialog || m.treeDialog != nil || m.languageDialog != nil {
+		return 0, 0, false
+	}
 	if m.dialog != nil {
 		geometry := m.dialogGeometry()
-		if !m.dialog.searchingAccount || geometry.width < 36 || geometry.height < 10 ||
+		if !m.dialog.searchingAccount || geometry.width < 36 || geometry.height < 11 ||
 			geometry.y < 0 || geometry.y+geometry.height > max(1, m.height) {
 			return 0, 0, false
 		}
-		_, cursor := tuiSearchField(m.tr("账号", "Account"), m.dialog.accountSearch, geometry.width-4)
-		return geometry.x + 3 + cursor, geometry.y + 5, true
+		_, cursor := tuiSearchField(i18n.NewLang(m.handler.i18nLang).T("Account"), m.dialog.accountSearch, geometry.width-4)
+		return geometry.x + 3 + cursor, geometry.y + 6, true
 	}
 	if !m.searching || m.height < 2 {
 		return 0, 0, false
 	}
-	_, cursor := tuiSearchField(m.tr("我的资产", "My Assets"), m.searchInput, m.width)
+	searchWidth, _ := m.topLineLayout()
+	_, cursor := tuiSearchField(m.searchLabel(), m.searchInput, searchWidth)
 	return cursor, 0, true
 }
 
@@ -638,54 +921,379 @@ type assetTUIDialogGeometry struct {
 
 func (m *assetTUI) dialogGeometry() assetTUIDialogGeometry {
 	width := min(72, max(1, m.width-4))
-	height := min(max(12, min(8, len(m.dialog.accounts))+9), max(1, m.height-2))
+	height := min(max(13, min(8, len(m.dialog.accounts))+10), max(1, m.height-2))
 	return assetTUIDialogGeometry{
 		x: (m.width - width) / 2, y: (m.height - height) / 2,
-		width: width, height: height, rows: max(1, height-9),
+		width: width, height: height, rows: max(1, height-10),
 	}
+}
+
+func (m *assetTUI) languageDialogGeometry() assetTUIDialogGeometry {
+	width := min(52, max(1, m.width-8))
+	height := min(len(i18n.AllCodes)+6, max(1, m.height-4))
+	return assetTUIDialogGeometry{
+		x: (m.width - width) / 2, y: (m.height - height) / 2,
+		width: width, height: height, rows: max(1, height-6),
+	}
+}
+
+func (m *assetTUI) helpDialogGeometry(rows []assetTUIHelpRow) assetTUIDialogGeometry {
+	keyWidth, descriptionWidth := 0, 0
+	for _, row := range rows {
+		keyWidth = max(keyWidth, runewidth.StringWidth(row.key))
+		descriptionWidth = max(descriptionWidth, runewidth.StringWidth(row.description))
+	}
+	maxWidth := min(64, max(1, m.width-1))
+	width := min(max(30, keyWidth+descriptionWidth+9), maxWidth)
+	if m.showHelpProtocols() {
+		width = maxWidth
+	}
+	protocolLines := m.helpProtocolLines(max(0, width-4))
+	protocolRows := 0
+	if len(protocolLines) > 0 {
+		protocolRows = len(protocolLines) + 1
+	}
+	displayRows := helpDialogRows(rows)
+	height := min(len(displayRows)+4+protocolRows, max(1, m.height-1))
+	return assetTUIDialogGeometry{
+		x: max(0, m.width-width-1), y: max(0, m.height-height-1),
+		width: width, height: height, rows: max(0, height-4-protocolRows),
+	}
+}
+
+func helpDialogRows(rows []assetTUIHelpRow) []assetTUIHelpRow {
+	displayRows := make([]assetTUIHelpRow, 0, max(0, len(rows)*2-1))
+	for index, row := range rows {
+		displayRows = append(displayRows, row)
+		if index+1 < len(rows) {
+			displayRows = append(displayRows, assetTUIHelpRow{separator: true})
+		}
+	}
+	return displayRows
+}
+
+func (m *assetTUI) updateHelpDialogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	rows := helpDialogRows(m.helpShortcutRows())
+	visible := max(1, m.helpDialogGeometry(m.helpShortcutRows()).rows)
+	maxScroll := max(0, len(rows)-visible)
+	switch msg.Type {
+	case tea.KeyEsc:
+		m.helpDialog = false
+	case tea.KeyUp:
+		m.helpScroll = max(0, m.helpScroll-1)
+	case tea.KeyDown:
+		m.helpScroll = min(maxScroll, m.helpScroll+1)
+	case tea.KeyPgUp:
+		m.helpScroll = max(0, m.helpScroll-visible)
+	case tea.KeyPgDown:
+		m.helpScroll = min(maxScroll, m.helpScroll+visible)
+	case tea.KeyHome:
+		m.helpScroll = 0
+	case tea.KeyEnd:
+		m.helpScroll = maxScroll
+	case tea.KeyRunes:
+		if len(msg.Runes) == 1 && msg.Runes[0] == 'k' {
+			m.helpScroll = max(0, m.helpScroll-1)
+		} else if len(msg.Runes) == 1 && msg.Runes[0] == 'j' {
+			m.helpScroll = min(maxScroll, m.helpScroll+1)
+		}
+	}
+	return m, nil
+}
+
+func (m *assetTUI) updateHelpDialogMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) {
+	rows := helpDialogRows(m.helpShortcutRows())
+	geometry := m.helpDialogGeometry(m.helpShortcutRows())
+	listY := geometry.y + 3
+	if m.helpDragging {
+		if event.Action == tea.MouseActionRelease {
+			m.helpDragging = false
+			return m, nil
+		}
+		if event.Action == tea.MouseActionMotion {
+			row := max(0, min(event.Y-listY, geometry.rows-1))
+			m.helpScroll = tuiScrollbarStartAt(row, m.helpScrollbarGrab, len(rows), geometry.rows)
+		}
+		return m, nil
+	}
+	if event.Action != tea.MouseActionPress {
+		return m, nil
+	}
+	if event.Button == tea.MouseButtonWheelUp {
+		m.helpScroll = max(0, m.helpScroll-1)
+		return m, nil
+	}
+	if event.Button == tea.MouseButtonWheelDown {
+		m.helpScroll = min(max(0, len(rows)-geometry.rows), m.helpScroll+1)
+		return m, nil
+	}
+	if event.Button == tea.MouseButtonLeft && len(rows) > geometry.rows &&
+		event.X == geometry.x+geometry.width-2 && event.Y >= listY && event.Y < listY+geometry.rows {
+		thumbStart, thumbSize, _, _ := tuiScrollbarMetrics(m.helpScroll, len(rows), geometry.rows)
+		row := event.Y - listY
+		m.helpScrollbarGrab = thumbSize / 2
+		if row >= thumbStart && row < thumbStart+thumbSize {
+			m.helpScrollbarGrab = row - thumbStart
+		}
+		m.helpDragging = true
+		m.helpScroll = tuiScrollbarStartAt(row, m.helpScrollbarGrab, len(rows), geometry.rows)
+	}
+	return m, nil
 }
 
 func (m *assetTUI) renderDialog(lines []string) {
 	geometry := m.dialogGeometry()
-	if geometry.width < 36 || geometry.height < 10 || geometry.y < 0 || geometry.y+geometry.height > len(lines) {
+	if geometry.width < 36 || geometry.height < 11 || geometry.y < 0 || geometry.y+geometry.height > len(lines) {
 		return
 	}
 	dialog := m.dialog
+	lang := i18n.NewLang(m.handler.i18nLang)
 	title := fmt.Sprintf("%s - %s", m.tr("连接", "Connect"), dialog.asset.Name)
 	popup := tuiDialogFrame("", geometry.width, geometry.height)
-	popup[1] = "│" + tuiDialogLeft(title, geometry.width-2) + "│"
+	popup[1] = "│" + tuiCenter(title, geometry.width-2) + "│"
 	popup[2] = "├" + strings.Repeat("─", geometry.width-2) + "┤"
-	protocols, _ := tuiDialogProtocolLine(dialog.protocols, dialog.protocolIndex, geometry.width-4)
-	popup[3] = "│  " + protocols + "│"
-	search := m.tr("账号", "Account")
+	popup[3] = "│" + tuiDialogLeft(lang.T("Protocol"), geometry.width-2) + "│"
+	protocols, _ := tuiDialogProtocolLine(dialog.protocols, dialog.protocolIndex, geometry.width-6)
+	popup[4] = "│    " + protocols + "│"
+	search := lang.T("Account")
 	if len(dialog.accountSearch) > 0 || dialog.searchingAccount {
-		search, _ = tuiSearchField(m.tr("账号", "Account"), dialog.accountSearch, geometry.width-4)
-		popup[5] = "│  " + search + "│"
+		search, _ = tuiSearchField(lang.T("Account"), dialog.accountSearch, geometry.width-4)
+		popup[6] = "│  " + search + "│"
 	} else {
-		popup[5] = "│" + tuiDialogLeft(search, geometry.width-2) + "│"
+		popup[6] = "│" + tuiDialogLeft(search, geometry.width-2) + "│"
 	}
-	accountStart := tuiDialogListStart(dialog.accountIndex, len(dialog.accountMatches), geometry.rows)
+	accountStart := dialog.accountListStart(geometry.rows)
+	showScrollbar := len(dialog.accountMatches) > geometry.rows
+	accountWidth := geometry.width - 6
+	if showScrollbar {
+		accountWidth--
+	}
 	for row := 0; row < geometry.rows; row++ {
 		account := ""
+		selected := false
 		if position := accountStart + row; position < len(dialog.accountMatches) {
 			item := dialog.accounts[dialog.accountMatches[position]]
 			account = item.Username
 			if item.Name != "" {
 				account = item.Name + " (" + item.Username + ")"
 			}
-			if position == dialog.accountIndex {
-				account = "▶ " + account
-			} else {
-				account = "  " + account
-			}
+			selected = position == dialog.accountIndex
 		} else if row == 0 && len(dialog.accountMatches) == 0 {
 			account = m.tr("没有匹配的账号", "No matching accounts")
 		}
-		popup[row+6] = "│" + tuiDialogLeft(account, geometry.width-2) + "│"
+		content := tuiFit(account, accountWidth)
+		if selected {
+			content = tuiSelectedStyle + content + tuiStyleReset
+		}
+		scrollbar := ""
+		if showScrollbar {
+			scrollbar = tuiScrollbarCell(row, accountStart, len(dialog.accountMatches), geometry.rows)
+		}
+		popup[row+7] = "│    " + content + scrollbar + "│"
 	}
-	hint := m.tr("↑/↓ 账号  ·  ←/→ 协议  ·  / 搜索  ·  Enter 连接  ·  Esc 取消",
-		"↑/↓ Account  ·  ←/→ Protocol  ·  / Search  ·  Enter Connect  ·  Esc Cancel")
+	hint := tuiShortcutLine(geometry.width-4, []string{
+		"/:" + lang.T("Search"), "space:" + lang.T("Details"),
+		"enter:" + lang.T("Connect"), "esc:" + lang.T("Cancel"),
+	}, "?:"+lang.T("View help"))
+	if dialog.searchingAccount {
+		hint = strings.Join([]string{
+			"enter:" + lang.T("Confirm"), "esc:" + lang.T("Cancel"),
+			"backspace:" + lang.T("Delete"), "ctrl+u:" + lang.T("Clear"),
+		}, " · ")
+	}
+	popup[geometry.height-3] = "├" + strings.Repeat("─", geometry.width-2) + "┤"
 	popup[geometry.height-2] = "│" + tuiDialogLeft(hint, geometry.width-2) + "│"
+	m.overlayDialog(lines, popup, geometry)
+}
+
+func (m *assetTUI) renderLanguageDialog(lines []string) {
+	geometry := m.languageDialogGeometry()
+	if geometry.width < 20 || geometry.height < 8 || geometry.y < 0 || geometry.y+geometry.height > len(lines) {
+		return
+	}
+	dialog := m.languageDialog
+	popup := tuiDialogFrame("", geometry.width, geometry.height)
+	title := m.tr("切换语言", "language switch")
+	popup[1] = "│" + tuiCenter(title, geometry.width-2) + "│"
+	popup[2] = "├" + strings.Repeat("─", geometry.width-2) + "┤"
+	start := tuiDialogListStart(dialog.index, len(i18n.AllCodes), geometry.rows)
+	for row := 0; row < geometry.rows; row++ {
+		content := ""
+		if position := start + row; position < len(i18n.AllLangCodesStr) {
+			prefix := "  "
+			if position == dialog.index {
+				prefix = "▶ "
+			}
+			content = tuiDialogLeft(prefix+i18n.AllLangCodesStr[position], geometry.width-2)
+			if position == dialog.index {
+				content = tuiSelectedStyle + content + tuiStyleReset
+			}
+		} else {
+			content = strings.Repeat(" ", geometry.width-2)
+		}
+		popup[row+3] = "│" + content + "│"
+	}
+	lang := i18n.NewLang(m.handler.i18nLang)
+	hint := tuiShortcutLine(geometry.width-4, []string{
+		"enter:" + lang.T("Confirm"), "esc:" + lang.T("Cancel"),
+	}, "?:"+lang.T("View help"))
+	popup[geometry.height-3] = "├" + strings.Repeat("─", geometry.width-2) + "┤"
+	popup[geometry.height-2] = "│" + tuiDialogLeft(hint, geometry.width-2) + "│"
+	m.overlayDialog(lines, popup, geometry)
+}
+
+func (m *assetTUI) renderHelpDialog(lines []string) {
+	rows := m.helpShortcutRows()
+	geometry := m.helpDialogGeometry(rows)
+	if geometry.width < 20 || geometry.height < 5 || geometry.y < 0 || geometry.y+geometry.height > len(lines) {
+		return
+	}
+	popup := tuiDialogFrame("", geometry.width, geometry.height)
+	lang := i18n.NewLang(m.handler.i18nLang)
+	popup[1] = "│" + tuiCenter(lang.T("View help"), geometry.width-2) + "│"
+	popup[2] = "├" + strings.Repeat("─", geometry.width-2) + "┤"
+	displayRows := helpDialogRows(rows)
+	m.helpScroll = max(0, min(m.helpScroll, max(0, len(displayRows)-geometry.rows)))
+	keyWidth := 0
+	for _, row := range rows {
+		keyWidth = max(keyWidth, runewidth.StringWidth(row.key))
+	}
+	keyWidth = min(keyWidth, max(1, geometry.width/3))
+	descriptionWidth := max(0, geometry.width-keyWidth-8)
+	showScrollbar := len(displayRows) > geometry.rows
+	for index := 0; index < geometry.rows; index++ {
+		key, description := "", ""
+		separator := false
+		if position := m.helpScroll + index; position < len(displayRows) {
+			key, description = displayRows[position].key, displayRows[position].description
+			separator = displayRows[position].separator
+		}
+		scrollbar := " "
+		if showScrollbar {
+			scrollbar = tuiScrollbarCell(index, m.helpScroll, len(displayRows), geometry.rows)
+		}
+		if separator {
+			popup[index+3] = "│  " + strings.Repeat(" ", keyWidth) + " │ " +
+				strings.Repeat(" ", descriptionWidth) + scrollbar + "│"
+			continue
+		}
+		if key == "" && description == "" {
+			popup[index+3] = "│" + strings.Repeat(" ", geometry.width-3) + scrollbar + "│"
+			continue
+		}
+		popup[index+3] = "│  " + tuiFit(key, keyWidth) + " │ " +
+			tuiFit(description, descriptionWidth) + scrollbar + "│"
+	}
+	protocolWidth := max(0, geometry.width-6)
+	protocolLines := m.helpProtocolLines(protocolWidth)
+	protocolStart := geometry.rows + 3
+	availableProtocolRows := max(0, geometry.height-protocolStart-2)
+	if len(protocolLines) > availableProtocolRows {
+		protocolLines = protocolLines[:availableProtocolRows]
+	}
+	if len(protocolLines) > 0 {
+		popup[protocolStart] = "├" + strings.Repeat("─", geometry.width-2) + "┤"
+		for index, line := range protocolLines {
+			popup[protocolStart+index+1] = "│  " + tuiFit(line, protocolWidth) + "  │"
+		}
+	}
+	m.overlayDialog(lines, popup, geometry)
+}
+
+func (m *assetTUI) showHelpProtocols() bool {
+	return m.treeDialog == nil && m.languageDialog == nil && m.dialog == nil
+}
+
+func (m *assetTUI) helpProtocolLines(width int) []string {
+	if !m.showHelpProtocols() || width <= 0 {
+		return nil
+	}
+	label := i18n.NewLang(m.handler.i18nLang).T("Protocols supported by the current terminal")
+	items := srvconn.SupportedProtocols()
+	if len(items) == 0 {
+		return []string{label + ":", "-"}
+	}
+	lines := []string{label + ":"}
+	line := ""
+	for _, item := range items {
+		separator := ""
+		if line != "" {
+			separator = " · "
+		}
+		if runewidth.StringWidth(line+separator+item) > width && line != "" {
+			lines = append(lines, line)
+			line = item
+			continue
+		}
+		line += separator + item
+	}
+	return append(lines, line)
+}
+
+func (m *assetTUI) helpShortcutRows() []assetTUIHelpRow {
+	lang := i18n.NewLang(m.handler.i18nLang)
+	row := func(key, description string) assetTUIHelpRow {
+		return assetTUIHelpRow{key: key, description: lang.T(description)}
+	}
+	if m.treeDialog != nil {
+		return []assetTUIHelpRow{
+			row("↑, ↓, j, k", "Move the selection up or down"),
+			row("←, →, h, l", "Collapse or expand the selected node"),
+			row("space", "View complete information for the selected item"),
+			row("enter", "Use the selected node to filter assets"),
+			row("tab, shift+tab", "Switch the asset tree type"), row("r", "Reload the current asset tree"),
+			row("?", "Open shortcut help"), row("esc", "Close shortcut help"),
+		}
+	}
+	if m.languageDialog != nil {
+		return []assetTUIHelpRow{
+			row("↑, ↓, j, k", "Move the selection up or down"),
+			row("enter", "Apply the selected language"), row("?", "Open shortcut help"),
+			row("esc", "Close shortcut help"),
+		}
+	}
+	if m.dialog != nil {
+		return []assetTUIHelpRow{
+			row("↑, ↓, j, k", "Select an authorized account"),
+			row("←, →, h, l", "Select a connection protocol"),
+			row("space", "View complete information for the selected item"),
+			row("/", "Search authorized accounts"), row("enter", "Connect using the selected account and protocol"),
+			row("?", "Open shortcut help"), row("esc", "Close shortcut help"),
+		}
+	}
+	if m.loading || m.loadingChoices {
+		rows := []assetTUIHelpRow{}
+		if !m.loadingChoices {
+			rows = append(rows, row("g", "Open the asset tree"), row("s", "Switch the interface language"))
+		}
+		return append(rows,
+			row("t", "Switch to text mode"), row("ctrl+c, q", "Quit"),
+			row("?", "Open shortcut help"),
+			row("esc", "Close shortcut help"),
+		)
+	}
+	rows := []assetTUIHelpRow{row("/", "Search assets in the current scope")}
+	if m.query != "" {
+		rows = append(rows, row("x", "Clear the current asset search"))
+	}
+	rows = append(rows,
+		row("↑, ↓, j, k", "Move the selection up or down"),
+		row("←, →, h, l", "Go to the previous or next page"),
+		row("space", "View complete information for the selected item"),
+		row("enter", "Connect to the selected asset"), row("g", "Open the asset tree"),
+		row("r", "Refresh the current asset list and keep search and tree filters"),
+	)
+	if m.selectedTree != 0 {
+		rows = append(rows, row("c", "Clear the selected tree node"))
+	}
+	return append(rows,
+		row("s", "Switch the interface language"), row("t", "Switch to text mode"),
+		row("ctrl+c, q", "Quit"),
+		row("?", "Open shortcut help"), row("esc", "Close shortcut help"),
+	)
+}
+
+func (m *assetTUI) overlayDialog(lines, popup []string, geometry assetTUIDialogGeometry) {
 	maskX := max(0, geometry.x-4)
 	maskRight := min(m.width, geometry.x+geometry.width+4)
 	maskWidth := maskRight - maskX
@@ -704,7 +1312,7 @@ func (m *assetTUI) renderDialog(lines []string) {
 
 func tuiOverlayLine(background, foreground string, foregroundWidth, x, width int) string {
 	style := ""
-	for _, candidate := range []string{tuiSelectedStyle, "\x1b[2m"} {
+	for _, candidate := range []string{tuiSelectedStyle, tuiBoldStyle, "\x1b[2m"} {
 		if strings.HasPrefix(background, candidate) {
 			style = candidate
 			background = strings.TrimPrefix(background, candidate)
@@ -822,8 +1430,102 @@ func tuiDialogListStart(selected, total, rows int) int {
 	return min(start, max(0, total-rows))
 }
 
+func tuiScrollbarCell(row, start, total, visible int) string {
+	thumbStart, thumbSize, _, ok := tuiScrollbarMetrics(start, total, visible)
+	if !ok || row < 0 || row >= visible {
+		return ""
+	}
+	if row >= thumbStart && row < thumbStart+thumbSize {
+		return "█"
+	}
+	return "░"
+}
+
+func tuiScrollbarMetrics(start, total, visible int) (thumbStart, thumbSize, maxStart int, ok bool) {
+	if total <= visible || visible <= 0 {
+		return 0, 0, 0, false
+	}
+	maxStart = total - visible
+	thumbSize = max(1, visible*visible/total)
+	start = max(0, min(start, maxStart))
+	if visible > thumbSize {
+		thumbStart = (start*(visible-thumbSize) + maxStart/2) / maxStart
+	}
+	return thumbStart, thumbSize, maxStart, true
+}
+
+func tuiScrollbarStartAt(row, grab, total, visible int) int {
+	_, thumbSize, maxStart, ok := tuiScrollbarMetrics(0, total, visible)
+	if !ok || visible <= thumbSize {
+		return 0
+	}
+	thumbStart := max(0, min(row-grab, visible-thumbSize))
+	return (thumbStart*maxStart + (visible-thumbSize)/2) / (visible - thumbSize)
+}
+
+func (m *assetTUI) updateLanguageDialogMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) {
+	geometry := m.languageDialogGeometry()
+	if event.X < geometry.x || event.X >= geometry.x+geometry.width ||
+		event.Y < geometry.y || event.Y >= geometry.y+geometry.height {
+		if event.Button == tea.MouseButtonLeft {
+			m.languageDialog = nil
+		}
+		return m, nil
+	}
+	dialog := m.languageDialog
+	if event.Button == tea.MouseButtonWheelUp || event.Button == tea.MouseButtonWheelDown {
+		step := 1
+		if event.Button == tea.MouseButtonWheelUp {
+			step = -1
+		}
+		dialog.index = max(0, min(len(i18n.AllCodes)-1, dialog.index+step))
+		return m, nil
+	}
+	if event.Button != tea.MouseButtonLeft {
+		return m, nil
+	}
+	row := event.Y - geometry.y - 3
+	if row < 0 || row >= geometry.rows {
+		dialog.lastClickRow = -1
+		dialog.lastClickAt = time.Time{}
+		return m, nil
+	}
+	start := tuiDialogListStart(dialog.index, len(i18n.AllCodes), geometry.rows)
+	position := start + row
+	if position >= len(i18n.AllCodes) {
+		return m, nil
+	}
+	dialog.index = position
+	now := time.Now()
+	if dialog.lastClickRow == position && now.Sub(dialog.lastClickAt) <= tuiDoubleClickInterval {
+		return m.chooseLanguage()
+	}
+	dialog.lastClickRow = position
+	dialog.lastClickAt = now
+	return m, nil
+}
+
 func (m *assetTUI) updateDialogMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) {
 	geometry := m.dialogGeometry()
+	dialog := m.dialog
+	total := len(dialog.accountMatches)
+	listY := geometry.y + 7
+	if dialog.scrollbarDragging {
+		if event.Action == tea.MouseActionRelease {
+			dialog.scrollbarDragging = false
+			return m, nil
+		}
+		if event.Action == tea.MouseActionMotion {
+			row := max(0, min(event.Y-listY, geometry.rows-1))
+			start := tuiScrollbarStartAt(row, dialog.scrollbarGrab, total, geometry.rows)
+			dialog.accountScroll = start
+			dialog.accountIndex = min(start, total-1)
+		}
+		return m, nil
+	}
+	if event.Action != tea.MouseActionPress {
+		return m, nil
+	}
 	if event.X < geometry.x || event.X >= geometry.x+geometry.width ||
 		event.Y < geometry.y || event.Y >= geometry.y+geometry.height {
 		if event.Button == tea.MouseButtonLeft {
@@ -836,57 +1538,150 @@ func (m *assetTUI) updateDialogMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) 
 		if event.Button == tea.MouseButtonWheelUp {
 			step = -1
 		}
-		m.dialog.accountIndex = max(0, min(len(m.dialog.accountMatches)-1, m.dialog.accountIndex+step))
+		dialog.accountIndex = max(0, min(total-1, dialog.accountIndex+step))
+		dialog.accountListStart(geometry.rows)
 		return m, nil
 	}
 	if event.Button != tea.MouseButtonLeft {
 		return m, nil
 	}
-	if event.Y == geometry.y+3 {
-		_, hits := tuiDialogProtocolLine(m.dialog.protocols, m.dialog.protocolIndex, geometry.width-4)
-		column := event.X - geometry.x - 3
+	if total > geometry.rows && event.X == geometry.x+geometry.width-2 &&
+		event.Y >= listY && event.Y < listY+geometry.rows {
+		start := dialog.accountListStart(geometry.rows)
+		thumbStart, thumbSize, _, _ := tuiScrollbarMetrics(start, total, geometry.rows)
+		row := event.Y - listY
+		dialog.scrollbarGrab = thumbSize / 2
+		if row >= thumbStart && row < thumbStart+thumbSize {
+			dialog.scrollbarGrab = row - thumbStart
+		}
+		dialog.scrollbarDragging = true
+		newStart := tuiScrollbarStartAt(row, dialog.scrollbarGrab, total, geometry.rows)
+		if newStart != start {
+			dialog.accountScroll = newStart
+			dialog.accountIndex = newStart
+		}
+		return m, nil
+	}
+	if event.Y == geometry.y+4 {
+		_, hits := tuiDialogProtocolLine(dialog.protocols, dialog.protocolIndex, geometry.width-6)
+		column := event.X - geometry.x - 5
 		for _, hit := range hits {
 			if column >= hit.start && column < hit.end {
-				m.dialog.protocolIndex = hit.index
-				m.dialog.searchingAccount = false
+				dialog.protocolIndex = hit.index
+				dialog.searchingAccount = false
 				break
 			}
 		}
 		return m, nil
 	}
-	if event.Y == geometry.y+5 {
-		m.dialog.searchingAccount = true
+	if event.Y == geometry.y+6 {
+		dialog.searchingAccount = true
 		return m, nil
 	}
-	row := event.Y - geometry.y - 6
+	row := event.Y - geometry.y - 7
 	if row < 0 || row >= geometry.rows {
 		return m, nil
 	}
-	m.dialog.searchingAccount = false
-	start := tuiDialogListStart(m.dialog.accountIndex, len(m.dialog.accountMatches), geometry.rows)
-	if position := start + row; position < len(m.dialog.accountMatches) {
-		m.dialog.accountIndex = position
+	dialog.searchingAccount = false
+	start := dialog.accountListStart(geometry.rows)
+	if position := start + row; position < total {
+		dialog.accountIndex = position
 	}
 	return m, nil
 }
 
 func (m *assetTUI) searchLine() string {
-	label := m.tr("我的资产", "My Assets")
+	width, info := m.topLineLayout()
+	line := m.searchLineWithWidth(width)
+	if info == "" {
+		return line
+	}
+	return line + strings.Repeat(" ", m.width-width-runewidth.StringWidth(info)) + info
+}
+
+func (m *assetTUI) searchLineWithWidth(width int) string {
+	label := m.searchLabel()
 	if !m.searching {
 		if m.query == "" {
-			return tuiFit(label, m.width)
+			return tuiFit(label, width)
 		}
-		return tuiFit(label+": "+m.query, m.width)
+		return tuiFit(label+": "+m.query, width)
 	}
-	line, _ := tuiSearchField(label, m.searchInput, m.width)
+	line, _ := tuiSearchField(label, m.searchInput, width)
 	return line
+}
+
+func (m *assetTUI) topLineLayout() (int, string) {
+	if m.searching {
+		return m.width, ""
+	}
+	info := m.topRightInfo()
+	if info == "" || m.width <= 0 {
+		return m.width, ""
+	}
+	const gap = 2
+	const minSearchWidth = 12
+	maxInfoWidth := m.width - minSearchWidth - gap
+	if maxInfoWidth <= 0 {
+		return m.width, ""
+	}
+	if runewidth.StringWidth(info) > maxInfoWidth {
+		info = runewidth.Truncate(info, maxInfoWidth, "…")
+	}
+	return max(1, m.width-runewidth.StringWidth(info)-gap), info
+}
+
+func (m *assetTUI) topRightInfo() string {
+	if m.handler == nil || m.handler.user == nil {
+		return ""
+	}
+	name := strings.TrimSpace(m.handler.user.Name)
+	productName := ""
+	if m.handler.publicSetting != nil {
+		productName = strings.TrimSpace(m.handler.publicSetting.Interface.LoginTitle)
+	}
+	version := strings.TrimSpace(m.handler.coreVersion)
+	if productName != "" && version != "" {
+		productName += " (" + version + ")"
+	}
+	if productName == "" {
+		return name
+	}
+	if name == "" {
+		return productName
+	}
+	return name + " | " + productName
+}
+
+func (m *assetTUI) searchLabel() string {
+	label := m.tr("我的资产", "My Assets")
+	if m.selectedTree == 0 {
+		return label
+	}
+	title := m.treeTitle(m.selectedTree)
+	if m.selectedPath == "" {
+		return label + " · " + title
+	}
+	return label + " · " + title + ":" + m.selectedPath
 }
 
 func tuiSearchField(label string, input []rune, width int) (string, int) {
 	if width <= 0 {
 		return "", 0
 	}
-	prompt := label + ": "
+	inputWidth := runewidth.StringWidth(string(input))
+	reservedInput := min(inputWidth, max(1, width/2))
+	labelWidth := max(0, width-runewidth.StringWidth(": ")-reservedInput-1)
+	visibleLabel := label
+	if runewidth.StringWidth(visibleLabel) > labelWidth {
+		if labelWidth <= 1 {
+			visibleLabel = strings.Repeat("…", labelWidth)
+		} else {
+			drop := runewidth.StringWidth(visibleLabel) - labelWidth + 1
+			visibleLabel = "…" + runewidth.TruncateLeft(visibleLabel, drop, "")
+		}
+	}
+	prompt := visibleLabel + ": "
 	available := max(0, width-runewidth.StringWidth(prompt)-1)
 	visibleInput := runewidth.TruncatePrefix(string(input), available, "")
 	cursor := min(width-1, runewidth.StringWidth(prompt)+runewidth.StringWidth(visibleInput))
@@ -903,18 +1698,55 @@ func (m *assetTUI) pageLine() string {
 	return fmt.Sprintf("%d-%d/%d", m.offset+1, min(m.offset+len(m.assets), m.total), m.total)
 }
 
+func (m *assetTUI) statusPageLine() string {
+	status := ""
+	if m.status != "" {
+		status = tuiStatusPrefix + m.status
+	}
+	page := m.pageLine()
+	if page == "" {
+		return tuiFit(status, m.width)
+	}
+	pageWidth := runewidth.StringWidth(page)
+	if status == "" || pageWidth >= m.width {
+		return tuiRightAlign(page, m.width)
+	}
+	return tuiFit(status, max(0, m.width-pageWidth-1)) + " " + page
+}
+
 func (m *assetTUI) footerLine() string {
+	lang := i18n.NewLang(m.handler.i18nLang)
 	if m.searching {
-		shortcuts := m.tr("Enter 搜索  Esc 取消  Backspace/Delete 删除  Ctrl+U 清空",
-			"Enter Search  Esc Cancel  Backspace/Delete Delete  Ctrl+U Clear")
+		shortcuts := strings.Join([]string{
+			"enter:" + lang.T("Search"), "esc:" + lang.T("Cancel"),
+			"backspace:" + lang.T("Delete"), "ctrl+u:" + lang.T("Clear"),
+		}, " · ")
 		return tuiFit(shortcuts, m.width)
 	}
-	shortcuts := m.tr("/ 搜索  t 纯文本  ↑/↓ 选择  双击/Enter 连接  ←/→ 翻页  q 退出",
-		"/ Search  t Text mode  ↑/↓ Select  Double-click/Enter Connect  ←/→ Page  q Quit")
-	if m.status != "" {
-		shortcuts += "  ·  " + m.status
+	items := []string{
+		"/:" + lang.T("Search"), "enter:" + lang.T("Connect"),
+		"space:" + lang.T("Details"), "g:" + lang.T("Asset tree"),
 	}
-	return tuiFit(shortcuts, m.width)
+	if m.query != "" {
+		items = append(items, "x:"+lang.T("Clear search"))
+	}
+	if m.selectedTree != 0 {
+		items = append(items, "c:"+lang.T("Clear node"))
+	}
+	items = append(items, "t:"+lang.T("Text mode"), "q:"+lang.T("Quit"))
+	return tuiShortcutLine(m.width, items, "?:"+lang.T("View help"))
+}
+
+func tuiShortcutLine(width int, items []string, help string) string {
+	visible := make([]string, 0, len(items)+1)
+	for _, item := range items {
+		candidate := append(append([]string(nil), visible...), item, help)
+		if runewidth.StringWidth(strings.Join(candidate, " · ")) <= width {
+			visible = append(visible, item)
+		}
+	}
+	visible = append(visible, help)
+	return tuiFit(strings.Join(visible, " · "), width)
 }
 
 func (m *assetTUI) assetRows() int {
@@ -922,7 +1754,7 @@ func (m *assetTUI) assetRows() int {
 }
 
 func (m *assetTUI) visibleAssetRows() int {
-	rows := max(0, m.height-3)
+	rows := max(0, m.height-5)
 	if m.hasPagination() {
 		rows = max(0, rows-1)
 	}
@@ -930,7 +1762,7 @@ func (m *assetTUI) visibleAssetRows() int {
 }
 
 func (m *assetTUI) hasPagination() bool {
-	return m.total > max(1, m.height-3)
+	return m.total > max(1, m.height-5)
 }
 
 type assetTUIColumn struct {
@@ -1064,10 +1896,15 @@ func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf m
 			handler.classicNavigation = false
 			handler.treeOrigin = 0
 			handler.selectHandler.SetSelectType(TypeAsset)
+			model.selectedTree = 0
+			model.selectedTreeID = ""
+			model.selectedPath = ""
 			model.switchText = false
 			model.loading = false
 			model.loadingChoices = false
 			model.dialog = nil
+			model.languageDialog = nil
+			model.treeDialog = nil
 			continue
 		}
 		if model.connection == nil {

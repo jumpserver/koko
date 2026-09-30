@@ -436,8 +436,8 @@ msgstr "Chọn giao thức: nhập số và nhấn Enter"
 msgid "Tree progress: %d/%d"
 msgstr "Tiến độ cây: %d/%d"
 
-msgid "Browse tree: [Enter] next line · [Space] next page"
-msgstr "Cây: [Enter] dòng tiếp · [Space] trang tiếp"
+msgid "Browse tree: [enter] next line · [space] next page"
+msgstr "Cây: [enter] dòng tiếp · [space] trang tiếp"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "Xem tài sản: [%c + số] + Enter"
@@ -903,3 +903,168 @@ msgstr "Tất cả mục yêu thích"
 
 msgid "No matching assets"
 msgstr "Không có tài sản phù hợp"
+
+msgid "Account"
+msgstr "Tài khoản"
+
+msgid "Cancel"
+msgstr "Hủy"
+
+msgid "Clear"
+msgstr "Xóa"
+
+msgid "Connect"
+msgstr "Kết nối"
+
+msgid "Confirm"
+msgstr "Xác nhận"
+
+msgid "Double-click"
+msgstr "Nhấp đúp"
+
+msgid "Language"
+msgstr "Ngôn ngữ"
+
+msgid "Page"
+msgstr "Trang"
+
+msgid "Quit"
+msgstr "Thoát"
+
+msgid "Search"
+msgstr "Tìm kiếm"
+
+msgid "Select"
+msgstr "Chọn"
+
+msgid "Text mode"
+msgstr "Chế độ văn bản"
+
+msgid "Asset tree"
+msgstr "Cây tài sản"
+
+msgid "Clear node"
+msgstr "Xóa nút"
+
+msgid "Clear search"
+msgstr "Xóa tìm kiếm"
+
+msgid "Authorization tree"
+msgstr "Cây phân quyền"
+
+msgid "Type tree"
+msgstr "Cây loại"
+
+msgid "Favorite tree"
+msgstr "Cây yêu thích"
+
+msgid "Refresh"
+msgstr "Làm mới"
+
+msgid "Switch tree"
+msgstr "Chuyển cây"
+
+msgid "Switch language"
+msgstr "Chuyển ngôn ngữ"
+
+msgid "Search assets in the current scope"
+msgstr "Tìm kiếm tài sản trong phạm vi hiện tại"
+
+msgid "Clear the current asset search"
+msgstr "Xóa tìm kiếm tài sản hiện tại"
+
+msgid "Move the selection up or down"
+msgstr "Di chuyển lựa chọn lên hoặc xuống"
+
+msgid "Go to the previous or next page"
+msgstr "Chuyển đến trang trước hoặc trang sau"
+
+msgid "Connect to the selected asset"
+msgstr "Kết nối đến tài sản đã chọn"
+
+msgid "Open the asset tree"
+msgstr "Mở cây tài sản"
+
+msgid "Clear the selected tree node"
+msgstr "Xóa nút cây đã chọn"
+
+msgid "Switch the interface language"
+msgstr "Chuyển ngôn ngữ giao diện"
+
+msgid "Switch to text mode"
+msgstr "Chuyển sang chế độ văn bản"
+
+msgid "Exit the asset list"
+msgstr "Thoát danh sách tài sản"
+
+msgid "Open shortcut help"
+msgstr "Mở trợ giúp phím tắt"
+
+msgid "Close shortcut help"
+msgstr "Đóng trợ giúp phím tắt"
+
+msgid "View complete information for the selected item"
+msgstr "Xem thông tin đầy đủ của mục đã chọn"
+
+msgid "Protocols supported by the current terminal"
+msgstr "Các giao thức được thiết bị đầu cuối hiện tại hỗ trợ"
+
+msgid "Collapse or expand the selected node"
+msgstr "Thu gọn hoặc mở rộng nút đã chọn"
+
+msgid "Use the selected node to filter assets"
+msgstr "Dùng nút đã chọn để lọc tài sản"
+
+msgid "Switch the asset tree type"
+msgstr "Chuyển loại cây tài sản"
+
+msgid "Reload the current asset tree"
+msgstr "Tải lại cây tài sản hiện tại"
+
+msgid "Apply the selected language"
+msgstr "Áp dụng ngôn ngữ đã chọn"
+
+msgid "Select an authorized account"
+msgstr "Chọn tài khoản được cấp quyền"
+
+msgid "Select a connection protocol"
+msgstr "Chọn giao thức kết nối"
+
+msgid "Search authorized accounts"
+msgstr "Tìm kiếm tài khoản được cấp quyền"
+
+msgid "Connect using the selected account and protocol"
+msgstr "Kết nối bằng tài khoản và giao thức đã chọn"
+
+msgid "Path"
+msgstr "Đường dẫn"
+
+msgid "Asset count"
+msgstr "Số lượng tài sản"
+
+msgid "Category"
+msgstr "Danh mục"
+
+msgid "Active"
+msgstr "Đang hoạt động"
+
+msgid "Actions"
+msgstr "Hành động"
+
+msgid "Key"
+msgstr "Khóa"
+
+msgid "Details"
+msgstr "Chi tiết"
+
+msgid "Refresh the current asset list and keep search and tree filters"
+msgstr "Làm mới danh sách tài sản hiện tại và giữ nguyên bộ lọc tìm kiếm và cây"
+
+msgid "Yes"
+msgstr "Có"
+
+msgid "No"
+msgstr "Không"
+
+msgid "My Assets"
+msgstr "Tài sản của tôi"

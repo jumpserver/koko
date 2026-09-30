@@ -436,8 +436,8 @@ msgstr "プロトコルを選択：番号を入力して Enter"
 msgid "Tree progress: %d/%d"
 msgstr "ツリー進捗：%d/%d"
 
-msgid "Browse tree: [Enter] next line · [Space] next page"
-msgstr "ツリー：[Enter] 次の行 · [Space] 次のページ"
+msgid "Browse tree: [enter] next line · [space] next page"
+msgstr "ツリー：[enter] 次の行 · [space] 次のページ"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "資産を表示：[%c + 番号] + Enter"
@@ -934,3 +934,168 @@ msgstr "すべてのお気に入り"
 
 msgid "No matching assets"
 msgstr "一致する資産がありません"
+
+msgid "Account"
+msgstr "アカウント"
+
+msgid "Cancel"
+msgstr "キャンセル"
+
+msgid "Clear"
+msgstr "クリア"
+
+msgid "Connect"
+msgstr "接続"
+
+msgid "Confirm"
+msgstr "確認"
+
+msgid "Double-click"
+msgstr "ダブルクリック"
+
+msgid "Language"
+msgstr "言語"
+
+msgid "Page"
+msgstr "ページ"
+
+msgid "Quit"
+msgstr "終了"
+
+msgid "Search"
+msgstr "検索"
+
+msgid "Select"
+msgstr "選択"
+
+msgid "Text mode"
+msgstr "テキストモード"
+
+msgid "Asset tree"
+msgstr "アセットツリー"
+
+msgid "Clear node"
+msgstr "ノードをクリア"
+
+msgid "Clear search"
+msgstr "検索をクリア"
+
+msgid "Authorization tree"
+msgstr "認可ツリー"
+
+msgid "Type tree"
+msgstr "タイプツリー"
+
+msgid "Favorite tree"
+msgstr "お気に入りツリー"
+
+msgid "Refresh"
+msgstr "更新"
+
+msgid "Switch tree"
+msgstr "ツリーを切り替え"
+
+msgid "Switch language"
+msgstr "言語を切り替え"
+
+msgid "Search assets in the current scope"
+msgstr "現在の範囲でアセットを検索"
+
+msgid "Clear the current asset search"
+msgstr "現在のアセット検索をクリア"
+
+msgid "Move the selection up or down"
+msgstr "選択項目を上下に移動"
+
+msgid "Go to the previous or next page"
+msgstr "前または次のページへ移動"
+
+msgid "Connect to the selected asset"
+msgstr "選択したアセットに接続"
+
+msgid "Open the asset tree"
+msgstr "アセットツリーを開く"
+
+msgid "Clear the selected tree node"
+msgstr "選択したツリーノードをクリア"
+
+msgid "Switch the interface language"
+msgstr "インターフェース言語を切り替え"
+
+msgid "Switch to text mode"
+msgstr "テキストモードに切り替え"
+
+msgid "Exit the asset list"
+msgstr "アセット一覧を終了"
+
+msgid "Open shortcut help"
+msgstr "ショートカットヘルプを開く"
+
+msgid "Close shortcut help"
+msgstr "ショートカットヘルプを閉じる"
+
+msgid "View complete information for the selected item"
+msgstr "選択した項目の完全な情報を表示"
+
+msgid "Protocols supported by the current terminal"
+msgstr "現在の端末でサポートされているプロトコル"
+
+msgid "Collapse or expand the selected node"
+msgstr "選択したノードを折りたたむか展開"
+
+msgid "Use the selected node to filter assets"
+msgstr "選択したノードでアセットを絞り込む"
+
+msgid "Switch the asset tree type"
+msgstr "アセットツリーの種類を切り替え"
+
+msgid "Reload the current asset tree"
+msgstr "現在のアセットツリーを再読み込み"
+
+msgid "Apply the selected language"
+msgstr "選択した言語を適用"
+
+msgid "Select an authorized account"
+msgstr "許可されたアカウントを選択"
+
+msgid "Select a connection protocol"
+msgstr "接続プロトコルを選択"
+
+msgid "Search authorized accounts"
+msgstr "許可されたアカウントを検索"
+
+msgid "Connect using the selected account and protocol"
+msgstr "選択したアカウントとプロトコルで接続"
+
+msgid "Path"
+msgstr "パス"
+
+msgid "Asset count"
+msgstr "アセット数"
+
+msgid "Category"
+msgstr "カテゴリ"
+
+msgid "Active"
+msgstr "有効"
+
+msgid "Actions"
+msgstr "操作"
+
+msgid "Key"
+msgstr "キー"
+
+msgid "Details"
+msgstr "詳細"
+
+msgid "Refresh the current asset list and keep search and tree filters"
+msgstr "現在のアセット一覧を更新し、検索条件とツリーフィルターを保持します"
+
+msgid "Yes"
+msgstr "はい"
+
+msgid "No"
+msgstr "いいえ"
+
+msgid "My Assets"
+msgstr "私の資産"

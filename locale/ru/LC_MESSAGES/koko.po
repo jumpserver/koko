@@ -436,8 +436,8 @@ msgstr "Выбор протокола: введите номер и нажмит
 msgid "Tree progress: %d/%d"
 msgstr "Прогресс дерева: %d/%d"
 
-msgid "Browse tree: [Enter] next line · [Space] next page"
-msgstr "Дерево: [Enter] следующая строка · [Space] следующая страница"
+msgid "Browse tree: [enter] next line · [space] next page"
+msgstr "Дерево: [enter] следующая строка · [space] следующая страница"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "Показать активы: [%c + номер] + Enter"
@@ -934,3 +934,168 @@ msgstr "Всё избранное"
 
 msgid "No matching assets"
 msgstr "Подходящих активов нет"
+
+msgid "Account"
+msgstr "Учётная запись"
+
+msgid "Cancel"
+msgstr "Отмена"
+
+msgid "Clear"
+msgstr "Очистить"
+
+msgid "Connect"
+msgstr "Подключить"
+
+msgid "Confirm"
+msgstr "Подтвердить"
+
+msgid "Double-click"
+msgstr "Двойной щелчок"
+
+msgid "Language"
+msgstr "Язык"
+
+msgid "Page"
+msgstr "Страница"
+
+msgid "Quit"
+msgstr "Выход"
+
+msgid "Search"
+msgstr "Поиск"
+
+msgid "Select"
+msgstr "Выбрать"
+
+msgid "Text mode"
+msgstr "Текстовый режим"
+
+msgid "Asset tree"
+msgstr "Дерево активов"
+
+msgid "Clear node"
+msgstr "Сбросить узел"
+
+msgid "Clear search"
+msgstr "Очистить поиск"
+
+msgid "Authorization tree"
+msgstr "Дерево авторизаций"
+
+msgid "Type tree"
+msgstr "Дерево типов"
+
+msgid "Favorite tree"
+msgstr "Дерево избранного"
+
+msgid "Refresh"
+msgstr "Обновить"
+
+msgid "Switch tree"
+msgstr "Переключить дерево"
+
+msgid "Switch language"
+msgstr "Переключить язык"
+
+msgid "Search assets in the current scope"
+msgstr "Искать активы в текущей области"
+
+msgid "Clear the current asset search"
+msgstr "Очистить текущий поиск активов"
+
+msgid "Move the selection up or down"
+msgstr "Переместить выбор вверх или вниз"
+
+msgid "Go to the previous or next page"
+msgstr "Перейти на предыдущую или следующую страницу"
+
+msgid "Connect to the selected asset"
+msgstr "Подключиться к выбранному активу"
+
+msgid "Open the asset tree"
+msgstr "Открыть дерево активов"
+
+msgid "Clear the selected tree node"
+msgstr "Очистить выбранный узел дерева"
+
+msgid "Switch the interface language"
+msgstr "Сменить язык интерфейса"
+
+msgid "Switch to text mode"
+msgstr "Переключиться в текстовый режим"
+
+msgid "Exit the asset list"
+msgstr "Выйти из списка активов"
+
+msgid "Open shortcut help"
+msgstr "Открыть справку по сочетаниям клавиш"
+
+msgid "Close shortcut help"
+msgstr "Закрыть справку по сочетаниям клавиш"
+
+msgid "View complete information for the selected item"
+msgstr "Просмотреть полную информацию о выбранном элементе"
+
+msgid "Protocols supported by the current terminal"
+msgstr "Протоколы, поддерживаемые текущим терминалом"
+
+msgid "Collapse or expand the selected node"
+msgstr "Свернуть или развернуть выбранный узел"
+
+msgid "Use the selected node to filter assets"
+msgstr "Фильтровать активы по выбранному узлу"
+
+msgid "Switch the asset tree type"
+msgstr "Сменить тип дерева активов"
+
+msgid "Reload the current asset tree"
+msgstr "Перезагрузить текущее дерево активов"
+
+msgid "Apply the selected language"
+msgstr "Применить выбранный язык"
+
+msgid "Select an authorized account"
+msgstr "Выбрать разрешённую учётную запись"
+
+msgid "Select a connection protocol"
+msgstr "Выбрать протокол подключения"
+
+msgid "Search authorized accounts"
+msgstr "Искать разрешённые учётные записи"
+
+msgid "Connect using the selected account and protocol"
+msgstr "Подключиться с выбранной учётной записью и протоколом"
+
+msgid "Path"
+msgstr "Путь"
+
+msgid "Asset count"
+msgstr "Количество активов"
+
+msgid "Category"
+msgstr "Категория"
+
+msgid "Active"
+msgstr "Активен"
+
+msgid "Actions"
+msgstr "Действия"
+
+msgid "Key"
+msgstr "Ключ"
+
+msgid "Details"
+msgstr "Подробности"
+
+msgid "Refresh the current asset list and keep search and tree filters"
+msgstr "Обновить текущий список активов, сохранив поиск и фильтры дерева"
+
+msgid "Yes"
+msgstr "Да"
+
+msgid "No"
+msgstr "Нет"
+
+msgid "My Assets"
+msgstr "Мои активы"
