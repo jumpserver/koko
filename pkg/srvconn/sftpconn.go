@@ -277,6 +277,25 @@ func (u *UserSftpConn) Create(path string) (*SftpFile, error) {
 	return nil, errNoSelectAsset
 }
 
+// OpenFile opens an upload path without changing the client's requested open semantics.
+func (u *UserSftpConn) OpenFile(path string, flags int) (*SftpFile, error) {
+	if u.assetDir != nil {
+		return u.assetDir.OpenFile(path, flags)
+	}
+
+	fi, restPath := u.ParsePath(path)
+	if _, ok := fi.(*UserSftpConn); ok {
+		return nil, sftp.ErrSshFxPermissionDenied
+	}
+	if _, ok := fi.(*NodeDir); ok {
+		return nil, errNoSelectAsset
+	}
+	if assetDir, ok := fi.(*AssetDir); ok {
+		return assetDir.OpenFile(restPath, flags)
+	}
+	return nil, errNoSelectAsset
+}
+
 func (u *UserSftpConn) CreateEditorTemp(path, auditPath string) (*SftpFile, error) {
 	if u.assetDir != nil {
 		return u.assetDir.CreateEditorTemp(path, auditPath)

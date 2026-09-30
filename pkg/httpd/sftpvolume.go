@@ -41,13 +41,14 @@ type sftpFileSystem interface {
 // sftpVolume owns remote files and auditing for one WebSFTP connection.
 // All paths use UserSftpConn's namespace; there is no UI-specific base path.
 type sftpVolume struct {
-	conn      sftpFileSystem
-	recorder  *proxy.FTPFileRecorder
-	lock      sync.Mutex
-	writeIdle *sync.Cond
-	uploads   map[int]*sftpUpload
-	closed    atomic.Bool
-	closeOnce sync.Once
+	conn               sftpFileSystem
+	recorder           *proxy.FTPFileRecorder
+	lock               sync.Mutex
+	writeIdle          *sync.Cond
+	uploads            map[int]*sftpUpload
+	completedTransfers map[string]completedSftpTransfer
+	closed             atomic.Bool
+	closeOnce          sync.Once
 
 	transferRead  *cachedTransferFile
 	transferWrite *cachedTransferFile
@@ -92,7 +93,10 @@ type fileMutationOptions struct {
 }
 
 func newSFTPVolume(conn sftpFileSystem, recorder *proxy.FTPFileRecorder) *sftpVolume {
-	u := &sftpVolume{conn: conn, recorder: recorder, uploads: make(map[int]*sftpUpload)}
+	u := &sftpVolume{
+		conn: conn, recorder: recorder, uploads: make(map[int]*sftpUpload),
+		completedTransfers: make(map[string]completedSftpTransfer),
+	}
 	u.writeIdle = sync.NewCond(&u.lock)
 	return u
 }

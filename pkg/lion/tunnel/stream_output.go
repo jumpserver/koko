@@ -18,162 +18,149 @@ import (
 type OutputStreamInterceptingFilter struct {
 	sync.Mutex
 	tunnel           *Connection
-	streams          map[string]OutStreamResource
+	streams          map[string]*OutStreamResource
 	acknowledgeBlobs bool
+	closed           bool
 }
 
-func (filter *OutputStreamInterceptingFilter) Filter(unfilteredInstruction *guacd.Instruction) *guacd.Instruction {
-
-	switch unfilteredInstruction.Opcode {
+func (filter *OutputStreamInterceptingFilter) Filter(instruction *guacd.Instruction) *guacd.Instruction {
+	switch instruction.Opcode {
 	case guacd.InstructionStreamingBlob:
-		// Intercept "blob" instructions for in-progress streams
-		//if (instruction.getOpcode().equals("blob"))
-		//return handleBlob(instruction);
-		return filter.handleBlob(unfilteredInstruction)
+		return filter.handleBlob(instruction)
 	case guacd.InstructionStreamingEnd:
-		//// Intercept "end" instructions for in-progress streams
-		//if (instruction.getOpcode().equals("end")) {
-		//	handleEnd(instruction);
-		//	return instruction;
-		//}
-		filter.handleEnd(unfilteredInstruction)
-		return unfilteredInstruction
+		filter.handleEnd(instruction)
 	case guacd.InstructionClientSync:
-		// Monitor "sync" instructions to ensure the client does not starve
-		// from lack of graphical updates
-		//if (instruction.getOpcode().equals("sync")) {
-		//	handleSync(instruction);
-		//	return instruction;
-		//}
-		filter.handleSync(unfilteredInstruction)
-		return unfilteredInstruction
+		filter.handleSync()
 	}
-
-	// Pass instruction through untouched
-	//return instruction
-	return unfilteredInstruction
+	return instruction
 }
 
-func (filter *OutputStreamInterceptingFilter) handleBlob(unfilteredInstruction *guacd.Instruction) *guacd.Instruction {
-	// Verify all required arguments are present
-	args := unfilteredInstruction.Args
-	if len(args) < 2 {
-		return unfilteredInstruction
+func (filter *OutputStreamInterceptingFilter) handleBlob(instruction *guacd.Instruction) *guacd.Instruction {
+	if len(instruction.Args) < 2 {
+		return instruction
 	}
-	index := args[0]
-	if stream, ok := filter.streams[index]; ok {
-		// Decode blob
-		data := args[1]
-		blob, err := base64.StdEncoding.DecodeString(data)
-		if err != nil {
-			logger.Errorf("Base64 decode blob err: %+v", err)
-			return nil
-		}
+	index := instruction.Args[0]
+	filter.Lock()
+	stream := filter.streams[index]
+	filter.Unlock()
+	if stream == nil {
+		return instruction
+	}
 
-		_, err = stream.writer.Write(blob)
-		if err != nil {
-			stream.err = err
-			logger.Errorf("OutputStream filter stream %s write err: %+v", stream.streamIndex, err)
-			if err = filter.sendAck(index, "FAIL", guacd.StatusServerError); err != nil {
-				logger.Errorf("OutputStream filter sendAck err: %+v", err)
-			}
-			return nil
-		}
-		if err1 := stream.recorder.RecordWrite(stream.ftpLog, blob); err1 != nil {
-			logger.Errorf("OutputStream filter stream %s record write err: %+v", stream.streamIndex, err1)
-		}
-		if !filter.acknowledgeBlobs {
-			filter.acknowledgeBlobs = true
-			ins := guacd.NewInstruction(guacd.InstructionStreamingBlob, index, "")
-			return &ins
-		}
-
-		err = filter.sendAck(index, "Ok", guacd.StatusSuccess)
-		if err != nil {
-			logger.Errorf("OutputStream filter sendAck err: %+v", err)
+	blob, err := base64.StdEncoding.DecodeString(instruction.Args[1])
+	if err != nil {
+		filter.finishOutStream(index, stream, fmt.Errorf("decode guacamole stream: %w", err))
+		return nil
+	}
+	if _, err = stream.writer.Write(blob); err != nil {
+		filter.finishOutStream(index, stream, err)
+		if ackErr := filter.sendAck(index, "FAIL", guacd.StatusServerError); ackErr != nil {
+			logger.Errorf("OutputStream filter sendAck err: %+v", ackErr)
 		}
 		return nil
 	}
-	return unfilteredInstruction
+	if err = stream.recorder.RecordWrite(stream.ftpLog, blob); err != nil {
+		logger.Errorf("OutputStream filter stream %s record write err: %+v", stream.streamIndex, err)
+	}
+	if !filter.acknowledgeBlobs {
+		filter.acknowledgeBlobs = true
+		response := guacd.NewInstruction(guacd.InstructionStreamingBlob, index, "")
+		return &response
+	}
+	if err = filter.sendAck(index, "OK", guacd.StatusSuccess); err != nil {
+		filter.finishOutStream(index, stream, err)
+		logger.Errorf("OutputStream filter sendAck err: %+v", err)
+	}
+	return nil
 }
 
-func (filter *OutputStreamInterceptingFilter) handleSync(unfilteredInstruction *guacd.Instruction) {
+func (filter *OutputStreamInterceptingFilter) handleSync() {
 	filter.acknowledgeBlobs = false
 }
 
-func (filter *OutputStreamInterceptingFilter) handleEnd(unfilteredInstruction *guacd.Instruction) {
-	// Verify all required arguments are present
-	//List<String> args = instruction.getArgs();
-	//if (args.size() < 1)
-	//return;
-
-	// Terminate stream
-	//closeInterceptedStream(args.get(0));
-	args := unfilteredInstruction.Args
-	if len(args) < 1 {
+func (filter *OutputStreamInterceptingFilter) handleEnd(instruction *guacd.Instruction) {
+	if len(instruction.Args) < 1 {
 		return
 	}
-	filter.closeInterceptedStream(args[0])
+	index := instruction.Args[0]
+	filter.Lock()
+	stream := filter.streams[index]
+	filter.Unlock()
+	if stream != nil {
+		filter.finishOutStream(index, stream, nil)
+	}
 }
 
 func (filter *OutputStreamInterceptingFilter) sendAck(index, msg string, status guacd.GuacamoleStatus) error {
-
-	// Error "ack" instructions implicitly close the stream
-	//if (status != GuacamoleStatus.SUCCESS)
-	//	closeInterceptedStream(index);
-	//
-	//sendInstruction(new GuacamoleInstruction("ack", index, message,
-	//	Integer.toString(status.getGuacamoleStatusCode())));
-	if status.HttpCode != guacd.StatusSuccess.HttpCode {
-		filter.closeInterceptedStream(index)
-	}
 	return filter.tunnel.WriteTunnelMessage(guacd.NewInstruction(
-		guacd.InstructionStreamingAck, index, msg,
-		strconv.Itoa(status.GuaCode)))
-
+		guacd.InstructionStreamingAck, index, msg, strconv.Itoa(status.GuaCode)))
 }
 
-func (filter *OutputStreamInterceptingFilter) closeInterceptedStream(index string) {
+func (filter *OutputStreamInterceptingFilter) finishOutStream(index string, stream *OutStreamResource, err error) {
 	filter.Lock()
-	defer filter.Unlock()
-	if outStream, ok := filter.streams[index]; ok {
-		close(outStream.done)
+	if filter.streams[index] == stream {
+		delete(filter.streams, index)
 	}
-	delete(filter.streams, index)
+	filter.Unlock()
+	stream.finish(err)
 }
 
-func (filter *OutputStreamInterceptingFilter) addOutStream(out OutStreamResource) {
+func (filter *OutputStreamInterceptingFilter) addOutStream(stream *OutStreamResource) {
 	filter.Lock()
-	defer filter.Unlock()
-	err := filter.sendAck(out.streamIndex, "OK", guacd.StatusSuccess)
-	if err != nil {
-		logger.Errorf("OutputStream filter sendAck index %s err: %+v", out.streamIndex, err)
-		out.err = err
-		close(out.done)
+	if filter.closed {
+		filter.Unlock()
+		stream.finish(fmt.Errorf("guacamole download tunnel closed"))
 		return
 	}
-	filter.streams[out.streamIndex] = out
+	previous := filter.streams[stream.streamIndex]
+	filter.streams[stream.streamIndex] = stream
+	filter.Unlock()
+	if previous != nil {
+		previous.finish(fmt.Errorf("guacamole download stream replaced"))
+	}
+	if err := filter.sendAck(stream.streamIndex, "OK", guacd.StatusSuccess); err != nil {
+		filter.finishOutStream(stream.streamIndex, stream, err)
+	}
 }
 
-// 下载文件的对象
+func (filter *OutputStreamInterceptingFilter) closeAll(err error) {
+	filter.Lock()
+	filter.closed = true
+	streams := filter.streams
+	filter.streams = make(map[string]*OutStreamResource)
+	filter.Unlock()
+	for _, stream := range streams {
+		stream.finish(err)
+	}
+}
 
+// OutStreamResource is a download stream received from guacd.
 type OutStreamResource struct {
 	streamIndex string
 	mediaType   string // application/octet-stream
 	writer      http.ResponseWriter
 	done        chan struct{}
-	err         error
 	ctx         context.Context
+
+	once sync.Once
+	err  error
 
 	ftpLog   *model.FTPLog
 	recorder *proxy.FTPFileRecorder
 }
 
+func (r *OutStreamResource) finish(err error) {
+	r.once.Do(func() {
+		r.err = err
+		close(r.done)
+	})
+}
+
 func (r *OutStreamResource) Wait() error {
 	select {
 	case <-r.done:
+		return r.err
 	case <-r.ctx.Done():
-		return fmt.Errorf("closed request %s", r.streamIndex)
+		return fmt.Errorf("closed request %s: %w", r.streamIndex, r.ctx.Err())
 	}
-	return r.err
 }

@@ -73,7 +73,24 @@ func (s *SftpHandler) Filecmd(r *sftp.Request) (err error) {
 
 func (s *SftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	logger.Debug("File write: ", r.Filepath)
-	f, err := s.Create(r.Filepath)
+	pflags := r.Pflags()
+	flags := os.O_WRONLY
+	if pflags.Read {
+		flags = os.O_RDWR
+	}
+	if pflags.Append {
+		flags |= os.O_APPEND
+	}
+	if pflags.Creat {
+		flags |= os.O_CREATE
+	}
+	if pflags.Trunc {
+		flags |= os.O_TRUNC
+	}
+	if pflags.Excl {
+		flags |= os.O_EXCL
+	}
+	f, err := s.OpenFile(r.Filepath, flags)
 	if err != nil {
 		return nil, err
 	}

@@ -19,6 +19,8 @@ import (
 
 var _ Handler = (*webSftp)(nil)
 
+const webSftpReadLimit = 4 * 1024 * 1024
+
 type webSftp struct {
 	ws *UserWebsocket
 
@@ -33,13 +35,15 @@ type webSftp struct {
 	closed   bool
 	expired  atomic.Bool
 	requests chan struct{}
+	controls chan struct{}
 	pending  sync.WaitGroup
 }
 
 func newWebSFTP(ws *UserWebsocket) *webSftp {
+	ws.conn.SetReadLimit(webSftpReadLimit)
 	return &webSftp{
 		ws: ws, done: make(chan struct{}), ready: make(chan struct{}),
-		requests: make(chan struct{}, 4),
+		requests: make(chan struct{}, 4), controls: make(chan struct{}, 1),
 	}
 }
 
@@ -78,12 +82,19 @@ func (h *webSftp) HandleMessage(msg *Message) {
 		h.handleFileToolMessage(msg)
 		return
 	}
-	// Apply backpressure before spawning; at most four file requests run at once.
+	// Keep the read loop available for PING and cancellation when data work is busy.
+	permits := h.requests
+	if msg.Cmd == "transfer_cancel" {
+		permits = h.controls
+	}
 	select {
-	case h.requests <- struct{}{}:
+	case permits <- struct{}{}:
 	case <-h.done:
 		return
 	case <-h.ws.done:
+		return
+	default:
+		h.ws.SendMessage(&Message{Id: msg.Id, Cmd: msg.Cmd, Type: SFTPData, Err: "file transfer busy"})
 		return
 	}
 	h.stateMu.Lock()
@@ -96,7 +107,7 @@ func (h *webSftp) HandleMessage(msg *Message) {
 	h.stateMu.Unlock()
 	go func() {
 		defer h.pending.Done()
-		defer func() { <-h.requests }()
+		defer func() { <-permits }()
 		h.dispatch(*msg)
 	}()
 }

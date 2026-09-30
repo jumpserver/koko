@@ -255,7 +255,7 @@ func (g *GuacamoleTunnelServer) Connect(ctx *gin.Context) {
 	outFilter := OutputStreamInterceptingFilter{
 		acknowledgeBlobs: true,
 		tunnel:           &conn,
-		streams:          map[string]OutStreamResource{},
+		streams:          map[string]*OutStreamResource{},
 	}
 	inputFilter := InputStreamInterceptingFilter{
 		tunnel:  &conn,
@@ -326,7 +326,7 @@ func (g *GuacamoleTunnelServer) DownloadFile(ctx *gin.Context) {
 			Session:    tun.Sess.ID,
 		}
 		ctx.Writer.Header().Set("content-disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-		out := OutStreamResource{
+		out := &OutStreamResource{
 			streamIndex: index,
 			mediaType:   "",
 			writer:      ctx.Writer,
@@ -336,6 +336,7 @@ func (g *GuacamoleTunnelServer) DownloadFile(ctx *gin.Context) {
 			recorder:    recorder,
 		}
 		tun.outputFilter.addOutStream(out)
+		defer tun.outputFilter.finishOutStream(index, out, context.Canceled)
 		if err := out.Wait(); err != nil {
 			logger.Errorf("Session[%s] download file %s err: %s", tun, filename, err)
 			ctx.JSON(http.StatusBadRequest, ErrorResponse(err))
@@ -390,15 +391,16 @@ func (g *GuacamoleTunnelServer) UploadFile(ctx *gin.Context) {
 			if err != nil {
 				return
 			}
-			stream := InputStreamResource{
+			stream := &InputStreamResource{
 				streamIndex: index,
 				reader:      fdReader,
 				done:        make(chan struct{}),
 			}
-			tun.inputFilter.addInputStream(&stream)
-			stream.Wait()
-			if err := stream.WaitErr(); err != nil {
-				logger.Errorf("Session[%s] upload file %s err: %s", tun, filename, err)
+			tun.inputFilter.addInputStream(stream)
+			waitErr := stream.Wait(ctx.Request.Context())
+			tun.inputFilter.finishInputStream(index, stream, waitErr)
+			if waitErr != nil {
+				logger.Errorf("Session[%s] upload file %s err: %s", tun, filename, waitErr)
 				g.SessionService.AuditFileOperation(fileLog)
 				continue
 			}

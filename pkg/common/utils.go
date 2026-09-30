@@ -90,55 +90,79 @@ func CompareIP(ipA, ipB string) bool {
 }
 
 func ChunkedFileTransfer(fd io.WriterAt, readerAt io.ReaderAt, offset, fileSize int64) error {
-	chunkSize := int64(64 * 1024)
-	maxConcurrent := 200
-
-	var wg sync.WaitGroup
+	if fileSize < 0 {
+		return fmt.Errorf("invalid file size")
+	}
+	const chunkSize int64 = 64 * 1024
+	const maxConcurrent = 200
 	chunkCount := int(fileSize / chunkSize)
 	if fileSize%chunkSize != 0 {
 		chunkCount++
 	}
-
-	errChan := make(chan error, chunkCount)
-	sem := make(chan struct{}, maxConcurrent)
-	for i := 0; i < chunkCount; i++ {
-		wg.Add(1)
-		sem <- struct{}{}
-
-		go func(chunkIndex int) {
-			defer wg.Done()
-			defer func() { <-sem }()
-
-			start := int64(chunkIndex) * chunkSize
-			end := start + chunkSize
-			if end > fileSize {
-				end = fileSize
-			}
-
-			buf := make([]byte, end-start)
-			_, err := readerAt.ReadAt(buf, start)
-			if err != nil && err != io.EOF {
-				errChan <- fmt.Errorf("failed to read chunk %d: %v", chunkIndex, err)
-				return
-			}
-
-			_, err = fd.WriteAt(buf, offset+start)
-			if err != nil {
-				errChan <- fmt.Errorf("failed to write chunk %d: %v", chunkIndex, err)
-				return
-			}
-
-		}(i)
+	if chunkCount == 0 {
+		return nil
+	}
+	workers := min(chunkCount, maxConcurrent)
+	jobs := make(chan int)
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	var once sync.Once
+	var firstErr error
+	fail := func(err error) {
+		once.Do(func() {
+			firstErr = err
+			close(done)
+		})
 	}
 
-	wg.Wait()
-	close(errChan)
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-done:
+					return
+				case chunkIndex, ok := <-jobs:
+					if !ok {
+						return
+					}
+					start := int64(chunkIndex) * chunkSize
+					end := min(start+chunkSize, fileSize)
+					buf := make([]byte, end-start)
+					n, err := readerAt.ReadAt(buf, start)
+					if err != nil && err != io.EOF {
+						fail(fmt.Errorf("failed to read chunk %d: %w", chunkIndex, err))
+						return
+					}
+					if n != len(buf) {
+						fail(fmt.Errorf("failed to read chunk %d: %w", chunkIndex, io.ErrUnexpectedEOF))
+						return
+					}
+					n, err = fd.WriteAt(buf, offset+start)
+					if err != nil {
+						fail(fmt.Errorf("failed to write chunk %d: %w", chunkIndex, err))
+						return
+					}
+					if n != len(buf) {
+						fail(fmt.Errorf("failed to write chunk %d: %w", chunkIndex, io.ErrShortWrite))
+						return
+					}
+				}
+			}
+		}()
+	}
 
-	for err := range errChan {
-		if err != nil {
-			return err
+	for chunkIndex := 0; chunkIndex < chunkCount; chunkIndex++ {
+		select {
+		case <-done:
+			close(jobs)
+			wg.Wait()
+			return firstErr
+		case jobs <- chunkIndex:
 		}
 	}
-
-	return nil
+	close(jobs)
+	wg.Wait()
+	return firstErr
 }
