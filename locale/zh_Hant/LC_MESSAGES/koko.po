@@ -969,7 +969,7 @@ msgid "Select"
 msgstr "選擇"
 
 msgid "Text mode"
-msgstr "純文字"
+msgstr "純文字模式"
 
 msgid "Asset tree"
 msgstr "資產樹"
@@ -1195,3 +1195,39 @@ msgstr "會話列表"
 
 msgid "Open the session list"
 msgstr "開啟會話列表"
+
+msgid "Close"
+msgstr "關閉"
+
+msgid "Immersive mode"
+msgstr "沉浸模式"
+
+msgid "Enter immersive mode"
+msgstr "進入沉浸模式"
+
+msgid "Exit immersive mode"
+msgstr "退出沉浸模式"
+
+msgid "Close the current session?"
+msgstr "確定關閉目前會話？"
+
+msgid "Close all sessions and return to the asset list?"
+msgstr "確定關閉所有會話並返回資產列表？"
+
+msgid "Quit Koko"
+msgstr "退出 Koko"
+
+msgid "Quit this SSH session?"
+msgstr "確定退出本次 SSH 工作階段嗎？"
+
+msgid "%d multi-sessions are still active; quitting will end them."
+msgstr "仍有 %d 個多會話尚未結束，退出後將一併結束。"
+
+msgid "Session ended"
+msgstr "會話已結束"
+
+msgid "The current session has ended. Close this tab?"
+msgstr "目前會話已結束，是否關閉此標籤？"
+
+msgid "Keep"
+msgstr "保留"

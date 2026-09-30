@@ -25,12 +25,19 @@ const tuiDoubleClickInterval = 500 * time.Millisecond
 const tuiStatusPrefix = "▶ "
 
 const (
+	tuiTerminalMaxWidth  = 500
+	tuiTerminalMaxHeight = 1000
+)
+
+const (
 	tuiCursorMarkerPrefix = "\x1b]99;koko-cursor;"
 	tuiCursorMarkerEnd    = "\x07"
 	tuiEnterAltScreen     = "\x1b[?1049h"
 	tuiExitAltScreen      = "\x1b[?1049l"
+	tuiResetViewport      = "\x1b[?6l\x1b[r\x1b[H"
 	tuiShowCursor         = "\x1b[?25h"
 	tuiHideCursor         = "\x1b[?25l"
+	tuiCursorBlinkRestore = "\x1b[?12h\x1b[0 q"
 )
 
 const (
@@ -125,6 +132,7 @@ type assetTUI struct {
 	helpScroll         int
 	helpDragging       bool
 	helpScrollbarGrab  int
+	quitDialog         bool
 	detailDialog       *assetTUIDetailDialog
 	treeDialog         *assetTUITreeDialog
 	treeDialogStates   map[assetTUITreeKind]assetTUITreeDialog
@@ -136,6 +144,7 @@ type assetTUI struct {
 	connection         *assetTUIConnection
 	pendingMultiWindow bool
 	multiSessionCount  int
+	unfinishedSessions int
 	showMultiSessions  bool
 	lastAccount        model.PermAccount
 	lastProtocol       string
@@ -167,8 +176,7 @@ func (m *assetTUI) Init() tea.Cmd {
 func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		width := min(500, max(1, msg.Width))
-		height := min(200, max(1, msg.Height))
+		width, height := assetTUITerminalSize(msg.Width, msg.Height)
 		oldPageSize := m.pageSize
 		m.width, m.height = width, height
 		m.pageSize = m.assetRows()
@@ -242,6 +250,9 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseMsg:
 		return m.updateMouse(tea.MouseEvent(msg))
 	case tea.KeyMsg:
+		if m.quitDialog {
+			return m.updateQuitDialogKey(msg)
+		}
 		if m.detailDialog != nil {
 			return m.updateDetailDialogKey(msg)
 		}
@@ -268,7 +279,8 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.loading || m.loadingChoices {
 			if msg.Type == tea.KeyCtrlC {
-				return m, tea.Quit
+				m.quitDialog = true
+				return m, nil
 			}
 			if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 {
 				switch msg.Runes[0] {
@@ -289,7 +301,8 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.switchText = true
 					return m, tea.Quit
 				case 'q', 'Q':
-					return m, tea.Quit
+					m.quitDialog = true
+					return m, nil
 				}
 			}
 			return m, nil
@@ -299,7 +312,8 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		switch msg.Type {
 		case tea.KeyCtrlC:
-			return m, tea.Quit
+			m.quitDialog = true
+			return m, nil
 		case tea.KeyUp:
 			m.moveAssetCursor(-1)
 		case tea.KeyDown:
@@ -319,14 +333,12 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.loadPage(m.offset + len(m.assets))
 			}
 		case tea.KeyEnter:
-			return m.openAssetDialog(m.cursor, false)
+			return m.openAssetDialog(m.cursor, true)
 		case tea.KeyRunes:
 			if len(msg.Runes) != 1 {
 				return m, nil
 			}
 			switch msg.Runes[0] {
-			case 'm':
-				return m.openAssetDialog(m.cursor, true)
 			case 'w':
 				if m.multiSessionCount > 0 {
 					m.showMultiSessions = true
@@ -348,6 +360,8 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case 'g', 'G':
 				return m.reopenTreeDialog()
 			case 'c', 'C':
+				return m.openAssetDialog(m.cursor, false)
+			case 'd', 'D':
 				if m.selectedTree != 0 {
 					return m.clearTreeSelection()
 				}
@@ -367,7 +381,8 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.switchText = true
 				return m, tea.Quit
 			case 'q', 'Q':
-				return m, tea.Quit
+				m.quitDialog = true
+				return m, nil
 			}
 		}
 	}
@@ -375,13 +390,15 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *assetTUI) moveAssetCursor(delta int) {
-	count := len(m.assets)
-	if count == 0 {
-		m.cursor = 0
-		return
+	m.cursor = tuiBoundedSelection(m.cursor, delta, len(m.assets))
+}
+
+func tuiBoundedSelection(index, delta, total int) int {
+	if total <= 0 {
+		return 0
 	}
-	cursor := (m.cursor%count + count) % count
-	m.cursor = (cursor + delta%count + count) % count
+	index = max(0, min(index, total-1))
+	return max(0, min(index+delta, total-1))
 }
 
 func (m *assetTUI) canGoPreviousPage() bool {
@@ -452,6 +469,16 @@ func (m *assetTUI) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			m.searchInput = append(m.searchInput, runes...)
 		}
+	}
+	return m, nil
+}
+
+func (m *assetTUI) updateQuitDialogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyEsc:
+		m.quitDialog = false
+	case tea.KeyEnter:
+		return m, tea.Quit
 	}
 	return m, nil
 }
@@ -824,6 +851,9 @@ func (m *assetTUI) chooseLanguage() (tea.Model, tea.Cmd) {
 }
 
 func (m *assetTUI) updateMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) {
+	if m.quitDialog {
+		return m, nil
+	}
 	if m.detailDialog != nil {
 		return m.updateDetailDialogMouse(event)
 	}
@@ -876,7 +906,7 @@ func (m *assetTUI) updateMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) {
 	if m.lastClickRow == row && now.Sub(m.lastClickAt) <= tuiDoubleClickInterval {
 		m.lastClickRow = -1
 		m.lastClickAt = time.Time{}
-		return m.openAssetDialog(row, false)
+		return m.openAssetDialog(row, true)
 	}
 	m.lastClickRow = row
 	m.lastClickAt = now
@@ -942,17 +972,20 @@ func (m *assetTUI) View() string {
 	if m.detailDialog != nil {
 		m.renderDetailDialog(lines)
 	}
+	if m.quitDialog {
+		m.renderQuitDialog(lines)
+	}
 	return m.viewWithCursor(lines)
 }
 
 func (m *assetTUI) viewWithCursor(lines []string) string {
 	x, y, visible := m.terminalCursor()
 	return fmt.Sprintf("%s%d;%d;%d%s", tuiCursorMarkerPrefix, boolInt(visible), x, y, tuiCursorMarkerEnd) +
-		strings.Join(lines, "\n")
+		tuiResetViewport + strings.Join(lines, "\n")
 }
 
 func (m *assetTUI) terminalCursor() (x, y int, visible bool) {
-	if m.detailDialog != nil || m.helpDialog || m.treeDialog != nil || m.languageDialog != nil {
+	if m.quitDialog || m.detailDialog != nil || m.helpDialog || m.treeDialog != nil || m.languageDialog != nil {
 		return 0, 0, false
 	}
 	if m.dialog != nil {
@@ -961,14 +994,16 @@ func (m *assetTUI) terminalCursor() (x, y int, visible bool) {
 			geometry.y < 0 || geometry.y+geometry.height > max(1, m.height) {
 			return 0, 0, false
 		}
-		_, cursor := tuiSearchField(i18n.NewLang(m.handler.i18nLang).T("Account"), m.dialog.accountSearch, geometry.width-4)
+		_, cursor := tuiSearchField(m.tr("账号", "Account"), m.tr("搜索", "Search"),
+			m.dialog.accountSearch, geometry.width-4)
 		return geometry.x + 3 + cursor, geometry.y + 6, true
 	}
 	if !m.searching || m.height < 2 {
 		return 0, 0, false
 	}
 	searchWidth, _ := m.topLineLayout()
-	_, cursor := tuiSearchField(m.searchLabel(), m.searchInput, searchWidth)
+	search := m.tr("搜索", "Search")
+	_, cursor := tuiSearchField(m.searchLabel(), search, m.searchInput, searchWidth)
 	return cursor, 0, true
 }
 
@@ -999,6 +1034,32 @@ func (m *assetTUI) languageDialogGeometry() assetTUIDialogGeometry {
 	return assetTUIDialogGeometry{
 		x: (m.width - width) / 2, y: (m.height - height) / 2,
 		width: width, height: height, rows: max(1, height-6),
+	}
+}
+
+func (m *assetTUI) quitDialogGeometry() assetTUIDialogGeometry {
+	values := []string{
+		m.tr("退出 Koko", "Quit Koko"),
+		m.tr("确定退出本次 SSH 会话吗？", "Quit this SSH session?"),
+		"enter:" + m.tr("确认", "Confirm") + " · esc:" + m.tr("取消", "Cancel"),
+	}
+	height := 7
+	if m.unfinishedSessions > 0 {
+		values = append(values, fmt.Sprintf(m.tr(
+			"仍有 %d 个多会话未结束，退出后将一并结束。",
+			"%d multi-sessions are still active; quitting will end them.",
+		), m.unfinishedSessions))
+		height++
+	}
+	width := 36
+	for _, value := range values {
+		width = max(width, runewidth.StringWidth(value)+4)
+	}
+	width = min(width, min(64, max(1, m.width-2)))
+	height = min(height, max(1, m.height-2))
+	return assetTUIDialogGeometry{
+		x: max(0, (m.width-width)/2), y: max(0, (m.height-height)/2),
+		width: width, height: height,
 	}
 }
 
@@ -1120,9 +1181,10 @@ func (m *assetTUI) renderDialog(lines []string) {
 	popup[3] = "│" + tuiDialogLeft(lang.T("Protocol"), geometry.width-2) + "│"
 	protocols, _ := tuiDialogProtocolLine(dialog.protocols, dialog.protocolIndex, geometry.width-6)
 	popup[4] = "│    " + protocols + "│"
-	search := lang.T("Account")
+	search := m.tr("账号", "Account")
 	if len(dialog.accountSearch) > 0 || dialog.searchingAccount {
-		search, _ = tuiSearchField(lang.T("Account"), dialog.accountSearch, geometry.width-4)
+		search, _ = tuiSearchField(m.tr("账号", "Account"), m.tr("搜索", "Search"),
+			dialog.accountSearch, geometry.width-4)
 		popup[6] = "│  " + search + "│"
 	} else {
 		popup[6] = "│" + tuiDialogLeft(search, geometry.width-2) + "│"
@@ -1204,6 +1266,30 @@ func (m *assetTUI) renderLanguageDialog(lines []string) {
 	}, "?:"+lang.T("View help"))
 	popup[geometry.height-3] = "├" + strings.Repeat("─", geometry.width-2) + "┤"
 	popup[geometry.height-2] = "│" + tuiDialogLeft(hint, geometry.width-2) + "│"
+	m.overlayDialog(lines, popup, geometry)
+}
+
+func (m *assetTUI) renderQuitDialog(lines []string) {
+	geometry := m.quitDialogGeometry()
+	if geometry.width < 20 || geometry.height < 7 || geometry.y < 0 ||
+		geometry.y+geometry.height > len(lines) {
+		return
+	}
+	title := m.tr("退出 Koko", "Quit Koko")
+	message := m.tr("确定退出本次 SSH 会话吗？", "Quit this SSH session?")
+	shortcuts := "enter:" + m.tr("确认", "Confirm") + " · esc:" + m.tr("取消", "Cancel")
+	popup := tuiDialogFrame(title, geometry.width, geometry.height)
+	popup[2] = "├" + strings.Repeat("─", geometry.width-2) + "┤"
+	popup[3] = "│  " + tuiFit(message, geometry.width-4) + "│"
+	if m.unfinishedSessions > 0 {
+		warning := fmt.Sprintf(m.tr(
+			"仍有 %d 个多会话未结束，退出后将一并结束。",
+			"%d multi-sessions are still active; quitting will end them.",
+		), m.unfinishedSessions)
+		popup[4] = "│  " + tuiFit(warning, geometry.width-4) + "│"
+	}
+	popup[geometry.height-3] = "├" + strings.Repeat("─", geometry.width-2) + "┤"
+	popup[geometry.height-2] = "│  " + tuiFit(shortcuts, geometry.width-4) + "│"
 	m.overlayDialog(lines, popup, geometry)
 }
 
@@ -1348,8 +1434,8 @@ func (m *assetTUI) helpShortcutRows() []assetTUIHelpRow {
 		row("↑, ↓, j, k", "Move the selection up or down"),
 		row("←, →, h, l", "Go to the previous or next page"),
 		row("space", "View complete information for the selected item"),
-		row("enter", "Connect to the selected asset in a native single session"),
-		row("m", "Open the selected asset in the multi-session workspace"),
+		row("enter", "Connect to the selected asset"),
+		row("c", "Connect to the selected asset in a native single session"),
 		row("g", "Open the asset tree"),
 		row("r", "Refresh the current asset list and keep search and tree filters"),
 	)
@@ -1357,7 +1443,7 @@ func (m *assetTUI) helpShortcutRows() []assetTUIHelpRow {
 		rows = append(rows, row("w", "Return to the multi-session workspace"))
 	}
 	if m.selectedTree != 0 {
-		rows = append(rows, row("c", "Clear the selected tree node"))
+		rows = append(rows, row("d", "Clear the selected tree node"))
 	}
 	return append(rows,
 		row("s", "Switch the interface language"), row("t", "Switch to text mode"),
@@ -1678,9 +1764,12 @@ func (m *assetTUI) searchLineWithWidth(width int) string {
 		if m.query == "" {
 			return tuiFit(label, width)
 		}
-		return tuiFit(label+": "+m.query, width)
+		search := m.tr("搜索", "Search")
+		line, _ := tuiSearchField(label, search, []rune(m.query), width)
+		return line
 	}
-	line, _ := tuiSearchField(label, m.searchInput, width)
+	search := m.tr("搜索", "Search")
+	line, _ := tuiSearchField(label, search, m.searchInput, width)
 	return line
 }
 
@@ -1738,13 +1827,14 @@ func (m *assetTUI) searchLabel() string {
 	return label + " · " + title + ":" + m.selectedPath
 }
 
-func tuiSearchField(label string, input []rune, width int) (string, int) {
+func tuiSearchField(label, search string, input []rune, width int) (string, int) {
 	if width <= 0 {
 		return "", 0
 	}
 	inputWidth := runewidth.StringWidth(string(input))
 	reservedInput := min(inputWidth, max(1, width/2))
-	labelWidth := max(0, width-runewidth.StringWidth(": ")-reservedInput-1)
+	suffix := " · " + search + ":"
+	labelWidth := max(0, width-runewidth.StringWidth(suffix)-reservedInput-1)
 	visibleLabel := label
 	if runewidth.StringWidth(visibleLabel) > labelWidth {
 		if labelWidth <= 1 {
@@ -1754,7 +1844,7 @@ func tuiSearchField(label string, input []rune, width int) (string, int) {
 			visibleLabel = "…" + runewidth.TruncateLeft(visibleLabel, drop, "")
 		}
 	}
-	prompt := visibleLabel + ": "
+	prompt := visibleLabel + suffix
 	available := max(0, width-runewidth.StringWidth(prompt)-1)
 	visibleInput := runewidth.TruncatePrefix(string(input), available, "")
 	cursor := min(width-1, runewidth.StringWidth(prompt)+runewidth.StringWidth(visibleInput))
@@ -1797,18 +1887,18 @@ func (m *assetTUI) footerLine() string {
 		return tuiFit(shortcuts, m.width)
 	}
 	items := []string{
-		"/:" + lang.T("Search"), "enter:" + lang.T("Direct connect"),
-		"m:" + lang.T("Multi-session"),
+		"/:" + lang.T("Search"), "enter:" + lang.T("Connect"),
+		"c:" + lang.T("Direct connect"),
 	}
 	if m.multiSessionCount > 0 {
-		items = append(items, "w:"+lang.T("Sessions"))
+		items = append(items, fmt.Sprintf("w:%s(%d)", lang.T("Sessions"), m.multiSessionCount))
 	}
 	items = append(items, "space:"+lang.T("Details"), "g:"+lang.T("Asset tree"))
 	if m.query != "" {
 		items = append(items, "x:"+lang.T("Clear search"))
 	}
 	if m.selectedTree != 0 {
-		items = append(items, "c:"+lang.T("Clear node"))
+		items = append(items, "d:"+lang.T("Clear node"))
 	}
 	items = append(items, "t:"+lang.T("Text mode"), "q:"+lang.T("Quit"))
 	return tuiShortcutLine(m.width, items, "?:"+lang.T("View help"))
@@ -1910,6 +2000,9 @@ func tuiFit(value string, width int) string {
 		if unicode.IsControl(r) {
 			return ' '
 		}
+		if unicode.Is(unicode.Cf, r) {
+			return -1
+		}
 		return r
 	}, value)
 	if runewidth.StringWidth(value) > width {
@@ -1958,6 +2051,7 @@ func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf m
 	classicStarted := false
 	for {
 		model.multiSessionCount = multiSessions.Count()
+		model.unfinishedSessions = multiSessions.UnfinishedCount()
 		err := runAssetTUI(handler, model)
 		_ = input.Close()
 		if err != nil {
@@ -2077,6 +2171,10 @@ func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf m
 }
 
 func runAssetTUI(handler *InteractiveHandler, model *assetTUI) error {
+	window := handler.sess.Pty().Window
+	width, height := assetTUITerminalSize(window.Width, window.Height)
+	model.width, model.height = width, height
+
 	output := &assetTUICursorWriter{output: handler.sess}
 	program := tea.NewProgram(model,
 		tea.WithInput(handler.sess),
@@ -2089,6 +2187,7 @@ func runAssetTUI(handler *InteractiveHandler, model *assetTUI) error {
 	resizeDone := make(chan struct{})
 	defer close(resizeDone)
 	go func() {
+		program.Send(tea.WindowSizeMsg{Width: width, Height: height})
 		for {
 			select {
 			case win := <-handler.sess.WinCh():
@@ -2102,6 +2201,16 @@ func runAssetTUI(handler *InteractiveHandler, model *assetTUI) error {
 	}()
 	_, err := program.Run()
 	return err
+}
+
+func assetTUITerminalSize(width, height int) (int, int) {
+	if width <= 0 {
+		width = 80
+	}
+	if height <= 0 {
+		height = 24
+	}
+	return min(tuiTerminalMaxWidth, width), min(tuiTerminalMaxHeight, height)
 }
 
 type assetTUICursorWriter struct {
@@ -2119,9 +2228,11 @@ func (w *assetTUICursorWriter) Write(p []byte) (int, error) {
 
 	output := w.consumeCursorMarker(string(p))
 	if strings.Contains(output, tuiEnterAltScreen) {
+		output = strings.ReplaceAll(output, tuiEnterAltScreen, tuiEnterAltScreen+tuiResetViewport)
 		w.altScreen = true
 	}
 	if strings.Contains(output, tuiExitAltScreen) {
+		output = strings.ReplaceAll(output, tuiExitAltScreen, tuiResetViewport+tuiExitAltScreen)
 		w.altScreen = false
 	}
 	if err := writeTUIOutput(w.output, output); err != nil {
@@ -2133,7 +2244,8 @@ func (w *assetTUICursorWriter) Write(p []byte) (int, error) {
 
 	cursor := tuiHideCursor
 	if w.visible {
-		cursor = fmt.Sprintf("\x1b[%d;%dH%s", w.y+1, w.x+1, tuiShowCursor)
+		cursor = fmt.Sprintf("\x1b[%d;%dH%s%s", w.y+1, w.x+1,
+			tuiCursorBlinkRestore, tuiShowCursor)
 	}
 	if err := writeTUIOutput(w.output, cursor); err != nil {
 		return len(p), err

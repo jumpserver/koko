@@ -1195,3 +1195,39 @@ msgstr "Список сеансов"
 
 msgid "Open the session list"
 msgstr "Открыть список сеансов"
+
+msgid "Close"
+msgstr "Закрыть"
+
+msgid "Immersive mode"
+msgstr "Иммерсивный режим"
+
+msgid "Enter immersive mode"
+msgstr "Войти в иммерсивный режим"
+
+msgid "Exit immersive mode"
+msgstr "Выйти из иммерсивного режима"
+
+msgid "Close the current session?"
+msgstr "Закрыть текущий сеанс?"
+
+msgid "Close all sessions and return to the asset list?"
+msgstr "Закрыть все сеансы и вернуться к списку активов?"
+
+msgid "Quit Koko"
+msgstr "Выйти из Koko"
+
+msgid "Quit this SSH session?"
+msgstr "Завершить этот сеанс SSH?"
+
+msgid "%d multi-sessions are still active; quitting will end them."
+msgstr "Ещё активно мультисеансов: %d; при выходе все они будут завершены."
+
+msgid "Session ended"
+msgstr "Сеанс завершён"
+
+msgid "The current session has ended. Close this tab?"
+msgstr "Текущий сеанс завершён. Закрыть эту вкладку?"
+
+msgid "Keep"
+msgstr "Оставить"

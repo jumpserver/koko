@@ -1195,3 +1195,39 @@ msgstr "セッション一覧"
 
 msgid "Open the session list"
 msgstr "セッション一覧を開く"
+
+msgid "Close"
+msgstr "閉じる"
+
+msgid "Immersive mode"
+msgstr "没入モード"
+
+msgid "Enter immersive mode"
+msgstr "没入モードに入る"
+
+msgid "Exit immersive mode"
+msgstr "没入モードを終了"
+
+msgid "Close the current session?"
+msgstr "現在のセッションを閉じますか？"
+
+msgid "Close all sessions and return to the asset list?"
+msgstr "すべてのセッションを閉じてアセット一覧に戻りますか？"
+
+msgid "Quit Koko"
+msgstr "Koko を終了"
+
+msgid "Quit this SSH session?"
+msgstr "この SSH セッションを終了しますか？"
+
+msgid "%d multi-sessions are still active; quitting will end them."
+msgstr "まだ %d 個のマルチセッションが実行中です。終了するとすべて終了します。"
+
+msgid "Session ended"
+msgstr "セッション終了"
+
+msgid "The current session has ended. Close this tab?"
+msgstr "現在のセッションは終了しました。このタブを閉じますか？"
+
+msgid "Keep"
+msgstr "保持"

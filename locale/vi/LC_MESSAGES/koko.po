@@ -1164,3 +1164,39 @@ msgstr "Danh sách phiên"
 
 msgid "Open the session list"
 msgstr "Mở danh sách phiên"
+
+msgid "Close"
+msgstr "Đóng"
+
+msgid "Immersive mode"
+msgstr "Chế độ tập trung"
+
+msgid "Enter immersive mode"
+msgstr "Vào chế độ tập trung"
+
+msgid "Exit immersive mode"
+msgstr "Thoát chế độ tập trung"
+
+msgid "Close the current session?"
+msgstr "Đóng phiên hiện tại?"
+
+msgid "Close all sessions and return to the asset list?"
+msgstr "Đóng tất cả phiên và quay lại danh sách tài sản?"
+
+msgid "Quit Koko"
+msgstr "Thoát Koko"
+
+msgid "Quit this SSH session?"
+msgstr "Thoát phiên SSH này?"
+
+msgid "%d multi-sessions are still active; quitting will end them."
+msgstr "Vẫn còn %d phiên đa cửa sổ đang hoạt động; khi thoát, tất cả sẽ kết thúc."
+
+msgid "Session ended"
+msgstr "Phiên đã kết thúc"
+
+msgid "The current session has ended. Close this tab?"
+msgstr "Phiên hiện tại đã kết thúc. Đóng thẻ này?"
+
+msgid "Keep"
+msgstr "Giữ lại"

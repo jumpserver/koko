@@ -1195,3 +1195,39 @@ msgstr "Lista de sesiones"
 
 msgid "Open the session list"
 msgstr "Abrir la lista de sesiones"
+
+msgid "Close"
+msgstr "Cerrar"
+
+msgid "Immersive mode"
+msgstr "Modo inmersivo"
+
+msgid "Enter immersive mode"
+msgstr "Entrar en modo inmersivo"
+
+msgid "Exit immersive mode"
+msgstr "Salir del modo inmersivo"
+
+msgid "Close the current session?"
+msgstr "¿Cerrar la sesión actual?"
+
+msgid "Close all sessions and return to the asset list?"
+msgstr "¿Cerrar todas las sesiones y volver a la lista de activos?"
+
+msgid "Quit Koko"
+msgstr "Salir de Koko"
+
+msgid "Quit this SSH session?"
+msgstr "¿Salir de esta sesión SSH?"
+
+msgid "%d multi-sessions are still active; quitting will end them."
+msgstr "Aún hay %d sesiones múltiples activas; al salir se cerrarán todas."
+
+msgid "Session ended"
+msgstr "Sesión finalizada"
+
+msgid "The current session has ended. Close this tab?"
+msgstr "La sesión actual ha finalizado. ¿Cerrar esta pestaña?"
+
+msgid "Keep"
+msgstr "Conservar"

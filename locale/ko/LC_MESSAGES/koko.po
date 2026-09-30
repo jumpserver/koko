@@ -1195,3 +1195,39 @@ msgstr "세션 목록"
 
 msgid "Open the session list"
 msgstr "세션 목록 열기"
+
+msgid "Close"
+msgstr "닫기"
+
+msgid "Immersive mode"
+msgstr "몰입 모드"
+
+msgid "Enter immersive mode"
+msgstr "몰입 모드로 전환"
+
+msgid "Exit immersive mode"
+msgstr "몰입 모드 종료"
+
+msgid "Close the current session?"
+msgstr "현재 세션을 닫으시겠습니까?"
+
+msgid "Close all sessions and return to the asset list?"
+msgstr "모든 세션을 닫고 자산 목록으로 돌아가시겠습니까?"
+
+msgid "Quit Koko"
+msgstr "Koko 종료"
+
+msgid "Quit this SSH session?"
+msgstr "이 SSH 세션을 종료하시겠습니까?"
+
+msgid "%d multi-sessions are still active; quitting will end them."
+msgstr "아직 %d개의 다중 세션이 실행 중입니다. 종료하면 모두 종료됩니다."
+
+msgid "Session ended"
+msgstr "세션 종료"
+
+msgid "The current session has ended. Close this tab?"
+msgstr "현재 세션이 종료되었습니다. 이 탭을 닫으시겠습니까?"
+
+msgid "Keep"
+msgstr "유지"
