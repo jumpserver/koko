@@ -731,7 +731,7 @@ func TestAssetTUITreeCacheAndScopeLabel(t *testing.T) {
 	tui.multiSessionCount = 9
 	tui.width = 500
 	footer := tui.footerLine()
-	for _, shortcut := range []string{"/:Search", "x:Clear search", "enter:Connect", "c:Direct connect", "w:Sessions(9)", "space:Details", "g:Asset tree", "d:Clear node", "t:Text mode", "q:Quit", "?:View help"} {
+	for _, shortcut := range []string{"/:Search", "x:Clear search", "enter:Connect", "c:Direct connect", "w:Sessions(9/9)", "space:Details", "g:Asset tree", "d:Clear node", "t:Text mode", "q:Quit", "?:View help"} {
 		if !strings.Contains(footer, shortcut) {
 			t.Fatalf("asset footer is missing common shortcut %q: %q", shortcut, footer)
 		}
@@ -1161,7 +1161,7 @@ func TestAssetTUIMultiSessionLimitUsesTemporaryNotice(t *testing.T) {
 	if err != nil || leave {
 		t.Fatalf("session limit returned as a command error: leave=%v err=%v", leave, err)
 	}
-	if !strings.Contains(manager.notice, "at most 9 assets") {
+	if !strings.Contains(manager.notice, "at most 9 session windows") {
 		t.Fatalf("session limit notice is missing: %q", manager.notice)
 	}
 	if after := strings.Join(screen.Rows(), "\n"); after != before {
@@ -1181,11 +1181,25 @@ func TestAssetTUIMultiSessionLimitUsesTemporaryNotice(t *testing.T) {
 
 func TestAssetTUIMultiSessionShortcutMode(t *testing.T) {
 	translate := func(_, english string) string { return english }
-	normal := strings.TrimSpace(assetTUIMultiFooterLine(80, false, translate))
-	if normal != "ctrl+b:Activate shortcuts" {
+	footerSession := &assetTUIMultiSession{connection: assetTUIConnection{
+		asset: model.PermAsset{Name: "db.example.com"},
+		account: model.PermAccount{
+			Username: "root",
+		},
+		protocol: "ssh",
+	}}
+	normal := assetTUIMultiFooterLine(80, false, 1, footerSession, translate)
+	if runewidth.StringWidth(normal) != 80 || !strings.HasPrefix(normal, "ctrl+b:Sessions(1/9)") ||
+		!strings.HasSuffix(normal, "ssh://root@db.example.com") {
 		t.Fatalf("unexpected focused-session footer: %q", normal)
 	}
-	active := assetTUIMultiFooterLine(300, true, translate)
+	if separator := assetTUIMultiMiddleLine(80, false, "tabs"); separator != "" {
+		t.Fatalf("focused session still shows a separator above its footer: %q", separator)
+	}
+	if tabs := assetTUIMultiMiddleLine(80, true, "tabs"); tabs != "tabs" {
+		t.Fatalf("session workspace did not keep the tab row: %q", tabs)
+	}
+	active := assetTUIMultiFooterLine(300, true, 1, footerSession, translate)
 	wantActive := "enter:Enter session · tab:Next session · d:Duplicate session · r:Reconnect session · " +
 		"z:Immersive mode · x:Close session · q:Close all sessions · a:Asset list · ?:View help"
 	if strings.TrimSpace(active) != wantActive {
@@ -1199,6 +1213,12 @@ func TestAssetTUIMultiSessionShortcutMode(t *testing.T) {
 	}
 	if assetTUIMultiSessionCursorVisible(false, 1) {
 		t.Fatal("scrollback view left the session cursor visible")
+	}
+	if mode := assetTUIMultiMouseTracking(false); mode != assetTUIMouseDisable {
+		t.Fatalf("focused session did not release terminal mouse control: %q", mode)
+	}
+	if mode := assetTUIMultiMouseTracking(true); mode != assetTUIMouseEnable {
+		t.Fatalf("shortcut mode did not capture terminal mouse control: %q", mode)
 	}
 
 	manager := &assetTUIMultiSessionManager{commandMode: true}
@@ -1267,8 +1287,13 @@ func TestAssetTUIMultiSessionShortcutMode(t *testing.T) {
 			t.Fatalf("arrow %q parsed as direction=%q consumed=%d", sequence, direction, consumed)
 		}
 	}
+	for _, sequence := range []string{"\x1b[Z", "\x1b[1;2Z", "\x9bZ"} {
+		if consumed := assetTUIMultiShiftTab([]byte(sequence)); consumed != len(sequence) {
+			t.Fatalf("shift+tab %q consumed %d bytes, want %d", sequence, consumed, len(sequence))
+		}
+	}
 	helpRows := assetTUIMultiHelpRows(translate)
-	for _, key := range []string{"tab", "s", "←, →, h, l", "1-9", "↑, ↓, j, k", "x", "d", "r", "z", "a", "q", "?", "enter, esc, i"} {
+	for _, key := range []string{"tab", "shift+tab", "s", "←, →, h, l", "1-9", "↑, ↓, j, k", "x", "d", "r", "z", "a", "q", "?", "enter, esc, i"} {
 		found := false
 		for _, row := range helpRows {
 			found = found || row.key == key
@@ -1278,7 +1303,7 @@ func TestAssetTUIMultiSessionShortcutMode(t *testing.T) {
 		}
 	}
 	rows := helpDialogRows(helpRows)
-	if len(rows) != 27 || !rows[1].separator || rows[len(rows)-1].key != "enter, esc, i" ||
+	if len(rows) != 29 || !rows[1].separator || rows[len(rows)-1].key != "enter, esc, i" ||
 		rows[len(rows)-1].description != "Enter the current session" {
 		t.Fatalf("multi-session help does not use spaced help rows: %#v", rows)
 	}
@@ -1437,7 +1462,7 @@ func TestAssetTUIMultiSessionShortcutMode(t *testing.T) {
 		80, 24, "Close all sessions", "Close all sessions and return to the asset list?",
 		"enter:Confirm · esc:Cancel",
 	)
-	if !ok || left != 15 || top != 8 || popupWidth != 52 {
+	if !ok || left != 13 || top != 8 || popupWidth != 56 {
 		t.Fatalf("unexpected confirmation geometry: left=%d top=%d width=%d ok=%v",
 			left, top, popupWidth, ok)
 	}
@@ -1494,8 +1519,11 @@ func TestAssetTUIMultiSessionViewport(t *testing.T) {
 	if offset != 1 || strings.Join(visible, ",") != "two,three,four" {
 		t.Fatalf("scrolled session viewport is incorrect: offset=%d rows=%#v", offset, visible)
 	}
-	if region := assetTUIMultiScrollRegion(24); region != "\x1b[1;21r" {
-		t.Fatalf("unexpected session scroll region: %q", region)
+	if region := assetTUIMultiScrollRegion(24, true); region != "\x1b[1;21r" {
+		t.Fatalf("unexpected session-window scroll region: %q", region)
+	}
+	if region := assetTUIMultiScrollRegion(24, false); region != "\x1b[1;22r" {
+		t.Fatalf("unexpected focused-session scroll region: %q", region)
 	}
 	if position := assetTUIMultiCursorPosition(80, 20, 11, 7); position !=
 		"\x1b[8;12H"+tuiCursorBlinkRestore+tuiShowCursor {
@@ -1505,18 +1533,24 @@ func TestAssetTUIMultiSessionViewport(t *testing.T) {
 		"\x1b[8;12H"+tuiHideCursor {
 		t.Fatalf("hidden session cursor lost its explicit position: %q", position)
 	}
-	older := assetTUIMultiScrollViewport(rows, 12, 6, 0, 1, false)
+	older := assetTUIMultiScrollViewport(rows, 12, 6, 0, 1, false, true)
 	if strings.Contains(older, utils.CharClear) || strings.Contains(older, tuiExitAltScreen) ||
 		!strings.Contains(older, "\x1b[1T") || !strings.Contains(older, "two") {
 		t.Fatalf("scrolling to older output repainted the workspace: %q", older)
 	}
-	newer := assetTUIMultiScrollViewport(rows, 12, 6, 1, 0, false)
+	newer := assetTUIMultiScrollViewport(rows, 12, 6, 1, 0, false, true)
 	if strings.Contains(newer, utils.CharClear) || strings.Contains(newer, tuiExitAltScreen) ||
 		!strings.Contains(newer, "\x1b[1S") || !strings.Contains(newer, "five") {
 		t.Fatalf("scrolling to newer output repainted the workspace: %q", newer)
 	}
-	if height := assetTUIMultiSessionHeight(24, true); height != 24 {
+	if height := assetTUIMultiSessionHeight(24, true, false); height != 24 {
 		t.Fatalf("immersive session height is %d, want 24", height)
+	}
+	if height := assetTUIMultiSessionHeight(24, false, false); height != 22 {
+		t.Fatalf("focused session height is %d, want 22", height)
+	}
+	if height := assetTUIMultiSessionHeight(24, false, true); height != 21 {
+		t.Fatalf("session-window height is %d, want 21", height)
 	}
 	if !assetTUIMultiSessionContains(24, 0, true) || assetTUIMultiSessionContains(24, 24, true) ||
 		!assetTUIMultiSessionContains(24, 0, false) || !assetTUIMultiSessionContains(24, 20, false) ||
@@ -1746,6 +1780,12 @@ func TestAssetTUIMultiSessionMouseScrollIsolation(t *testing.T) {
 	}
 	wheelUp := assetTUIMultiMouseEvent{button: 64, y: 1, press: true}
 	manager.handleMouse(wheelUp)
+	if manager.sessions[0].scrollOffset != 0 {
+		t.Fatalf("focused session still let Koko capture the mouse: offset=%d",
+			manager.sessions[0].scrollOffset)
+	}
+	manager.commandMode = true
+	manager.handleMouse(wheelUp)
 	firstOffset := manager.sessions[0].scrollOffset
 	if firstOffset == 0 || manager.sessions[1].scrollOffset != 0 {
 		t.Fatalf("first session scroll leaked: first=%d second=%d",
@@ -1797,6 +1837,24 @@ func TestAssetTUIMultiSessionImmersiveMode(t *testing.T) {
 		}
 	default:
 		t.Fatal("leaving immersive mode did not restore the session size")
+	}
+	manager.setCommandMode(false)
+	select {
+	case window := <-connection.winch:
+		if window.Height != 22 {
+			t.Fatalf("focused session height is %d, want 22", window.Height)
+		}
+	default:
+		t.Fatal("entering the session did not expand its operation area")
+	}
+	manager.setCommandMode(true)
+	select {
+	case window := <-connection.winch:
+		if window.Height != 21 {
+			t.Fatalf("session-window height is %d, want 21", window.Height)
+		}
+	default:
+		t.Fatal("activating the session window did not reserve the tab row")
 	}
 	if assetTUIMultiHintDuration != 5*time.Second {
 		t.Fatalf("immersive hint duration is %s, want 5s", assetTUIMultiHintDuration)

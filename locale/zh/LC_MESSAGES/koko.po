@@ -1127,8 +1127,8 @@ msgstr "切换会话"
 msgid "Close session"
 msgstr "关闭会话"
 
-msgid "Multi-session mode supports at most %d assets"
-msgstr "多会话模式最多支持 %d 个资产"
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "多会话模式最多支持同时打开 %d 个会话窗口"
 
 msgid "Failed to open multi-session"
 msgstr "无法打开多会话"
@@ -1150,6 +1150,9 @@ msgstr "重连会话"
 
 msgid "Move to the next session"
 msgstr "切换到下一个会话"
+
+msgid "Move to the previous session"
+msgstr "切换到上一个会话"
 
 msgid "Switch directly to session 1-9"
 msgstr "按编号切换到对应会话"

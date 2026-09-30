@@ -992,8 +992,8 @@ msgstr "Switch session"
 msgid "Close session"
 msgstr "Close session"
 
-msgid "Multi-session mode supports at most %d assets"
-msgstr "Multi-session mode supports at most %d assets"
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "Multi-session mode supports at most %d session windows"
 
 msgid "Failed to open multi-session"
 msgstr "Failed to open multi-session"
@@ -1015,6 +1015,9 @@ msgstr "Reconnect session"
 
 msgid "Move to the next session"
 msgstr "Move to the next session"
+
+msgid "Move to the previous session"
+msgstr "Move to the previous session"
 
 msgid "Switch directly to session 1-9"
 msgstr "Switch directly to session 1-9"

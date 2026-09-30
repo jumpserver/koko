@@ -1891,7 +1891,8 @@ func (m *assetTUI) footerLine() string {
 		"c:" + lang.T("Direct connect"),
 	}
 	if m.multiSessionCount > 0 {
-		items = append(items, fmt.Sprintf("w:%s(%d)", lang.T("Sessions"), m.multiSessionCount))
+		items = append(items, fmt.Sprintf("w:%s(%d/%d)",
+			lang.T("Sessions"), m.multiSessionCount, assetTUIMaxMultiSessions))
 	}
 	items = append(items, "space:"+lang.T("Details"), "g:"+lang.T("Asset tree"))
 	if m.query != "" {
@@ -2085,7 +2086,7 @@ func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf m
 		}
 		if model.showMultiSessions {
 			model.showMultiSessions = false
-			if err := multiSessions.Run(); err != nil && sess.Context().Err() == nil {
+			if err := multiSessions.Run(true); err != nil && sess.Context().Err() == nil {
 				model.status = userFacingErrorMessage(handler.tr(
 					"多会话管理页已关闭", "Multi-session workspace closed",
 				), err)
@@ -2107,7 +2108,7 @@ func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf m
 				model.resume = true
 				continue
 			}
-			if err := multiSessions.Run(); err != nil && sess.Context().Err() == nil {
+			if err := multiSessions.Run(false); err != nil && sess.Context().Err() == nil {
 				model.status = userFacingErrorMessage(handler.tr(
 					"多会话管理页已关闭", "Multi-session workspace closed",
 				), err)

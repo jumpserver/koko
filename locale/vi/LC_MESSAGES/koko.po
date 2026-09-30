@@ -1096,8 +1096,8 @@ msgstr "Chuyển phiên"
 msgid "Close session"
 msgstr "Đóng phiên"
 
-msgid "Multi-session mode supports at most %d assets"
-msgstr "Chế độ đa phiên hỗ trợ tối đa %d tài sản"
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "Chế độ đa phiên chỉ hỗ trợ mở đồng thời tối đa %d cửa sổ phiên"
 
 msgid "Failed to open multi-session"
 msgstr "Không thể mở đa phiên"
@@ -1119,6 +1119,9 @@ msgstr "Kết nối lại phiên"
 
 msgid "Move to the next session"
 msgstr "Chuyển đến phiên tiếp theo"
+
+msgid "Move to the previous session"
+msgstr "Chuyển đến phiên trước"
 
 msgid "Switch directly to session 1-9"
 msgstr "Chuyển trực tiếp đến phiên 1-9"

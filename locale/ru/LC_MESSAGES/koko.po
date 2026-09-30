@@ -1127,8 +1127,8 @@ msgstr "Переключить сеанс"
 msgid "Close session"
 msgstr "Закрыть сеанс"
 
-msgid "Multi-session mode supports at most %d assets"
-msgstr "Мультисессионный режим поддерживает не более %d активов"
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "В мультисессионном режиме можно одновременно открыть не более %d окон сеансов"
 
 msgid "Failed to open multi-session"
 msgstr "Не удалось открыть мультисессию"
@@ -1150,6 +1150,9 @@ msgstr "Переподключить сеанс"
 
 msgid "Move to the next session"
 msgstr "Перейти к следующему сеансу"
+
+msgid "Move to the previous session"
+msgstr "Перейти к предыдущему сеансу"
 
 msgid "Switch directly to session 1-9"
 msgstr "Переключиться непосредственно на сеанс 1-9"

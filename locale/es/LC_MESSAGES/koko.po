@@ -1127,8 +1127,8 @@ msgstr "Cambiar de sesión"
 msgid "Close session"
 msgstr "Cerrar sesión"
 
-msgid "Multi-session mode supports at most %d assets"
-msgstr "El modo multisesión admite como máximo %d activos"
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "El modo multisesión permite abrir simultáneamente un máximo de %d ventanas de sesión"
 
 msgid "Failed to open multi-session"
 msgstr "No se pudo abrir la multisesión"
@@ -1150,6 +1150,9 @@ msgstr "Reconectar sesión"
 
 msgid "Move to the next session"
 msgstr "Ir a la siguiente sesión"
+
+msgid "Move to the previous session"
+msgstr "Ir a la sesión anterior"
 
 msgid "Switch directly to session 1-9"
 msgstr "Cambiar directamente a la sesión 1-9"

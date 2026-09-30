@@ -1127,8 +1127,8 @@ msgstr "セッションを切り替える"
 msgid "Close session"
 msgstr "セッションを閉じる"
 
-msgid "Multi-session mode supports at most %d assets"
-msgstr "マルチセッションモードでは最大 %d 個の資産を開けます"
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "マルチセッションモードで同時に開けるセッションウィンドウは最大 %d 個です"
 
 msgid "Failed to open multi-session"
 msgstr "マルチセッションを開けません"
@@ -1150,6 +1150,9 @@ msgstr "セッションを再接続"
 
 msgid "Move to the next session"
 msgstr "次のセッションに移動"
+
+msgid "Move to the previous session"
+msgstr "前のセッションに移動"
 
 msgid "Switch directly to session 1-9"
 msgstr "番号でセッション 1-9 に直接切り替え"

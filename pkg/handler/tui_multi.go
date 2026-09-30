@@ -173,11 +173,11 @@ func (m *assetTUIMultiSessionManager) Start(connection assetTUIConnection) error
 		m.mu.Unlock()
 		m.outputMu.Unlock()
 		return fmt.Errorf(m.handler.tr(
-			"多会话最多同时打开 %d 个资产",
-			"Multi-session mode supports at most %d assets",
+			"多会话模式最多支持同时打开 %d 个会话窗口",
+			"Multi-session mode supports at most %d session windows",
 		), assetTUIMaxMultiSessions)
 	}
-	width, height := m.width, assetTUIMultiSessionHeight(m.height, m.immersive)
+	width, height := m.width, assetTUIMultiSessionHeight(m.height, m.immersive, m.commandMode)
 	screen, err := newAssetTUIMultiScreen(width, height)
 	if err != nil {
 		m.mu.Unlock()
@@ -254,6 +254,11 @@ func (m *assetTUIMultiSessionManager) finish(session *assetTUIMultiSession, fail
 	showConfirmation := m.markFinished(session, failed)
 	if showConfirmation && m.isImmersive() {
 		m.exitImmersiveMode()
+		return
+	}
+	if showConfirmation {
+		m.resizeAndRenderCurrent()
+		return
 	}
 	m.redrawChrome()
 }
@@ -279,11 +284,11 @@ func (m *assetTUIMultiSessionManager) markFinished(session *assetTUIMultiSession
 	return false
 }
 
-func (m *assetTUIMultiSessionManager) Run() error {
+func (m *assetTUIMultiSessionManager) Run(startInCommandMode bool) error {
 	if m.Count() == 0 {
 		return nil
 	}
-	m.activate()
+	m.activate(startInCommandMode)
 	defer m.deactivate()
 
 	buffer := make([]byte, 8192)
@@ -301,9 +306,13 @@ func (m *assetTUIMultiSessionManager) Run() error {
 			for index := 0; index < n; index++ {
 				value := buffer[index]
 				if event, consumed := assetTUIMultiMouse(buffer[index:n]); consumed > 0 {
-					flush()
+					if m.isCommandMode() {
+						flush()
+						m.handleMouse(event)
+					} else {
+						pending = append(pending, buffer[index:index+consumed]...)
+					}
 					index += consumed - 1
-					m.handleMouse(event)
 					continue
 				}
 				if m.isImmersive() {
@@ -366,6 +375,11 @@ func (m *assetTUIMultiSessionManager) Run() error {
 				}
 				if m.isCommandMode() {
 					flush()
+					if consumed := assetTUIMultiShiftTab(buffer[index:n]); consumed > 0 {
+						index += consumed - 1
+						m.switchSession(-1)
+						continue
+					}
 					if direction, consumed := assetTUIMultiArrow(buffer[index:n]); consumed > 0 {
 						index += consumed - 1
 						switch direction {
@@ -405,7 +419,7 @@ func (m *assetTUIMultiSessionManager) Run() error {
 }
 
 func (m *assetTUIMultiSessionManager) handleMouse(event assetTUIMultiMouseEvent) {
-	if !event.press {
+	if !event.press || !m.isCommandMode() {
 		return
 	}
 	if m.isConfirmationVisible() {
@@ -509,6 +523,19 @@ func assetTUIMultiArrow(data []byte) (direction byte, consumed int) {
 	}
 }
 
+func assetTUIMultiShiftTab(data []byte) int {
+	for _, sequence := range [][]byte{
+		{0x1b, '[', 'Z'},
+		{0x1b, '[', '1', ';', '2', 'Z'},
+		{0x9b, 'Z'},
+	} {
+		if len(data) >= len(sequence) && bytes.Equal(data[:len(sequence)], sequence) {
+			return len(sequence)
+		}
+	}
+	return 0
+}
+
 func assetTUIMultiMouse(data []byte) (assetTUIMultiMouseEvent, int) {
 	if len(data) < 3 || data[0] != 0x1b || data[1] != '[' {
 		return assetTUIMultiMouseEvent{}, 0
@@ -587,22 +614,18 @@ func (m *assetTUIMultiSessionManager) isConfirmationVisible() bool {
 }
 
 func (m *assetTUIMultiSessionManager) setCommandMode(active bool) {
-	if active {
-		m.mu.Lock()
-		m.commandMode = true
-		m.mu.Unlock()
-		m.redrawChrome()
-		return
-	}
-
 	m.outputMu.Lock()
 	m.mu.Lock()
-	m.commandMode = false
-	if len(m.sessions) > 0 {
+	m.commandMode = active
+	if !active && len(m.sessions) > 0 {
 		m.sessions[max(0, min(m.active, len(m.sessions)-1))].scrollOffset = 0
 	}
+	sessions := append([]*assetTUIMultiSession(nil), m.sessions...)
+	width := m.width
+	height := assetTUIMultiSessionHeight(m.height, m.immersive, m.commandMode)
 	viewActive := m.viewActive
 	m.mu.Unlock()
+	resizeAssetTUIMultiSessions(sessions, width, height)
 	if viewActive {
 		m.renderCurrentLocked()
 	}
@@ -630,10 +653,7 @@ func (m *assetTUIMultiSessionManager) enterImmersiveMode() {
 	width, height := m.width, m.height
 	active := m.viewActive
 	m.mu.Unlock()
-	for _, session := range sessions {
-		_ = session.screen.Resize(uint16(width), uint16(height), 0, 0)
-		session.conn.setWindow(ssh.Window{Width: width, Height: height})
-	}
+	resizeAssetTUIMultiSessions(sessions, width, height)
 	if active {
 		m.renderCurrentLocked()
 	}
@@ -657,13 +677,10 @@ func (m *assetTUIMultiSessionManager) exitImmersiveMode() {
 	m.immersiveHintID++
 	m.commandMode = true
 	sessions := append([]*assetTUIMultiSession(nil), m.sessions...)
-	width, height := m.width, assetTUIMultiContentHeight(m.height)
+	width, height := m.width, assetTUIMultiSessionHeight(m.height, false, m.commandMode)
 	active := m.viewActive
 	m.mu.Unlock()
-	for _, session := range sessions {
-		_ = session.screen.Resize(uint16(width), uint16(height), 0, 0)
-		session.conn.setWindow(ssh.Window{Width: width, Height: height})
-	}
+	resizeAssetTUIMultiSessions(sessions, width, height)
 	if active {
 		m.renderCurrentLocked()
 	}
@@ -714,8 +731,8 @@ func (m *assetTUIMultiSessionManager) handleCommand(value byte) (bool, error) {
 	case value == 'd':
 		if m.Count() >= assetTUIMaxMultiSessions {
 			m.showNotice(fmt.Sprintf(m.handler.tr(
-				"多会话最多同时打开 %d 个资产",
-				"Multi-session mode supports at most %d assets",
+				"多会话模式最多支持同时打开 %d 个会话窗口",
+				"Multi-session mode supports at most %d session windows",
 			), assetTUIMaxMultiSessions))
 			break
 		}
@@ -834,8 +851,14 @@ func (m *assetTUIMultiSessionManager) closeSessionList(enterSession bool) {
 			m.sessions[max(0, min(m.active, len(m.sessions)-1))].scrollOffset = 0
 		}
 	}
+	sessions := append([]*assetTUIMultiSession(nil), m.sessions...)
+	width := m.width
+	height := assetTUIMultiSessionHeight(m.height, m.immersive, m.commandMode)
 	active := m.viewActive
 	m.mu.Unlock()
+	if enterSession {
+		resizeAssetTUIMultiSessions(sessions, width, height)
+	}
 	if active {
 		m.renderCurrentLocked()
 	}
@@ -948,7 +971,7 @@ func (m *assetTUIMultiSessionManager) reconnectCurrent() error {
 	index := max(0, min(m.active, len(m.sessions)-1))
 	oldSession := m.sessions[index]
 	connection := oldSession.connection
-	width, height := m.width, assetTUIMultiSessionHeight(m.height, m.immersive)
+	width, height := m.width, assetTUIMultiSessionHeight(m.height, m.immersive, m.commandMode)
 	m.mu.RUnlock()
 
 	screen, err := newAssetTUIMultiScreen(width, height)
@@ -998,9 +1021,9 @@ func (m *assetTUIMultiSessionManager) scrollCurrent(delta int) {
 	width := m.width
 	height := m.height
 	immersive := m.immersive
-	contentHeight := assetTUIMultiSessionHeight(height, immersive)
-	hint := m.immersiveHint
 	commandMode := m.commandMode
+	contentHeight := assetTUIMultiSessionHeight(height, immersive, commandMode)
+	hint := m.immersiveHint
 	active := m.viewActive && !m.helpVisible && !m.sessionListVisible
 	oldOffset := session.scrollOffset
 	m.mu.RUnlock()
@@ -1017,7 +1040,7 @@ func (m *assetTUIMultiSessionManager) scrollCurrent(delta int) {
 			return
 		}
 		_, _ = io.WriteString(m.physical, assetTUIMultiScrollViewport(
-			rows, width, height, oldOffset, newOffset, immersive,
+			rows, width, height, oldOffset, newOffset, immersive, commandMode,
 		))
 		if newOffset > 0 {
 			_, _ = io.WriteString(m.physical, tuiHideCursor)
@@ -1075,9 +1098,9 @@ func assetTUIMultiViewport(rows []string, height, offset int) ([]string, int) {
 }
 
 func assetTUIMultiScrollViewport(rows []string, width, terminalHeight, oldOffset, newOffset int,
-	immersive bool,
+	immersive, commandMode bool,
 ) string {
-	height := assetTUIMultiSessionHeight(terminalHeight, immersive)
+	height := assetTUIMultiSessionHeight(terminalHeight, immersive, commandMode)
 	if width <= 0 || terminalHeight <= 0 || oldOffset == newOffset {
 		return ""
 	}
@@ -1094,7 +1117,7 @@ func assetTUIMultiScrollViewport(rows []string, width, terminalHeight, oldOffset
 		output.WriteString("\x1b[?6l\x1b[r")
 	} else {
 		output.WriteString("\x1b[?6l")
-		output.WriteString(assetTUIMultiScrollRegion(terminalHeight))
+		output.WriteString(assetTUIMultiScrollRegion(terminalHeight, commandMode))
 		output.WriteString("\x1b[?6h")
 	}
 	writeRow := func(row int, value string) {
@@ -1193,14 +1216,11 @@ func (m *assetTUIMultiSessionManager) Resize(window ssh.Window) {
 	m.outputMu.Lock()
 	m.mu.Lock()
 	m.width, m.height = width, height
-	contentHeight := assetTUIMultiSessionHeight(height, m.immersive)
+	contentHeight := assetTUIMultiSessionHeight(height, m.immersive, m.commandMode)
 	sessions := append([]*assetTUIMultiSession(nil), m.sessions...)
 	active := m.viewActive
 	m.mu.Unlock()
-	for _, session := range sessions {
-		_ = session.screen.Resize(uint16(width), uint16(contentHeight), 0, 0)
-		session.conn.setWindow(ssh.Window{Width: width, Height: contentHeight})
-	}
+	resizeAssetTUIMultiSessions(sessions, width, contentHeight)
 	if active {
 		m.renderCurrentLocked()
 	}
@@ -1239,11 +1259,11 @@ func (m *assetTUIMultiSessionManager) Close() {
 	m.outputMu.Unlock()
 }
 
-func (m *assetTUIMultiSessionManager) activate() {
+func (m *assetTUIMultiSessionManager) activate(commandMode bool) {
 	m.outputMu.Lock()
 	m.mu.Lock()
 	m.viewActive = true
-	m.commandMode = false
+	m.commandMode = commandMode
 	m.immersive = false
 	m.immersiveHint = false
 	m.immersiveHintID++
@@ -1255,10 +1275,40 @@ func (m *assetTUIMultiSessionManager) activate() {
 	m.confirmAction = assetTUIMultiConfirmNone
 	m.notice = ""
 	m.noticeID++
+	sessions := append([]*assetTUIMultiSession(nil), m.sessions...)
+	width := m.width
+	height := assetTUIMultiSessionHeight(m.height, m.immersive, m.commandMode)
 	m.mu.Unlock()
+	resizeAssetTUIMultiSessions(sessions, width, height)
 	_, _ = io.WriteString(m.physical, assetTUIMultiClearHistory)
 	m.renderCurrentLocked()
 	m.outputMu.Unlock()
+}
+
+func (m *assetTUIMultiSessionManager) resizeAndRenderCurrent() {
+	m.outputMu.Lock()
+	m.mu.RLock()
+	sessions := append([]*assetTUIMultiSession(nil), m.sessions...)
+	width := m.width
+	height := assetTUIMultiSessionHeight(m.height, m.immersive, m.commandMode)
+	active := m.viewActive
+	m.mu.RUnlock()
+	resizeAssetTUIMultiSessions(sessions, width, height)
+	if active {
+		m.renderCurrentLocked()
+	}
+	m.outputMu.Unlock()
+}
+
+func resizeAssetTUIMultiSessions(sessions []*assetTUIMultiSession, width, height int) {
+	for _, session := range sessions {
+		if session.screen != nil {
+			_ = session.screen.Resize(uint16(width), uint16(height), 0, 0)
+		}
+		if session.conn != nil {
+			session.conn.setWindow(ssh.Window{Width: width, Height: height})
+		}
+	}
 }
 
 func (m *assetTUIMultiSessionManager) deactivate() {
@@ -1578,8 +1628,9 @@ func (m *assetTUIMultiSessionManager) appendOutput(session *assetTUIMultiSession
 	m.mu.RLock()
 	wasScrolled := session.scrollOffset > 0
 	immersive := m.immersive
+	commandMode := m.commandMode
 	hint := m.immersiveHint
-	contentHeight := assetTUIMultiSessionHeight(m.height, immersive)
+	contentHeight := assetTUIMultiSessionHeight(m.height, immersive, commandMode)
 	m.mu.RUnlock()
 	beforeRows := 0
 	if wasScrolled {
@@ -1618,6 +1669,7 @@ func (m *assetTUIMultiSessionManager) appendOutput(session *assetTUIMultiSession
 		}
 		_, _ = m.physical.Write(data)
 		if immersive {
+			_, _ = io.WriteString(m.physical, assetTUIMouseDisable)
 			if hint {
 				m.renderImmersiveHintLocked(true)
 			}
@@ -1663,7 +1715,7 @@ func (m *assetTUIMultiSessionManager) renderCurrentLocked() {
 	commandMode := m.commandMode
 	m.mu.RUnlock()
 
-	contentHeight := assetTUIMultiSessionHeight(height, immersive)
+	contentHeight := assetTUIMultiSessionHeight(height, immersive, commandMode)
 	rows := session.screen.RenderRows(contentHeight)
 	cursorX, cursorY, _ := session.screen.Cursor()
 	visibleRows, scrollOffset := assetTUIMultiViewport(rows, contentHeight, scrollOffset)
@@ -1675,9 +1727,10 @@ func (m *assetTUIMultiSessionManager) renderCurrentLocked() {
 	m.mu.Unlock()
 	mode := ""
 	if !immersive {
-		mode += assetTUIMultiScrollRegion(height) + "\x1b[?6h"
+		mode += assetTUIMultiScrollRegion(height, commandMode) + "\x1b[?6h"
 	}
-	_, _ = io.WriteString(m.physical, "\x1b[?6l\x1b[r"+utils.CharClear+mode)
+	_, _ = io.WriteString(m.physical,
+		assetTUIMultiMouseTracking(commandMode)+"\x1b[?6l\x1b[r"+utils.CharClear+mode)
 	for index := range visibleRows {
 		_, _ = fmt.Fprintf(m.physical, "\x1b[%d;1H%s", index+1, tuiANSIFit(visibleRows[index], width))
 	}
@@ -1714,7 +1767,7 @@ func (m *assetTUIMultiSessionManager) renderCurrentLocked() {
 		return
 	}
 	cursorVisible := assetTUIMultiSessionCursorVisible(commandMode, scrollOffset)
-	_, _ = io.WriteString(m.physical, assetTUIMultiScrollRegion(height)+"\x1b[?6h"+
+	_, _ = io.WriteString(m.physical, assetTUIMultiScrollRegion(height, commandMode)+"\x1b[?6h"+
 		assetTUIMultiCursorRestore(width, contentHeight, cursorX, cursorY, cursorVisible))
 }
 
@@ -1741,7 +1794,7 @@ func (m *assetTUIMultiSessionManager) renderImmersiveHintLocked(preserveCursor b
 			"└" + strings.Repeat("─", popupWidth-2) + "┘",
 		}
 	}
-	_, _ = io.WriteString(m.physical, "\x1b[?6l\x1b[r")
+	_, _ = io.WriteString(m.physical, assetTUIMouseDisable+"\x1b[?6l\x1b[r")
 	for index, line := range lines {
 		_, _ = fmt.Fprintf(m.physical, "\x1b[%d;%dH%s", top+index, left, line)
 	}
@@ -1769,7 +1822,7 @@ func (m *assetTUIMultiSessionManager) restoreImmersiveHintLocked() {
 	rows := session.screen.RenderRows(height)
 	visibleRows, _ := assetTUIMultiViewport(rows, height, scrollOffset)
 	top := assetTUIMultiHintTop(height)
-	_, _ = io.WriteString(m.physical, "\x1b[?6l\x1b[r")
+	_, _ = io.WriteString(m.physical, assetTUIMouseDisable+"\x1b[?6l\x1b[r")
 	for row := top - 1; row < height; row++ {
 		value := ""
 		if row < len(visibleRows) {
@@ -1789,8 +1842,8 @@ func assetTUIMultiHintTop(height int) int {
 	return max(1, height-2)
 }
 
-func assetTUIMultiScrollRegion(height int) string {
-	_, bottom := assetTUIMultiContentBounds(height)
+func assetTUIMultiScrollRegion(height int, commandMode bool) string {
+	bottom := assetTUIMultiSessionHeight(height, false, commandMode)
 	if bottom <= assetTUIMultiContentTop {
 		return ""
 	}
@@ -1812,6 +1865,13 @@ func assetTUIMultiCursorRestore(width, height int, x, y uint16, visible bool) st
 
 func assetTUIMultiSessionCursorVisible(commandMode bool, scrollOffset int) bool {
 	return !commandMode && scrollOffset == 0
+}
+
+func assetTUIMultiMouseTracking(commandMode bool) string {
+	if commandMode {
+		return assetTUIMouseEnable
+	}
+	return assetTUIMouseDisable
 }
 
 func (m *assetTUIMultiSessionManager) renderChromeLocked(preserveCursor bool) {
@@ -1839,33 +1899,48 @@ func (m *assetTUIMultiSessionManager) renderChromeLocked(preserveCursor bool) {
 			cursorX, cursorY, err := sessions[active].screen.Cursor()
 			if err == nil {
 				restoreCursor = assetTUIMultiCursorRestore(
-					width, assetTUIMultiContentHeight(height), cursorX, cursorY,
+					width, assetTUIMultiSessionHeight(height, false, commandMode), cursorX, cursorY,
 					assetTUIMultiSessionCursorVisible(commandMode, scrollOffset),
 				)
 			}
 		}
 	}
 	_, _ = io.WriteString(m.physical, "\x1b[?6l")
-	_, _ = io.WriteString(m.physical, assetTUIMultiScrollRegion(height))
-	_, _ = io.WriteString(m.physical, assetTUIMouseEnable)
-	if height >= 3 {
+	_, _ = io.WriteString(m.physical, assetTUIMultiScrollRegion(height, commandMode))
+	_, _ = io.WriteString(m.physical, assetTUIMultiMouseTracking(commandMode))
+	if commandMode && height >= 3 {
 		_, _ = fmt.Fprintf(m.physical, "\x1b[%d;1H\x1b[2K", height-2)
 	}
 	if height >= 2 {
-		_, _ = fmt.Fprintf(m.physical, "\x1b[%d;1H\x1b[2K%s", height-1, tabsLine)
+		middle := assetTUIMultiMiddleLine(width, commandMode, tabsLine)
+		_, _ = fmt.Fprintf(m.physical, "\x1b[%d;1H\x1b[2K%s", height-1, middle)
 	}
 	lang := m.handler.tr
-	footer := assetTUIMultiFooterLine(width, commandMode, lang)
+	var activeSession *assetTUIMultiSession
+	if active >= 0 && active < len(sessions) {
+		activeSession = sessions[active]
+	}
+	footer := assetTUIMultiFooterLine(width, commandMode, len(sessions), activeSession, lang)
 	_, _ = fmt.Fprintf(m.physical, "\x1b[%d;1H\x1b[2K%s", height, tuiFit(footer, width))
 	if preserveCursor {
 		_, _ = io.WriteString(m.physical,
-			assetTUIMultiScrollRegion(height)+"\x1b[?6h"+restoreCursor)
+			assetTUIMultiScrollRegion(height, commandMode)+"\x1b[?6h"+restoreCursor)
 	}
 }
 
-func assetTUIMultiFooterLine(width int, commandMode bool, tr func(string, string) string) string {
+func assetTUIMultiMiddleLine(width int, commandMode bool, tabsLine string) string {
+	if commandMode {
+		return tabsLine
+	}
+	return ""
+}
+
+func assetTUIMultiFooterLine(width int, commandMode bool, sessionCount int,
+	session *assetTUIMultiSession, tr func(string, string) string) string {
 	if !commandMode {
-		return tuiFit("ctrl+b:"+tr("激活快捷键", "Activate shortcuts"), width)
+		left := fmt.Sprintf("ctrl+b:%s(%d/%d)",
+			tr("会话窗口", "Sessions"), sessionCount, assetTUIMaxMultiSessions)
+		return assetTUIMultiLeftRightLine(width, left, assetTUIMultiConnectionLabel(session))
 	}
 	return tuiShortcutLine(width, []string{
 		"enter:" + tr("进入会话", "Enter session"),
@@ -1877,6 +1952,20 @@ func assetTUIMultiFooterLine(width int, commandMode bool, tr func(string, string
 		"q:" + tr("关闭所有会话", "Close all sessions"),
 		"a:" + tr("资产列表", "Asset list"),
 	}, "?:"+tr("查看帮助", "View help"))
+}
+
+func assetTUIMultiLeftRightLine(width int, left, right string) string {
+	if width <= 0 {
+		return ""
+	}
+	left = strings.TrimRight(tuiFit(left, width), " ")
+	leftWidth := runewidth.StringWidth(left)
+	if right == "" || leftWidth >= width {
+		return tuiFit(left, width)
+	}
+	right = strings.TrimRight(tuiFit(right, width-leftWidth-1), " ")
+	rightWidth := runewidth.StringWidth(right)
+	return left + strings.Repeat(" ", max(1, width-leftWidth-rightWidth)) + right
 }
 
 func assetTUIMultiSessionListLayout(width, height, total int) (assetTUIMultiSessionListGeometry, bool) {
@@ -1952,8 +2041,15 @@ func (m *assetTUIMultiSessionManager) renderSessionListLocked() {
 }
 
 func assetTUIMultiSessionListLabel(index int, session *assetTUIMultiSession) string {
+	return fmt.Sprintf("%d. %s", index+1, assetTUIMultiConnectionLabel(session))
+}
+
+func assetTUIMultiConnectionLabel(session *assetTUIMultiSession) string {
+	if session == nil {
+		return ""
+	}
 	connection := session.connection
-	return fmt.Sprintf("%d. %s://%s@%s", index+1, connection.protocol,
+	return fmt.Sprintf("%s://%s@%s", connection.protocol,
 		connection.account.Username, connection.asset.Name)
 }
 
@@ -2050,11 +2146,11 @@ func assetTUIMultiConfirmationLayout(width, height int, values ...string) (left,
 	if width < 16 || availableHeight < 7 {
 		return 0, 0, 0, false
 	}
-	popupWidth = 30
+	popupWidth = 34
 	for _, value := range values {
-		popupWidth = max(popupWidth, runewidth.StringWidth(value)+4)
+		popupWidth = max(popupWidth, runewidth.StringWidth(value)+8)
 	}
-	popupWidth = min(width, min(58, popupWidth))
+	popupWidth = min(width, min(62, popupWidth))
 	left = max(1, (width-popupWidth)/2+1)
 	top = contentTop + (availableHeight-7)/2
 	return left, top, popupWidth, true
@@ -2123,6 +2219,7 @@ func assetTUIMultiHelpRows(tr func(string, string) string) []assetTUIHelpRow {
 	}
 	return []assetTUIHelpRow{
 		row("tab", "切换到下一个会话", "Move to the next session"),
+		row("shift+tab", "切换到上一个会话", "Move to the previous session"),
 		row("s", "打开会话列表", "Open the session list"),
 		row("←, →, h, l", "切换到左侧或右侧会话", "Move to the previous or next session"),
 		row("1-9", "按编号切换到对应会话", "Switch directly to session 1-9"),
@@ -2313,9 +2410,12 @@ func assetTUIMultiContentHeight(height int) int {
 	return max(1, height-assetTUIMultiChromeRows)
 }
 
-func assetTUIMultiSessionHeight(height int, immersive bool) int {
+func assetTUIMultiSessionHeight(height int, immersive, commandMode bool) int {
 	if immersive {
 		return max(1, height)
+	}
+	if !commandMode {
+		return max(1, height-2)
 	}
 	return assetTUIMultiContentHeight(height)
 }

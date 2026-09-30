@@ -1127,8 +1127,8 @@ msgstr "세션 전환"
 msgid "Close session"
 msgstr "세션 닫기"
 
-msgid "Multi-session mode supports at most %d assets"
-msgstr "다중 세션 모드는 최대 %d개의 자산을 지원합니다"
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "다중 세션 모드에서는 세션 창을 동시에 최대 %d개까지 열 수 있습니다"
 
 msgid "Failed to open multi-session"
 msgstr "다중 세션을 열 수 없습니다"
@@ -1150,6 +1150,9 @@ msgstr "세션 다시 연결"
 
 msgid "Move to the next session"
 msgstr "다음 세션으로 이동"
+
+msgid "Move to the previous session"
+msgstr "이전 세션으로 이동"
 
 msgid "Switch directly to session 1-9"
 msgstr "번호로 세션 1-9에 바로 전환"
