@@ -1068,3 +1068,99 @@ msgstr "Không"
 
 msgid "My Assets"
 msgstr "Tài sản của tôi"
+
+msgid "Direct connect"
+msgstr "Kết nối trực tiếp"
+
+msgid "Multi-session"
+msgstr "Đa phiên"
+
+msgid "Sessions"
+msgstr "Các phiên"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "Kết nối đến tài sản đã chọn bằng một phiên gốc"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "Mở tài sản đã chọn trong không gian đa phiên"
+
+msgid "Return to the multi-session workspace"
+msgstr "Quay lại không gian đa phiên"
+
+msgid "Asset list"
+msgstr "Danh sách tài sản"
+
+msgid "Switch session"
+msgstr "Chuyển phiên"
+
+msgid "Close session"
+msgstr "Đóng phiên"
+
+msgid "Multi-session mode supports at most %d assets"
+msgstr "Chế độ đa phiên hỗ trợ tối đa %d tài sản"
+
+msgid "Failed to open multi-session"
+msgstr "Không thể mở đa phiên"
+
+msgid "Multi-session workspace closed"
+msgstr "Không gian đa phiên đã đóng"
+
+msgid "Activate shortcuts"
+msgstr "Kích hoạt phím tắt"
+
+msgid "Next session"
+msgstr "Phiên tiếp theo"
+
+msgid "Duplicate session"
+msgstr "Nhân đôi phiên"
+
+msgid "Reconnect session"
+msgstr "Kết nối lại phiên"
+
+msgid "Move to the next session"
+msgstr "Chuyển đến phiên tiếp theo"
+
+msgid "Switch directly to session 1-9"
+msgstr "Chuyển trực tiếp đến phiên 1-9"
+
+msgid "Close the current session"
+msgstr "Đóng phiên hiện tại"
+
+msgid "Duplicate the current session"
+msgstr "Nhân đôi phiên hiện tại"
+
+msgid "Reconnect the current session"
+msgstr "Kết nối lại phiên hiện tại"
+
+msgid "Return to the asset list"
+msgstr "Quay lại danh sách tài sản"
+
+msgid "Send ctrl+b to the current session"
+msgstr "Gửi ctrl+b đến phiên hiện tại"
+
+msgid "Scroll content"
+msgstr "Cuộn nội dung"
+
+msgid "Scroll the current session down or up"
+msgstr "Cuộn nội dung phiên hiện tại xuống hoặc lên"
+
+msgid "Enter session"
+msgstr "Vào phiên"
+
+msgid "Move to the previous or next session"
+msgstr "Chuyển đến phiên trước hoặc tiếp theo"
+
+msgid "Enter the current session"
+msgstr "Vào phiên hiện tại"
+
+msgid "Close all sessions"
+msgstr "Đóng tất cả phiên"
+
+msgid "Close all sessions and return to the asset list"
+msgstr "Đóng tất cả phiên và quay lại danh sách tài sản"
+
+msgid "Session list"
+msgstr "Danh sách phiên"
+
+msgid "Open the session list"
+msgstr "Mở danh sách phiên"

@@ -90,9 +90,10 @@ type assetTUIHelpRow struct {
 }
 
 type assetTUIConnection struct {
-	asset    model.PermAsset
-	account  model.PermAccount
-	protocol string
+	asset       model.PermAsset
+	account     model.PermAccount
+	protocol    string
+	multiWindow bool
 }
 
 type assetTUI struct {
@@ -106,35 +107,41 @@ type assetTUI struct {
 	total    int
 	cursor   int
 
-	assets            []model.PermAsset
-	connectable       []bool
-	hasPrev           bool
-	hasNext           bool
-	query             string
-	searchInput       []rune
-	searching         bool
-	loading           bool
-	loadingChoices    bool
-	status            string
-	switchText        bool
-	resume            bool
-	dialog            *assetTUIDialog
-	languageDialog    *assetTUILanguageDialog
-	helpDialog        bool
-	helpScroll        int
-	helpDragging      bool
-	helpScrollbarGrab int
-	detailDialog      *assetTUIDetailDialog
-	treeDialog        *assetTUITreeDialog
-	treeDialogStates  map[assetTUITreeKind]assetTUITreeDialog
-	lastTreeDialog    assetTUITreeKind
-	trees             map[assetTUITreeKind]*assetTUITreeCache
-	selectedTree      assetTUITreeKind
-	selectedTreeID    string
-	selectedPath      string
-	connection        *assetTUIConnection
-	lastClickRow      int
-	lastClickAt       time.Time
+	assets             []model.PermAsset
+	connectable        []bool
+	hasPrev            bool
+	hasNext            bool
+	query              string
+	searchInput        []rune
+	searching          bool
+	loading            bool
+	loadingChoices     bool
+	status             string
+	switchText         bool
+	resume             bool
+	dialog             *assetTUIDialog
+	languageDialog     *assetTUILanguageDialog
+	helpDialog         bool
+	helpScroll         int
+	helpDragging       bool
+	helpScrollbarGrab  int
+	detailDialog       *assetTUIDetailDialog
+	treeDialog         *assetTUITreeDialog
+	treeDialogStates   map[assetTUITreeKind]assetTUITreeDialog
+	lastTreeDialog     assetTUITreeKind
+	trees              map[assetTUITreeKind]*assetTUITreeCache
+	selectedTree       assetTUITreeKind
+	selectedTreeID     string
+	selectedPath       string
+	connection         *assetTUIConnection
+	pendingMultiWindow bool
+	multiSessionCount  int
+	showMultiSessions  bool
+	lastAccount        model.PermAccount
+	lastProtocol       string
+	hasLastConnection  bool
+	lastClickRow       int
+	lastClickAt        time.Time
 }
 
 func newAssetTUI(handler *InteractiveHandler) *assetTUI {
@@ -210,6 +217,10 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.showStatus(userFacingErrorMessage(m.tr("无法获取连接选项", "Failed to load connection options"), msg.err))
 		}
 		m.clearStatus()
+		m.prioritizeConnectionChoices(msg.accounts, msg.protocols)
+		if len(msg.accounts) == 1 && len(msg.protocols) == 1 {
+			return m.selectConnection(msg.asset, msg.accounts[0], msg.protocols[0])
+		}
 		m.dialog = newAssetTUIDialog(msg.asset, msg.accounts, msg.protocols)
 	case assetTUIAssetDetailMsg:
 		if m.detailDialog == nil || m.detailDialog.assetID != msg.asset.ID {
@@ -261,6 +272,11 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 {
 				switch msg.Runes[0] {
+				case 'w':
+					if m.multiSessionCount > 0 {
+						m.showMultiSessions = true
+						return m, tea.Quit
+					}
 				case 'g', 'G':
 					if !m.loadingChoices {
 						return m.reopenTreeDialog()
@@ -303,12 +319,19 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.loadPage(m.offset + len(m.assets))
 			}
 		case tea.KeyEnter:
-			return m.openAssetDialog(m.cursor)
+			return m.openAssetDialog(m.cursor, false)
 		case tea.KeyRunes:
 			if len(msg.Runes) != 1 {
 				return m, nil
 			}
 			switch msg.Runes[0] {
+			case 'm':
+				return m.openAssetDialog(m.cursor, true)
+			case 'w':
+				if m.multiSessionCount > 0 {
+					m.showMultiSessions = true
+					return m, tea.Quit
+				}
 			case '/':
 				m.focusSearch()
 				return m, nil
@@ -414,7 +437,7 @@ func (m *assetTUI) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}, string(m.searchInput)))
 		m.searchInput = nil
 		return m, m.loadPage(0)
-	case tea.KeyBackspace, tea.KeyDelete:
+	case tea.KeyBackspace, tea.KeyDelete, tea.KeyCtrlH:
 		if len(m.searchInput) > 0 {
 			m.searchInput = m.searchInput[:len(m.searchInput)-1]
 		}
@@ -474,10 +497,11 @@ func (m *assetTUI) loadPageWithRefresh(offset int, refresh bool) tea.Cmd {
 	return tea.Batch(loadCmd, statusCmd)
 }
 
-func (m *assetTUI) openAssetDialog(index int) (tea.Model, tea.Cmd) {
+func (m *assetTUI) openAssetDialog(index int, multiWindow bool) (tea.Model, tea.Cmd) {
 	if index < 0 || index >= len(m.assets) || m.loadingChoices {
 		return m, nil
 	}
+	m.pendingMultiWindow = multiWindow
 	if index >= len(m.connectable) || !m.connectable[index] {
 		m.loadingChoices = true
 		asset := m.assets[index]
@@ -539,7 +563,7 @@ func (d *assetTUIDialog) filterAccounts() {
 	d.accountMatches = d.accountMatches[:0]
 	for i := range d.accounts {
 		account := d.accounts[i]
-		text := strings.ToLower(account.Name + " " + account.Username + " " + account.Alias)
+		text := strings.ToLower(account.Name + " " + account.Username)
 		if query == "" || strings.Contains(text, query) {
 			d.accountMatches = append(d.accountMatches, i)
 		}
@@ -643,7 +667,7 @@ func (m *assetTUI) updateAccountSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type {
 	case tea.KeyEsc, tea.KeyEnter:
 		dialog.searchingAccount = false
-	case tea.KeyBackspace, tea.KeyDelete:
+	case tea.KeyBackspace, tea.KeyDelete, tea.KeyCtrlH:
 		if len(dialog.accountSearch) > 0 {
 			dialog.accountSearch = dialog.accountSearch[:len(dialog.accountSearch)-1]
 			dialog.accountIndex = 0
@@ -682,12 +706,53 @@ func (m *assetTUI) chooseDialogConnection() (tea.Model, tea.Cmd) {
 	if !ok {
 		return m, nil
 	}
+	return m.selectConnection(dialog.asset, account, dialog.protocols[dialog.protocolIndex])
+}
+
+func (m *assetTUI) selectConnection(asset model.PermAsset, account model.PermAccount, protocol string) (tea.Model, tea.Cmd) {
 	m.connection = &assetTUIConnection{
-		asset: dialog.asset, account: account,
-		protocol: dialog.protocols[dialog.protocolIndex],
+		asset: asset, account: account, protocol: protocol, multiWindow: m.pendingMultiWindow,
 	}
+	m.lastAccount = account
+	m.lastProtocol = protocol
+	m.hasLastConnection = true
 	m.dialog = nil
 	return m, tea.Quit
+}
+
+func (m *assetTUI) prioritizeConnectionChoices(accounts []model.PermAccount, protocols []string) {
+	if !m.hasLastConnection {
+		return
+	}
+	for index := range accounts {
+		if !samePermAccount(accounts[index], m.lastAccount) {
+			continue
+		}
+		if index > 0 {
+			account := accounts[index]
+			copy(accounts[1:index+1], accounts[:index])
+			accounts[0] = account
+		}
+		break
+	}
+	for index := range protocols {
+		if !strings.EqualFold(protocols[index], m.lastProtocol) {
+			continue
+		}
+		if index > 0 {
+			protocol := protocols[index]
+			copy(protocols[1:index+1], protocols[:index])
+			protocols[0] = protocol
+		}
+		break
+	}
+}
+
+func samePermAccount(left, right model.PermAccount) bool {
+	if left.Alias != "" && right.Alias != "" {
+		return left.Alias == right.Alias
+	}
+	return left.Name == right.Name && left.Username == right.Username
 }
 
 func (m *assetTUI) openLanguageDialog() {
@@ -811,7 +876,7 @@ func (m *assetTUI) updateMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) {
 	if m.lastClickRow == row && now.Sub(m.lastClickAt) <= tuiDoubleClickInterval {
 		m.lastClickRow = -1
 		m.lastClickAt = time.Time{}
-		return m.openAssetDialog(row)
+		return m.openAssetDialog(row, false)
 	}
 	m.lastClickRow = row
 	m.lastClickAt = now
@@ -954,10 +1019,10 @@ func (m *assetTUI) helpDialogGeometry(rows []assetTUIHelpRow) assetTUIDialogGeom
 		protocolRows = len(protocolLines) + 1
 	}
 	displayRows := helpDialogRows(rows)
-	height := min(len(displayRows)+4+protocolRows, max(1, m.height-1))
+	height := min(len(displayRows)+6+protocolRows, max(1, m.height-1))
 	return assetTUIDialogGeometry{
 		x: max(0, m.width-width-1), y: max(0, m.height-height-1),
-		width: width, height: height, rows: max(0, height-4-protocolRows),
+		width: width, height: height, rows: max(0, height-6-protocolRows),
 	}
 }
 
@@ -1145,7 +1210,7 @@ func (m *assetTUI) renderLanguageDialog(lines []string) {
 func (m *assetTUI) renderHelpDialog(lines []string) {
 	rows := m.helpShortcutRows()
 	geometry := m.helpDialogGeometry(rows)
-	if geometry.width < 20 || geometry.height < 5 || geometry.y < 0 || geometry.y+geometry.height > len(lines) {
+	if geometry.width < 20 || geometry.height < 7 || geometry.y < 0 || geometry.y+geometry.height > len(lines) {
 		return
 	}
 	popup := tuiDialogFrame("", geometry.width, geometry.height)
@@ -1187,7 +1252,7 @@ func (m *assetTUI) renderHelpDialog(lines []string) {
 	protocolWidth := max(0, geometry.width-6)
 	protocolLines := m.helpProtocolLines(protocolWidth)
 	protocolStart := geometry.rows + 3
-	availableProtocolRows := max(0, geometry.height-protocolStart-2)
+	availableProtocolRows := max(0, geometry.height-protocolStart-4)
 	if len(protocolLines) > availableProtocolRows {
 		protocolLines = protocolLines[:availableProtocolRows]
 	}
@@ -1197,6 +1262,8 @@ func (m *assetTUI) renderHelpDialog(lines []string) {
 			popup[protocolStart+index+1] = "│  " + tuiFit(line, protocolWidth) + "  │"
 		}
 	}
+	popup[geometry.height-3] = "├" + strings.Repeat("─", geometry.width-2) + "┤"
+	popup[geometry.height-2] = "│" + tuiDialogLeft("esc:"+lang.T("Cancel"), geometry.width-2) + "│"
 	m.overlayDialog(lines, popup, geometry)
 }
 
@@ -1242,14 +1309,13 @@ func (m *assetTUI) helpShortcutRows() []assetTUIHelpRow {
 			row("space", "View complete information for the selected item"),
 			row("enter", "Use the selected node to filter assets"),
 			row("tab, shift+tab", "Switch the asset tree type"), row("r", "Reload the current asset tree"),
-			row("?", "Open shortcut help"), row("esc", "Close shortcut help"),
+			row("?", "Open shortcut help"),
 		}
 	}
 	if m.languageDialog != nil {
 		return []assetTUIHelpRow{
 			row("↑, ↓, j, k", "Move the selection up or down"),
 			row("enter", "Apply the selected language"), row("?", "Open shortcut help"),
-			row("esc", "Close shortcut help"),
 		}
 	}
 	if m.dialog != nil {
@@ -1258,18 +1324,20 @@ func (m *assetTUI) helpShortcutRows() []assetTUIHelpRow {
 			row("←, →, h, l", "Select a connection protocol"),
 			row("space", "View complete information for the selected item"),
 			row("/", "Search authorized accounts"), row("enter", "Connect using the selected account and protocol"),
-			row("?", "Open shortcut help"), row("esc", "Close shortcut help"),
+			row("?", "Open shortcut help"),
 		}
 	}
 	if m.loading || m.loadingChoices {
 		rows := []assetTUIHelpRow{}
+		if m.multiSessionCount > 0 {
+			rows = append(rows, row("w", "Return to the multi-session workspace"))
+		}
 		if !m.loadingChoices {
 			rows = append(rows, row("g", "Open the asset tree"), row("s", "Switch the interface language"))
 		}
 		return append(rows,
 			row("t", "Switch to text mode"), row("ctrl+c, q", "Quit"),
 			row("?", "Open shortcut help"),
-			row("esc", "Close shortcut help"),
 		)
 	}
 	rows := []assetTUIHelpRow{row("/", "Search assets in the current scope")}
@@ -1280,16 +1348,21 @@ func (m *assetTUI) helpShortcutRows() []assetTUIHelpRow {
 		row("↑, ↓, j, k", "Move the selection up or down"),
 		row("←, →, h, l", "Go to the previous or next page"),
 		row("space", "View complete information for the selected item"),
-		row("enter", "Connect to the selected asset"), row("g", "Open the asset tree"),
+		row("enter", "Connect to the selected asset in a native single session"),
+		row("m", "Open the selected asset in the multi-session workspace"),
+		row("g", "Open the asset tree"),
 		row("r", "Refresh the current asset list and keep search and tree filters"),
 	)
+	if m.multiSessionCount > 0 {
+		rows = append(rows, row("w", "Return to the multi-session workspace"))
+	}
 	if m.selectedTree != 0 {
 		rows = append(rows, row("c", "Clear the selected tree node"))
 	}
 	return append(rows,
 		row("s", "Switch the interface language"), row("t", "Switch to text mode"),
 		row("ctrl+c, q", "Quit"),
-		row("?", "Open shortcut help"), row("esc", "Close shortcut help"),
+		row("?", "Open shortcut help"),
 	)
 }
 
@@ -1724,9 +1797,13 @@ func (m *assetTUI) footerLine() string {
 		return tuiFit(shortcuts, m.width)
 	}
 	items := []string{
-		"/:" + lang.T("Search"), "enter:" + lang.T("Connect"),
-		"space:" + lang.T("Details"), "g:" + lang.T("Asset tree"),
+		"/:" + lang.T("Search"), "enter:" + lang.T("Direct connect"),
+		"m:" + lang.T("Multi-session"),
 	}
+	if m.multiSessionCount > 0 {
+		items = append(items, "w:"+lang.T("Sessions"))
+	}
+	items = append(items, "space:"+lang.T("Details"), "g:"+lang.T("Asset tree"))
 	if m.query != "" {
 		items = append(items, "x:"+lang.T("Clear search"))
 	}
@@ -1852,6 +1929,12 @@ func tuiRightAlign(value string, width int) string {
 func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf model.TerminalConfig,
 	winChan <-chan ssh.Window) {
 	input := NewWrapperSession(sess)
+	handler := newInteractiveHandler(input, user, s.jmsService, termConf, false)
+	handler.initializeAssetSelector()
+	handler.selectHandler.SetSelectType(TypeAsset)
+	multiSessions := newAssetTUIMultiSessionManager(handler, input)
+	defer multiSessions.Close()
+
 	routingDone := make(chan struct{})
 	defer close(routingDone)
 	go func() {
@@ -1862,6 +1945,7 @@ func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf m
 					return
 				}
 				input.SetWin(win)
+				multiSessions.Resize(win)
 			case <-sess.Context().Done():
 				return
 			case <-routingDone:
@@ -1870,12 +1954,10 @@ func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf m
 		}
 	}()
 
-	handler := newInteractiveHandler(input, user, s.jmsService, termConf, false)
-	handler.initializeAssetSelector()
-	handler.selectHandler.SetSelectType(TypeAsset)
 	model := newAssetTUI(handler)
 	classicStarted := false
 	for {
+		model.multiSessionCount = multiSessions.Count()
 		err := runAssetTUI(handler, model)
 		_ = input.Close()
 		if err != nil {
@@ -1907,11 +1989,39 @@ func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf m
 			model.treeDialog = nil
 			continue
 		}
+		if model.showMultiSessions {
+			model.showMultiSessions = false
+			if err := multiSessions.Run(); err != nil && sess.Context().Err() == nil {
+				model.status = userFacingErrorMessage(handler.tr(
+					"多会话管理页已关闭", "Multi-session workspace closed",
+				), err)
+			}
+			_ = input.Close()
+			model.resume = true
+			continue
+		}
 		if model.connection == nil {
 			return
 		}
 		connection := *model.connection
 		model.connection = nil
+		if connection.multiWindow {
+			if err := multiSessions.Start(connection); err != nil {
+				model.status = userFacingErrorMessage(handler.tr(
+					"无法打开多会话", "Failed to open multi-session",
+				), err)
+				model.resume = true
+				continue
+			}
+			if err := multiSessions.Run(); err != nil && sess.Context().Err() == nil {
+				model.status = userFacingErrorMessage(handler.tr(
+					"多会话管理页已关闭", "Multi-session workspace closed",
+				), err)
+			}
+			_ = input.Close()
+			model.resume = true
+			continue
+		}
 		utils.IgnoreErrWriteString(sess, utils.CharClear)
 		handler.resizeTerminal()
 		handler.selectHandler.selectedAsset = &connection.asset

@@ -1099,3 +1099,99 @@ msgstr "Нет"
 
 msgid "My Assets"
 msgstr "Мои активы"
+
+msgid "Direct connect"
+msgstr "Прямое подключение"
+
+msgid "Multi-session"
+msgstr "Мультисессия"
+
+msgid "Sessions"
+msgstr "Сеансы"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "Подключиться к выбранному активу в одном нативном сеансе"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "Открыть выбранный актив в мультисессионном окне"
+
+msgid "Return to the multi-session workspace"
+msgstr "Вернуться в мультисессионное окно"
+
+msgid "Asset list"
+msgstr "Список активов"
+
+msgid "Switch session"
+msgstr "Переключить сеанс"
+
+msgid "Close session"
+msgstr "Закрыть сеанс"
+
+msgid "Multi-session mode supports at most %d assets"
+msgstr "Мультисессионный режим поддерживает не более %d активов"
+
+msgid "Failed to open multi-session"
+msgstr "Не удалось открыть мультисессию"
+
+msgid "Multi-session workspace closed"
+msgstr "Мультисессионное окно закрыто"
+
+msgid "Activate shortcuts"
+msgstr "Активировать сочетания клавиш"
+
+msgid "Next session"
+msgstr "Следующий сеанс"
+
+msgid "Duplicate session"
+msgstr "Дублировать сеанс"
+
+msgid "Reconnect session"
+msgstr "Переподключить сеанс"
+
+msgid "Move to the next session"
+msgstr "Перейти к следующему сеансу"
+
+msgid "Switch directly to session 1-9"
+msgstr "Переключиться непосредственно на сеанс 1-9"
+
+msgid "Close the current session"
+msgstr "Закрыть текущий сеанс"
+
+msgid "Duplicate the current session"
+msgstr "Дублировать текущий сеанс"
+
+msgid "Reconnect the current session"
+msgstr "Переподключить текущий сеанс"
+
+msgid "Return to the asset list"
+msgstr "Вернуться к списку активов"
+
+msgid "Send ctrl+b to the current session"
+msgstr "Отправить ctrl+b в текущий сеанс"
+
+msgid "Scroll content"
+msgstr "Прокрутить содержимое"
+
+msgid "Scroll the current session down or up"
+msgstr "Прокрутить содержимое текущего сеанса вниз или вверх"
+
+msgid "Enter session"
+msgstr "Войти в сеанс"
+
+msgid "Move to the previous or next session"
+msgstr "Перейти к предыдущему или следующему сеансу"
+
+msgid "Enter the current session"
+msgstr "Войти в текущий сеанс"
+
+msgid "Close all sessions"
+msgstr "Закрыть все сеансы"
+
+msgid "Close all sessions and return to the asset list"
+msgstr "Закрыть все сеансы и вернуться к списку активов"
+
+msgid "Session list"
+msgstr "Список сеансов"
+
+msgid "Open the session list"
+msgstr "Открыть список сеансов"

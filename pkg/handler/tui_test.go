@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -122,8 +123,13 @@ func TestAssetTUISearchFooterOnlyShowsActiveShortcuts(t *testing.T) {
 	if _, cmd := tui.updateSearch(tea.KeyMsg{Type: tea.KeyCtrlC}); cmd != nil || !tui.searching {
 		t.Fatal("Ctrl+C should not exit while search is focused")
 	}
+	tui.searchInput = []rune("host")
+	tui.updateSearch(tea.KeyMsg{Type: tea.KeyCtrlH})
+	if string(tui.searchInput) != "hos" {
+		t.Fatalf("ctrl+h did not delete the previous search character: %q", tui.searchInput)
+	}
 	tui.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
-	if tui.helpDialog || string(tui.searchInput) != "?" {
+	if tui.helpDialog || string(tui.searchInput) != "hos?" {
 		t.Fatalf("question mark should remain searchable while search is focused: help=%v input=%q",
 			tui.helpDialog, tui.searchInput)
 	}
@@ -303,7 +309,7 @@ func TestAssetTUIHelpDialogKeyboardAndRendering(t *testing.T) {
 		selectedTree: assetTUITypeTree, selectedTreeID: "host",
 	}
 	footer := strings.TrimSpace(tui.footerLine())
-	for _, shortcut := range []string{"/:Search", "enter:Connect", "space:Details", "g:Asset tree", "q:Quit", "?:View help"} {
+	for _, shortcut := range []string{"/:Search", "enter:Direct connect", "m:Multi-session", "space:Details", "?:View help"} {
 		if !strings.Contains(footer, shortcut) {
 			t.Fatalf("main footer is missing common shortcut %q: %q", shortcut, footer)
 		}
@@ -363,7 +369,13 @@ func TestAssetTUIHelpDialogKeyboardAndRendering(t *testing.T) {
 	if !strings.Contains(lines[protocolStart], "├") {
 		t.Fatalf("supported protocols have no separator: %q", lines[protocolStart])
 	}
-	protocolContent := strings.Join(lines[protocolStart+1:geometry.y+geometry.height-1], "\n")
+	footerSeparator := geometry.y + geometry.height - 3
+	if !strings.Contains(lines[footerSeparator], "├") || !strings.Contains(lines[footerSeparator], "┤") ||
+		!strings.Contains(lines[footerSeparator+1], "esc:Cancel") {
+		t.Fatalf("help cancel footer is not separated from its content: %q / %q",
+			lines[footerSeparator], lines[footerSeparator+1])
+	}
+	protocolContent := strings.Join(lines[protocolStart+1:footerSeparator], "\n")
 	if !strings.Contains(lines[protocolStart+1], "Protocols supported by the current terminal:") {
 		t.Fatalf("supported protocol title is missing: %q", protocolContent)
 	}
@@ -371,13 +383,13 @@ func TestAssetTUIHelpDialogKeyboardAndRendering(t *testing.T) {
 		strings.Contains(lines[protocolStart+1], protocols[0]) {
 		t.Fatalf("supported protocols start on the title row: %q", lines[protocolStart+1])
 	}
-	protocolList := strings.Join(lines[protocolStart+2:geometry.y+geometry.height-1], "\n")
+	protocolList := strings.Join(lines[protocolStart+2:footerSeparator], "\n")
 	for _, protocol := range srvconn.SupportedProtocols() {
 		if !strings.Contains(protocolList, protocol) {
 			t.Fatalf("supported protocol %q is missing: %q", protocol, protocolList)
 		}
 	}
-	for row := protocolStart + 1; row < geometry.y+geometry.height-1; row++ {
+	for row := protocolStart + 1; row < footerSeparator; row++ {
 		dialogLine := runewidth.TruncateLeft(lines[row], geometry.x, "")
 		dialogLine = runewidth.Truncate(dialogLine, geometry.width, "")
 		if !strings.HasSuffix(dialogLine, "│") {
@@ -389,7 +401,7 @@ func TestAssetTUIHelpDialogKeyboardAndRendering(t *testing.T) {
 		t.Fatal("help shortcut list did not scroll to the end")
 	}
 	scrolled := strings.Join(strings.Split(tui.View(), "\n")[geometry.y+3:geometry.y+3+geometry.rows], "\n")
-	if !strings.Contains(scrolled, "esc") {
+	if !strings.Contains(scrolled, "?") || strings.Contains(scrolled, "esc") {
 		t.Fatalf("last help shortcut is not reachable by scrolling: %q", scrolled)
 	}
 	tui.Update(tea.KeyMsg{Type: tea.KeyEsc})
@@ -619,7 +631,7 @@ func TestAssetTUITreeCacheAndScopeLabel(t *testing.T) {
 	tui.query = "server"
 	tui.width = 500
 	footer := tui.footerLine()
-	for _, shortcut := range []string{"/:Search", "x:Clear search", "enter:Connect", "space:Details", "g:Asset tree", "c:Clear node", "t:Text mode", "q:Quit", "?:View help"} {
+	for _, shortcut := range []string{"/:Search", "x:Clear search", "enter:Direct connect", "m:Multi-session", "space:Details", "g:Asset tree", "c:Clear node", "t:Text mode", "q:Quit", "?:View help"} {
 		if !strings.Contains(footer, shortcut) {
 			t.Fatalf("asset footer is missing common shortcut %q: %q", shortcut, footer)
 		}
@@ -875,6 +887,312 @@ func TestAssetTUIDialogCreatesConnection(t *testing.T) {
 	if _, cmd := tui.updateDialogKey(tea.KeyMsg{Type: tea.KeyEnter}); cmd == nil || tui.connection == nil {
 		t.Fatal("dialog selection should create a TUI connection")
 	}
+	if !tui.hasLastConnection || tui.lastAccount.Alias != "account-1" || tui.lastProtocol != "ssh" {
+		t.Fatalf("dialog selection was not remembered: account=%#v protocol=%q", tui.lastAccount, tui.lastProtocol)
+	}
+}
+
+func TestAssetTUIMultiSessionSelectionAndWorkspaceShortcut(t *testing.T) {
+	tui := assetTUI{
+		handler:            &InteractiveHandler{i18nLang: "en"},
+		pendingMultiWindow: true,
+		multiSessionCount:  1,
+	}
+	if _, cmd := tui.Update(assetChoicesMsg{
+		asset:     model.PermAsset{ID: "asset-1"},
+		accounts:  []model.PermAccount{{Alias: "account-1"}},
+		protocols: []string{"ssh"},
+	}); cmd == nil || tui.connection == nil || !tui.connection.multiWindow {
+		t.Fatalf("multi-session selection did not create a multi-window connection: %#v", tui.connection)
+	}
+
+	tui.connection = nil
+	if _, cmd := tui.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}}); cmd == nil || !tui.showMultiSessions {
+		t.Fatal("w did not return to the existing multi-session workspace")
+	}
+}
+
+func TestAssetTUIConnectionKeysChooseMode(t *testing.T) {
+	tui := assetTUI{
+		handler:     &InteractiveHandler{i18nLang: "en"},
+		selector:    &UserSelectHandler{},
+		assets:      []model.PermAsset{{ID: "asset-1"}},
+		connectable: []bool{true},
+	}
+	if _, cmd := tui.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}}); cmd == nil || !tui.pendingMultiWindow {
+		t.Fatal("m did not select multi-session connection mode")
+	}
+	tui.loadingChoices = false
+	if _, cmd := tui.Update(tea.KeyMsg{Type: tea.KeyEnter}); cmd == nil || tui.pendingMultiWindow {
+		t.Fatal("enter did not select native single-session connection mode")
+	}
+}
+
+func TestAssetTUIMultiSessionTabsFitWidth(t *testing.T) {
+	if assetTUIMaxMultiSessions != 9 {
+		t.Fatalf("multi-session limit is %d, want 9", assetTUIMaxMultiSessions)
+	}
+	sessions := []*assetTUIMultiSession{
+		{title: "数据库资产"},
+		{title: "server", done: true},
+	}
+	line := assetTUIMultiTabsLine(32, sessions, 1, false)
+	plain := strings.ReplaceAll(strings.ReplaceAll(line, tuiSelectedStyle, ""), tuiStyleReset, "")
+	if width := runewidth.StringWidth(plain); width != 32 {
+		t.Fatalf("multi-session tabs have width %d, want 32: %q", width, line)
+	}
+	if !strings.HasPrefix(plain, "数据库资产 ｜ server ×") || strings.Contains(plain, "1:") {
+		t.Fatalf("inactive multi-session tabs unexpectedly show shortcut numbers: %q", line)
+	}
+	if !strings.Contains(line, tuiSelectedStyle+"server ×") {
+		t.Fatalf("active multi-session tab is not selected: %q", line)
+	}
+	commandLine := assetTUIMultiTabsLine(32, sessions, 1, true)
+	commandPlain := strings.ReplaceAll(strings.ReplaceAll(commandLine, tuiSelectedStyle, ""), tuiStyleReset, "")
+	if !strings.HasPrefix(commandPlain, "1:数据库资产 ｜ 2:server ×") {
+		t.Fatalf("multi-session tabs are not left aligned or separated with a vertical bar: %q", line)
+	}
+	if !strings.Contains(commandLine, tuiSelectedStyle+"2:server ×") {
+		t.Fatalf("active multi-session shortcut tab is not selected: %q", commandLine)
+	}
+	if height := assetTUIMultiContentHeight(24); height != 20 {
+		t.Fatalf("multi-session content height is %d, want 20", height)
+	}
+	_, hits := assetTUIMultiTabsLayout(32, sessions, 1, false)
+	if len(hits) != 2 || hits[0].start != 0 || hits[1].start <= hits[0].end {
+		t.Fatalf("unexpected multi-session tab hit areas: %#v", hits)
+	}
+	_, commandHits := assetTUIMultiTabsLayout(32, sessions, 1, true)
+	if len(commandHits) != 2 || commandHits[1].start <= hits[1].start {
+		t.Fatalf("unexpected numbered multi-session tab hit areas: %#v", commandHits)
+	}
+	overflowSessions := []*assetTUIMultiSession{
+		{title: "one"}, {title: "two"}, {title: "current"}, {title: "four"}, {title: "five"},
+	}
+	overflowLine, overflowHits := assetTUIMultiTabsLayout(22, overflowSessions, 2, false)
+	overflowPlain := strings.ReplaceAll(strings.ReplaceAll(overflowLine, tuiSelectedStyle, ""), tuiStyleReset, "")
+	if runewidth.StringWidth(overflowPlain) != 22 || !strings.HasPrefix(overflowPlain, "‹2 ｜ current ｜ 2›") ||
+		strings.Contains(overflowPlain, "two") || len(overflowHits) != 3 ||
+		!overflowHits[0].sessionList || overflowHits[1].index != 2 || !overflowHits[2].sessionList {
+		t.Fatalf("overflowing tabs do not keep the active session with clickable counts: %q %#v",
+			overflowLine, overflowHits)
+	}
+	overflowLine = assetTUIMultiTabsLine(22, overflowSessions, 4, false)
+	overflowPlain = strings.ReplaceAll(strings.ReplaceAll(overflowLine, tuiSelectedStyle, ""), tuiStyleReset, "")
+	if !strings.HasPrefix(overflowPlain, "‹3 ｜ four ｜ five") {
+		t.Fatalf("tab window did not slide with the active session: %q", overflowLine)
+	}
+	event, consumed := assetTUIMultiMouse([]byte("\x1b[<0;5;22M"))
+	if consumed != len("\x1b[<0;5;22M") || !event.press || event.button != 0 || event.x != 4 || event.y != 21 {
+		t.Fatalf("unexpected parsed tab click: event=%#v consumed=%d", event, consumed)
+	}
+	legacyMouse := []byte{0x1b, '[', 'M', 32 + 64, 33 + 4, 33 + 21}
+	event, consumed = assetTUIMultiMouse(legacyMouse)
+	if consumed != len(legacyMouse) || !event.press || event.button != 64 || event.x != 4 || event.y != 21 {
+		t.Fatalf("unexpected parsed X10 mouse wheel: event=%#v consumed=%d", event, consumed)
+	}
+	legacyMouse = []byte{0x1b, '[', 'M', 32 + 2, 33 + 7, 33 + 3}
+	event, consumed = assetTUIMultiMouse(legacyMouse)
+	if consumed != len(legacyMouse) || !event.press || event.button != 2 || event.x != 7 || event.y != 3 {
+		t.Fatalf("unexpected parsed X10 right click: event=%#v consumed=%d", event, consumed)
+	}
+}
+
+func TestAssetTUIMultiSessionShortcutMode(t *testing.T) {
+	translate := func(_, english string) string { return english }
+	normal := strings.TrimSpace(assetTUIMultiFooterLine(80, false, translate))
+	if normal != "ctrl+b:Activate shortcuts" {
+		t.Fatalf("unexpected focused-session footer: %q", normal)
+	}
+	active := assetTUIMultiFooterLine(300, true, translate)
+	wantActive := "esc:Enter session · tab:Next session · d:Duplicate session · r:Reconnect session · " +
+		"x:Close session · q:Close all sessions · a:Asset list · ?:View help"
+	if strings.TrimSpace(active) != wantActive {
+		t.Fatalf("active shortcut footer has an unexpected order: %q", active)
+	}
+
+	manager := &assetTUIMultiSessionManager{commandMode: true}
+	if leave, err := manager.handleCommand('\t'); err != nil || leave || !manager.commandMode {
+		t.Fatalf("tab did not keep shortcut mode active: leave=%v err=%v command=%v",
+			leave, err, manager.commandMode)
+	}
+	leave, err := manager.handleCommand('?')
+	if err != nil || leave || !manager.commandMode || !manager.helpVisible {
+		t.Fatalf("question mark did not open shortcut help: leave=%v err=%v command=%v help=%v",
+			leave, err, manager.commandMode, manager.helpVisible)
+	}
+	manager.closeHelp()
+	if !manager.commandMode || manager.helpVisible {
+		t.Fatalf("closing help did not return to shortcut mode: command=%v help=%v",
+			manager.commandMode, manager.helpVisible)
+	}
+	if leave, err = manager.handleCommand(0x1b); err != nil || leave || manager.commandMode {
+		t.Fatalf("esc did not leave shortcut mode: leave=%v err=%v command=%v",
+			leave, err, manager.commandMode)
+	}
+	manager.commandMode = true
+	if leave, err = manager.handleCommand('i'); err != nil || leave || manager.commandMode {
+		t.Fatalf("i did not enter the current session: leave=%v err=%v command=%v",
+			leave, err, manager.commandMode)
+	}
+	for sequence, want := range map[string]byte{
+		"\x1b[A": 'u', "\x1b[B": 'd', "\x1b[C": 'r', "\x1b[D": 'l',
+		"\x1bOA": 'u', "\x1bOB": 'd', "\x1bOC": 'r', "\x1bOD": 'l',
+	} {
+		if direction, consumed := assetTUIMultiArrow([]byte(sequence)); direction != want || consumed != 3 {
+			t.Fatalf("arrow %q parsed as direction=%q consumed=%d", sequence, direction, consumed)
+		}
+	}
+	helpRows := assetTUIMultiHelpRows(translate)
+	for _, key := range []string{"tab", "s", "←, →, h, l", "1-9", "↑, ↓, j, k", "x", "d", "r", "a", "q", "?", "esc, i"} {
+		found := false
+		for _, row := range helpRows {
+			found = found || row.key == key
+		}
+		if !found {
+			t.Fatalf("multi-session help is missing %q", key)
+		}
+	}
+	rows := helpDialogRows(helpRows)
+	if len(rows) != 25 || !rows[1].separator || rows[len(rows)-1].key != "esc, i" ||
+		rows[len(rows)-1].description != "Enter the current session" {
+		t.Fatalf("multi-session help does not use spaced help rows: %#v", rows)
+	}
+	for _, row := range helpRows {
+		if row.key == "esc" {
+			t.Fatalf("multi-session help cancel action is still mixed into the content rows: %#v", helpRows)
+		}
+	}
+	for index, row := range helpRows {
+		if row.key == "q" && (index == 0 || helpRows[index-1].key != "x") {
+			t.Fatalf("close-session shortcut is not immediately before close-all: %#v", helpRows)
+		}
+	}
+	geometry, ok := assetTUIMultiSessionListLayout(40, 12, 9)
+	if !ok || geometry.left != 1 || geometry.top != 1 || geometry.rows != 1 {
+		t.Fatalf("unexpected compact session-list geometry: %#v ok=%v", geometry, ok)
+	}
+	manager = &assetTUIMultiSessionManager{
+		commandMode: true,
+		active:      1,
+		sessions: []*assetTUIMultiSession{
+			{title: "one"}, {title: "two"}, {title: "three"},
+		},
+	}
+	if leave, err = manager.handleCommand('s'); err != nil || leave || !manager.sessionListVisible ||
+		manager.sessionListIndex != 1 {
+		t.Fatalf("s did not open the session list at the active session: leave=%v err=%v manager=%#v",
+			leave, err, manager)
+	}
+	manager.moveSessionList(1)
+	manager.activateSessionListSelection()
+	if manager.active != 2 || !manager.sessionListVisible || !manager.commandMode {
+		t.Fatalf("enter did not preview the selected session with the list open: active=%d list=%v command=%v",
+			manager.active, manager.sessionListVisible, manager.commandMode)
+	}
+	manager.moveSessionList(-1)
+	manager.activateSessionListSelection()
+	if manager.active != 1 || !manager.sessionListVisible {
+		t.Fatalf("session list did not allow another switch: active=%d list=%v",
+			manager.active, manager.sessionListVisible)
+	}
+	manager.closeSessionList()
+	if manager.sessionListVisible || manager.commandMode {
+		t.Fatalf("esc did not close the session list and enter the session: list=%v command=%v",
+			manager.sessionListVisible, manager.commandMode)
+	}
+
+	manager = &assetTUIMultiSessionManager{commandMode: true}
+	contexts := make([]context.Context, 0, 2)
+	for index := 0; index < 2; index++ {
+		ctx, cancel := context.WithCancel(context.Background())
+		screen, screenErr := newAssetTUIMultiScreen(80, 20)
+		if screenErr != nil {
+			t.Fatal(screenErr)
+		}
+		session := &assetTUIMultiSession{screen: screen}
+		session.conn = &assetTUIMultiUserConnection{ctx: ctx, cancel: cancel}
+		manager.sessions = append(manager.sessions, session)
+		contexts = append(contexts, ctx)
+	}
+	if leave, err = manager.handleCommand('q'); err != nil || !leave || manager.Count() != 0 {
+		t.Fatalf("q did not close all sessions and leave: leave=%v err=%v count=%d",
+			leave, err, manager.Count())
+	}
+	for _, ctx := range contexts {
+		if ctx.Err() != context.Canceled {
+			t.Fatalf("q did not cancel a closed session: %v", ctx.Err())
+		}
+	}
+}
+
+func TestAssetTUIMultiSessionViewport(t *testing.T) {
+	rows := []string{"one", "two", "three", "four", "five"}
+	visible, offset := assetTUIMultiViewport(rows, 3, 0)
+	if offset != 0 || strings.Join(visible, ",") != "three,four,five" {
+		t.Fatalf("latest session viewport is incorrect: offset=%d rows=%#v", offset, visible)
+	}
+	visible, offset = assetTUIMultiViewport(rows, 3, 1)
+	if offset != 1 || strings.Join(visible, ",") != "two,three,four" {
+		t.Fatalf("scrolled session viewport is incorrect: offset=%d rows=%#v", offset, visible)
+	}
+	if region := assetTUIMultiScrollRegion(20); region != "\x1b[1;20r" {
+		t.Fatalf("unexpected session scroll region: %q", region)
+	}
+	if position := assetTUIMultiCursorPosition(80, 20, 11, 7); position != "\x1b[8;12H"+tuiShowCursor {
+		t.Fatalf("unexpected explicit session cursor position: %q", position)
+	}
+}
+
+func TestAssetTUIMultiUserConnectionBuffersAndClosesInput(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	connection := &assetTUIMultiUserConnection{
+		input: make(chan []byte, 1), ctx: ctx, cancel: cancel,
+	}
+	if err := connection.sendInput([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	buffer := make([]byte, 8)
+	if n, err := connection.Read(buffer); err != nil || string(buffer[:n]) != "hello" {
+		t.Fatalf("unexpected buffered input: n=%d err=%v data=%q", n, err, buffer[:n])
+	}
+	if err := connection.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.sendInput([]byte("ignored")); err == nil {
+		t.Fatal("closed multi-session input accepted more data")
+	}
+}
+
+func TestAssetTUIConnectionChoicesPreferLastSelection(t *testing.T) {
+	tui := assetTUI{
+		lastAccount:       model.PermAccount{Alias: "account-2"},
+		lastProtocol:      "telnet",
+		hasLastConnection: true,
+	}
+	accounts := []model.PermAccount{{Alias: "account-1"}, {Alias: "account-2"}, {Alias: "account-3"}}
+	protocols := []string{"ssh", "telnet", "mysql"}
+	tui.Update(assetChoicesMsg{asset: model.PermAsset{ID: "asset-1"}, accounts: accounts, protocols: protocols})
+	if tui.dialog == nil || tui.dialog.accounts[0].Alias != "account-2" || tui.dialog.protocols[0] != "telnet" {
+		t.Fatalf("last connection choices were not moved to the front: dialog=%#v", tui.dialog)
+	}
+	if tui.dialog.accounts[1].Alias != "account-1" || tui.dialog.accounts[2].Alias != "account-3" ||
+		tui.dialog.protocols[1] != "ssh" || tui.dialog.protocols[2] != "mysql" {
+		t.Fatalf("remaining connection choices changed order: accounts=%#v protocols=%#v",
+			tui.dialog.accounts, tui.dialog.protocols)
+	}
+
+	tui.dialog = nil
+	tui.connection = nil
+	if _, cmd := tui.Update(assetChoicesMsg{
+		asset:    model.PermAsset{ID: "asset-2"},
+		accounts: []model.PermAccount{{Alias: "account-4"}}, protocols: []string{"ssh"},
+	}); cmd == nil || tui.dialog != nil || tui.connection == nil {
+		t.Fatalf("single account and protocol did not connect directly: dialog=%#v connection=%#v", tui.dialog, tui.connection)
+	}
+	if tui.connection.multiWindow {
+		t.Fatal("native connection unexpectedly entered multi-session mode")
+	}
 }
 
 func TestAssetTUIDialogVIKeyNavigation(t *testing.T) {
@@ -902,16 +1220,31 @@ func TestAssetTUIDialogVIKeyNavigation(t *testing.T) {
 func TestAssetTUIDialogTitleAndAccountSearch(t *testing.T) {
 	dialog := newAssetTUIDialog(
 		model.PermAsset{Name: "server"},
-		[]model.PermAccount{{Name: "Alice"}, {Name: "Bob"}},
+		[]model.PermAccount{{Name: "Alice", Alias: "account-1"}, {Name: "Bob", Alias: "account-2"}},
 		[]string{"ssh"},
 	)
 	dialog.accountSearch = []rune("bob")
 	dialog.filterAccounts()
+	dialog.searchingAccount = true
+	tui := assetTUI{handler: &InteractiveHandler{i18nLang: "en"}, width: 80, height: 24, dialog: dialog}
+	tui.updateAccountSearch(tea.KeyMsg{Type: tea.KeyCtrlH})
+	if string(dialog.accountSearch) != "bo" {
+		t.Fatalf("ctrl+h did not delete the previous account-search character: %q", dialog.accountSearch)
+	}
+	dialog.accountSearch = []rune("bob")
+	dialog.filterAccounts()
+	dialog.searchingAccount = false
 	account, ok := dialog.selectedAccount()
 	if !ok || account.Name != "Bob" {
 		t.Fatalf("unexpected filtered account: %#v", account)
 	}
-	tui := assetTUI{handler: &InteractiveHandler{i18nLang: "en"}, width: 80, height: 24, dialog: dialog}
+	dialog.accountSearch = []rune("account-2")
+	dialog.filterAccounts()
+	if len(dialog.accountMatches) != 0 {
+		t.Fatalf("account search unexpectedly matched an alias: %#v", dialog.accountMatches)
+	}
+	dialog.accountSearch = []rune("bob")
+	dialog.filterAccounts()
 	lines := make([]string, tui.height)
 	tui.renderDialog(lines)
 	geometry := tui.dialogGeometry()

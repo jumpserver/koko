@@ -1099,3 +1099,99 @@ msgstr "Não"
 
 msgid "My Assets"
 msgstr "Meus ativos"
+
+msgid "Direct connect"
+msgstr "Conexão direta"
+
+msgid "Multi-session"
+msgstr "Múltiplas sessões"
+
+msgid "Sessions"
+msgstr "Sessões"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "Conectar ao ativo selecionado em uma sessão nativa única"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "Abrir o ativo selecionado na área de múltiplas sessões"
+
+msgid "Return to the multi-session workspace"
+msgstr "Voltar à área de múltiplas sessões"
+
+msgid "Asset list"
+msgstr "Lista de ativos"
+
+msgid "Switch session"
+msgstr "Alternar sessão"
+
+msgid "Close session"
+msgstr "Fechar sessão"
+
+msgid "Multi-session mode supports at most %d assets"
+msgstr "O modo de múltiplas sessões suporta no máximo %d ativos"
+
+msgid "Failed to open multi-session"
+msgstr "Não foi possível abrir múltiplas sessões"
+
+msgid "Multi-session workspace closed"
+msgstr "A área de múltiplas sessões foi fechada"
+
+msgid "Activate shortcuts"
+msgstr "Ativar atalhos"
+
+msgid "Next session"
+msgstr "Próxima sessão"
+
+msgid "Duplicate session"
+msgstr "Duplicar sessão"
+
+msgid "Reconnect session"
+msgstr "Reconectar sessão"
+
+msgid "Move to the next session"
+msgstr "Ir para a próxima sessão"
+
+msgid "Switch directly to session 1-9"
+msgstr "Alternar diretamente para a sessão 1-9"
+
+msgid "Close the current session"
+msgstr "Fechar a sessão atual"
+
+msgid "Duplicate the current session"
+msgstr "Duplicar a sessão atual"
+
+msgid "Reconnect the current session"
+msgstr "Reconectar a sessão atual"
+
+msgid "Return to the asset list"
+msgstr "Voltar à lista de ativos"
+
+msgid "Send ctrl+b to the current session"
+msgstr "Enviar ctrl+b para a sessão atual"
+
+msgid "Scroll content"
+msgstr "Rolar conteúdo"
+
+msgid "Scroll the current session down or up"
+msgstr "Rolar o conteúdo da sessão atual para baixo ou para cima"
+
+msgid "Enter session"
+msgstr "Entrar na sessão"
+
+msgid "Move to the previous or next session"
+msgstr "Ir para a sessão anterior ou seguinte"
+
+msgid "Enter the current session"
+msgstr "Entrar na sessão atual"
+
+msgid "Close all sessions"
+msgstr "Fechar todas as sessões"
+
+msgid "Close all sessions and return to the asset list"
+msgstr "Fechar todas as sessões e voltar à lista de ativos"
+
+msgid "Session list"
+msgstr "Lista de sessões"
+
+msgid "Open the session list"
+msgstr "Abrir a lista de sessões"

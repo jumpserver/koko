@@ -1099,3 +1099,99 @@ msgstr "否"
 
 msgid "My Assets"
 msgstr "我的资产"
+
+msgid "Direct connect"
+msgstr "原生连接"
+
+msgid "Multi-session"
+msgstr "多会话"
+
+msgid "Sessions"
+msgstr "会话窗口"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "在原生单会话中连接选中的资产"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "在多会话窗口中打开选中的资产"
+
+msgid "Return to the multi-session workspace"
+msgstr "返回多会话窗口"
+
+msgid "Asset list"
+msgstr "资产列表"
+
+msgid "Switch session"
+msgstr "切换会话"
+
+msgid "Close session"
+msgstr "关闭会话"
+
+msgid "Multi-session mode supports at most %d assets"
+msgstr "多会话模式最多支持 %d 个资产"
+
+msgid "Failed to open multi-session"
+msgstr "无法打开多会话"
+
+msgid "Multi-session workspace closed"
+msgstr "多会话管理页已关闭"
+
+msgid "Activate shortcuts"
+msgstr "激活快捷键"
+
+msgid "Next session"
+msgstr "下一个会话"
+
+msgid "Duplicate session"
+msgstr "复制会话"
+
+msgid "Reconnect session"
+msgstr "重连会话"
+
+msgid "Move to the next session"
+msgstr "切换到下一个会话"
+
+msgid "Switch directly to session 1-9"
+msgstr "按编号切换到对应会话"
+
+msgid "Close the current session"
+msgstr "关闭当前会话"
+
+msgid "Duplicate the current session"
+msgstr "复制当前会话"
+
+msgid "Reconnect the current session"
+msgstr "重新连接当前会话"
+
+msgid "Return to the asset list"
+msgstr "返回资产列表"
+
+msgid "Send ctrl+b to the current session"
+msgstr "向当前会话发送 ctrl+b"
+
+msgid "Scroll content"
+msgstr "滚动内容"
+
+msgid "Scroll the current session down or up"
+msgstr "向下或向上滚动当前会话内容"
+
+msgid "Enter session"
+msgstr "进入会话"
+
+msgid "Move to the previous or next session"
+msgstr "切换到左侧或右侧会话"
+
+msgid "Enter the current session"
+msgstr "进入当前会话"
+
+msgid "Close all sessions"
+msgstr "关闭所有会话"
+
+msgid "Close all sessions and return to the asset list"
+msgstr "关闭所有会话并返回资产列表"
+
+msgid "Session list"
+msgstr "会话列表"
+
+msgid "Open the session list"
+msgstr "打开会话列表"

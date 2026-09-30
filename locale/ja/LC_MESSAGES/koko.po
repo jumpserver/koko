@@ -1099,3 +1099,99 @@ msgstr "いいえ"
 
 msgid "My Assets"
 msgstr "私の資産"
+
+msgid "Direct connect"
+msgstr "直接接続"
+
+msgid "Multi-session"
+msgstr "マルチセッション"
+
+msgid "Sessions"
+msgstr "セッション画面"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "選択した資産にネイティブの単一セッションで接続"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "選択した資産をマルチセッション画面で開く"
+
+msgid "Return to the multi-session workspace"
+msgstr "マルチセッション画面に戻る"
+
+msgid "Asset list"
+msgstr "資産一覧"
+
+msgid "Switch session"
+msgstr "セッションを切り替える"
+
+msgid "Close session"
+msgstr "セッションを閉じる"
+
+msgid "Multi-session mode supports at most %d assets"
+msgstr "マルチセッションモードでは最大 %d 個の資産を開けます"
+
+msgid "Failed to open multi-session"
+msgstr "マルチセッションを開けません"
+
+msgid "Multi-session workspace closed"
+msgstr "マルチセッション画面を閉じました"
+
+msgid "Activate shortcuts"
+msgstr "ショートカットを有効化"
+
+msgid "Next session"
+msgstr "次のセッション"
+
+msgid "Duplicate session"
+msgstr "セッションを複製"
+
+msgid "Reconnect session"
+msgstr "セッションを再接続"
+
+msgid "Move to the next session"
+msgstr "次のセッションに移動"
+
+msgid "Switch directly to session 1-9"
+msgstr "番号でセッション 1-9 に直接切り替え"
+
+msgid "Close the current session"
+msgstr "現在のセッションを閉じる"
+
+msgid "Duplicate the current session"
+msgstr "現在のセッションを複製"
+
+msgid "Reconnect the current session"
+msgstr "現在のセッションを再接続"
+
+msgid "Return to the asset list"
+msgstr "資産一覧に戻る"
+
+msgid "Send ctrl+b to the current session"
+msgstr "現在のセッションに ctrl+b を送信"
+
+msgid "Scroll content"
+msgstr "内容をスクロール"
+
+msgid "Scroll the current session down or up"
+msgstr "現在のセッション内容を下または上にスクロール"
+
+msgid "Enter session"
+msgstr "セッションに戻る"
+
+msgid "Move to the previous or next session"
+msgstr "前または次のセッションに切り替える"
+
+msgid "Enter the current session"
+msgstr "現在のセッションに戻る"
+
+msgid "Close all sessions"
+msgstr "すべてのセッションを閉じる"
+
+msgid "Close all sessions and return to the asset list"
+msgstr "すべてのセッションを閉じてアセット一覧に戻る"
+
+msgid "Session list"
+msgstr "セッション一覧"
+
+msgid "Open the session list"
+msgstr "セッション一覧を開く"

@@ -1099,3 +1099,99 @@ msgstr "아니요"
 
 msgid "My Assets"
 msgstr "내 자산"
+
+msgid "Direct connect"
+msgstr "직접 연결"
+
+msgid "Multi-session"
+msgstr "다중 세션"
+
+msgid "Sessions"
+msgstr "세션 화면"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "선택한 자산에 기본 단일 세션으로 연결"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "선택한 자산을 다중 세션 화면에서 열기"
+
+msgid "Return to the multi-session workspace"
+msgstr "다중 세션 화면으로 돌아가기"
+
+msgid "Asset list"
+msgstr "자산 목록"
+
+msgid "Switch session"
+msgstr "세션 전환"
+
+msgid "Close session"
+msgstr "세션 닫기"
+
+msgid "Multi-session mode supports at most %d assets"
+msgstr "다중 세션 모드는 최대 %d개의 자산을 지원합니다"
+
+msgid "Failed to open multi-session"
+msgstr "다중 세션을 열 수 없습니다"
+
+msgid "Multi-session workspace closed"
+msgstr "다중 세션 화면이 닫혔습니다"
+
+msgid "Activate shortcuts"
+msgstr "단축키 활성화"
+
+msgid "Next session"
+msgstr "다음 세션"
+
+msgid "Duplicate session"
+msgstr "세션 복제"
+
+msgid "Reconnect session"
+msgstr "세션 다시 연결"
+
+msgid "Move to the next session"
+msgstr "다음 세션으로 이동"
+
+msgid "Switch directly to session 1-9"
+msgstr "번호로 세션 1-9에 바로 전환"
+
+msgid "Close the current session"
+msgstr "현재 세션 닫기"
+
+msgid "Duplicate the current session"
+msgstr "현재 세션 복제"
+
+msgid "Reconnect the current session"
+msgstr "현재 세션 다시 연결"
+
+msgid "Return to the asset list"
+msgstr "자산 목록으로 돌아가기"
+
+msgid "Send ctrl+b to the current session"
+msgstr "현재 세션에 ctrl+b 보내기"
+
+msgid "Scroll content"
+msgstr "내용 스크롤"
+
+msgid "Scroll the current session down or up"
+msgstr "현재 세션 내용을 아래 또는 위로 스크롤"
+
+msgid "Enter session"
+msgstr "세션으로 돌아가기"
+
+msgid "Move to the previous or next session"
+msgstr "이전 또는 다음 세션으로 전환"
+
+msgid "Enter the current session"
+msgstr "현재 세션으로 돌아가기"
+
+msgid "Close all sessions"
+msgstr "모든 세션 닫기"
+
+msgid "Close all sessions and return to the asset list"
+msgstr "모든 세션을 닫고 자산 목록으로 돌아가기"
+
+msgid "Session list"
+msgstr "세션 목록"
+
+msgid "Open the session list"
+msgstr "세션 목록 열기"

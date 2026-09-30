@@ -964,3 +964,99 @@ msgstr "No"
 
 msgid "My Assets"
 msgstr "My Assets"
+
+msgid "Direct connect"
+msgstr "Direct connect"
+
+msgid "Multi-session"
+msgstr "Multi-session"
+
+msgid "Sessions"
+msgstr "Sessions"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "Connect to the selected asset in a native single session"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "Open the selected asset in the multi-session workspace"
+
+msgid "Return to the multi-session workspace"
+msgstr "Return to the multi-session workspace"
+
+msgid "Asset list"
+msgstr "Asset list"
+
+msgid "Switch session"
+msgstr "Switch session"
+
+msgid "Close session"
+msgstr "Close session"
+
+msgid "Multi-session mode supports at most %d assets"
+msgstr "Multi-session mode supports at most %d assets"
+
+msgid "Failed to open multi-session"
+msgstr "Failed to open multi-session"
+
+msgid "Multi-session workspace closed"
+msgstr "Multi-session workspace closed"
+
+msgid "Activate shortcuts"
+msgstr "Activate shortcuts"
+
+msgid "Next session"
+msgstr "Next session"
+
+msgid "Duplicate session"
+msgstr "Duplicate session"
+
+msgid "Reconnect session"
+msgstr "Reconnect session"
+
+msgid "Move to the next session"
+msgstr "Move to the next session"
+
+msgid "Switch directly to session 1-9"
+msgstr "Switch directly to session 1-9"
+
+msgid "Close the current session"
+msgstr "Close the current session"
+
+msgid "Duplicate the current session"
+msgstr "Duplicate the current session"
+
+msgid "Reconnect the current session"
+msgstr "Reconnect the current session"
+
+msgid "Return to the asset list"
+msgstr "Return to the asset list"
+
+msgid "Send ctrl+b to the current session"
+msgstr "Send ctrl+b to the current session"
+
+msgid "Scroll content"
+msgstr "Scroll content"
+
+msgid "Scroll the current session down or up"
+msgstr "Scroll the current session down or up"
+
+msgid "Enter session"
+msgstr "Enter session"
+
+msgid "Move to the previous or next session"
+msgstr "Move to the previous or next session"
+
+msgid "Enter the current session"
+msgstr "Enter the current session"
+
+msgid "Close all sessions"
+msgstr "Close all sessions"
+
+msgid "Close all sessions and return to the asset list"
+msgstr "Close all sessions and return to the asset list"
+
+msgid "Session list"
+msgstr "Session list"
+
+msgid "Open the session list"
+msgstr "Open the session list"
