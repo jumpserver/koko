@@ -11,6 +11,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/sftp"
 
@@ -55,7 +56,43 @@ type sftpTransferResult struct {
 	CommittedBytes int64  `json:"committed_bytes"`
 	TotalBytes     int64  `json:"total_bytes"`
 	State          string `json:"state"`
+	Path           string `json:"path,omitempty"`
 	Duplicate      bool   `json:"duplicate,omitempty"`
+}
+
+// ponytail: process-local idempotency; use shared storage for restart or multi-instance retries.
+const completedTransferTTL = 10 * time.Minute
+
+type completedSftpTransfer struct {
+	result   sftpTransferResult
+	checksum string
+	expires  time.Time
+}
+
+func transferCompletionKey(transferID, targetPath string) string {
+	return transferID + "\x00" + targetPath
+}
+
+func (u *sftpVolume) completedTransferLocked(transferID, targetPath string, totalSize int64, checksum string) (sftpTransferResult, bool) {
+	for key, transfer := range u.completedTransfers {
+		if time.Now().After(transfer.expires) {
+			delete(u.completedTransfers, key)
+		}
+	}
+	transfer, ok := u.completedTransfers[transferCompletionKey(transferID, targetPath)]
+	if !ok || transfer.result.TotalBytes != totalSize || (checksum != "" && !strings.EqualFold(checksum, transfer.checksum)) {
+		return sftpTransferResult{}, false
+	}
+	return transfer.result, true
+}
+
+func (u *sftpVolume) rememberCompletedTransferLocked(result sftpTransferResult, checksum string) {
+	if u.completedTransfers == nil {
+		u.completedTransfers = make(map[string]completedSftpTransfer)
+	}
+	u.completedTransfers[transferCompletionKey(result.TransferID, result.Path)] = completedSftpTransfer{
+		result: result, checksum: checksum, expires: time.Now().Add(completedTransferTTL),
+	}
 }
 
 type sftpTransferChunk struct {
@@ -150,12 +187,13 @@ func (u *sftpVolume) closeTransferReadLocked() {
 	u.transferRead = nil
 }
 
-func (u *sftpVolume) closeTransferWriteLocked() {
+func (u *sftpVolume) closeTransferWriteLocked() error {
 	if u.transferWrite == nil {
-		return
+		return nil
 	}
-	_ = u.transferWrite.file.Close()
+	err := u.transferWrite.file.Close()
 	u.transferWrite = nil
+	return err
 }
 
 func (u *sftpVolume) retainReadLocked() {
@@ -358,6 +396,19 @@ func (u *sftpVolume) prepareTransfer(transferID, targetPath string, totalSize in
 	if err != nil {
 		return sftpTransferResult{}, err
 	}
+	if result, ok := u.completedTransferLocked(transferID, targetPath, totalSize, ""); ok {
+		return result, nil
+	}
+	if u.transferWrite != nil && (u.transferWrite.id != transferID || u.transferWrite.path != stagePath) {
+		return sftpTransferResult{}, fmt.Errorf("another file transfer is active")
+	}
+	if u.transferWrite != nil && u.transferWrite.id == transferID && u.transferWrite.path == stagePath {
+		if u.transferWrite.committed > totalSize {
+			return sftpTransferResult{}, fmt.Errorf("file transfer stage exceeds expected size")
+		}
+		return sftpTransferResult{TransferID: transferID, CommittedBytes: u.transferWrite.committed, TotalBytes: totalSize, State: "ready"}, nil
+	}
+	// ponytail: checkpoint lasts one WebSFTP volume; persist metadata for reconnect resume.
 	if info, statErr := u.conn.Stat(stagePath); statErr == nil {
 		if info.Size() > totalSize {
 			return sftpTransferResult{}, fmt.Errorf("file transfer stage exceeds expected size")
@@ -586,7 +637,10 @@ func (u *sftpVolume) completeWrite(cached bool, offset, length int64, chunkSum [
 }
 
 func (u *sftpVolume) writeHandleLocked(transferID, path string, offset int64) (file transferIO, committed int64, cached bool, err error) {
-	if transferID != "" && u.transferWrite != nil && u.transferWrite.id == transferID && u.transferWrite.path == path {
+	if transferID != "" && u.transferWrite != nil {
+		if u.transferWrite.id != transferID || u.transferWrite.path != path {
+			return nil, 0, false, fmt.Errorf("another file transfer is active")
+		}
 		return u.transferWrite.file, u.transferWrite.committed, true, nil
 	}
 	u.closeTransferWriteLocked()
@@ -630,6 +684,15 @@ func (u *sftpVolume) transferStatus(transferID, targetPath string, totalSize int
 	if err != nil {
 		return sftpTransferResult{}, err
 	}
+	if result, ok := u.completedTransferLocked(transferID, targetPath, totalSize, ""); ok {
+		return result, nil
+	}
+	if u.transferWrite != nil && u.transferWrite.id == transferID && u.transferWrite.path == stagePath {
+		if u.transferWrite.committed > totalSize {
+			return sftpTransferResult{}, fmt.Errorf("file transfer stage exceeds expected size")
+		}
+		return sftpTransferResult{TransferID: transferID, CommittedBytes: u.transferWrite.committed, TotalBytes: totalSize, State: "ready"}, nil
+	}
 	info, err := u.conn.Stat(stagePath)
 	if err != nil {
 		if isSftpNotExist(err) {
@@ -645,7 +708,12 @@ func (u *sftpVolume) transferStatus(transferID, targetPath string, totalSize int
 
 func (u *sftpVolume) commitTransfer(transferID, targetPath string, totalSize, chunkSize int64, expectedSHA256, conflictPolicy string) (sftpTransferResult, error) {
 	u.lock.Lock()
-	defer u.lock.Unlock()
+	locked := true
+	defer func() {
+		if locked {
+			u.lock.Unlock()
+		}
+	}()
 	if u.closed.Load() {
 		return sftpTransferResult{}, os.ErrClosed
 	}
@@ -656,17 +724,25 @@ func (u *sftpVolume) commitTransfer(transferID, targetPath string, totalSize, ch
 	if err != nil {
 		return sftpTransferResult{}, err
 	}
+	if result, ok := u.completedTransferLocked(transferID, targetPath, totalSize, expectedSHA256); ok {
+		return result, nil
+	}
 	if chunkSize <= 0 || chunkSize > transferChunkMaxSize {
 		return sftpTransferResult{}, fmt.Errorf("invalid file transfer chunk size")
 	}
 	var runningSum string
 	var hashedAll bool
+	for u.transferWrite != nil && u.transferWrite.id == transferID && u.transferWrite.path == stagePath && u.transferWrite.inUse > 0 {
+		u.writeIdle.Wait()
+	}
 	if u.transferWrite != nil && u.transferWrite.id == transferID && u.transferWrite.path == stagePath {
 		hashedAll = u.transferWrite.digested == totalSize
 		if hashedAll {
 			runningSum = u.transferWrite.chain.hex()
 		}
-		u.closeTransferWriteLocked()
+		if closeErr := u.closeTransferWriteLocked(); closeErr != nil {
+			return sftpTransferResult{}, closeErr
+		}
 	}
 	if hashedAll {
 		if !strings.EqualFold(runningSum, expectedSHA256) {
@@ -723,8 +799,15 @@ func (u *sftpVolume) commitTransfer(transferID, targetPath string, totalSize, ch
 	if err != nil {
 		return sftpTransferResult{}, err
 	}
+	result := sftpTransferResult{
+		TransferID: transferID, CommittedBytes: totalSize, TotalBytes: totalSize,
+		State: "completed", Path: targetPath,
+	}
+	u.rememberCompletedTransferLocked(result, expectedSHA256)
+	u.lock.Unlock()
+	locked = false
 	u.recordUploadedFile(targetPath, totalSize, chunkSize, expectedSHA256, ftpLog)
-	return sftpTransferResult{TransferID: transferID, CommittedBytes: totalSize, TotalBytes: totalSize, State: "completed"}, nil
+	return result, nil
 }
 
 func (u *sftpVolume) recordUploadedFile(path string, size, chunkSize int64, expectedSHA256 string, ftpLog *model.FTPLog) {

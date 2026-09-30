@@ -26,6 +26,11 @@ func (s *Socket) Request() *http.Request {
 	return s.request
 }
 
+// SetReadLimit limits the next WebSocket message before it is buffered.
+func (s *Socket) SetReadLimit(limit int64) {
+	s.underConn.SetReadLimit(limit)
+}
+
 // ReadData reads binary or text messages from the remote connection.
 func (s *Socket) ReadData(timeout time.Duration) ([]byte, int, error) {
 	if timeout > 0 {

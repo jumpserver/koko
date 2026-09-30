@@ -3,6 +3,7 @@ package tunnel
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"sync"
@@ -86,12 +87,22 @@ func (t *Connection) SendWsMessage(msg guacd.Instruction) error {
 }
 
 func (t *Connection) Close() {
+	t.closeStreams(io.ErrClosedPipe)
 	t.releaseMonitorTunnel()
 	if t.ws != nil {
 		_ = t.ws.Close()
 	}
 	if t.guacdTunnel != nil {
 		_ = t.guacdTunnel.Close()
+	}
+}
+
+func (t *Connection) closeStreams(err error) {
+	if t.inputFilter != nil {
+		t.inputFilter.closeAll(err)
+	}
+	if t.outputFilter != nil {
+		t.outputFilter.closeAll(err)
 	}
 }
 
@@ -143,6 +154,7 @@ func (t *Connection) readTunnelInstruction() (*guacd.Instruction, error) {
 }
 
 func (t *Connection) Run(ctx *gin.Context) (err error) {
+	defer t.closeStreams(io.ErrClosedPipe)
 	defer t.releaseMonitorTunnel()
 	// 需要发送 uuid 返回给 guacamole tunnel
 	err = t.SendWsMessage(guacd.NewInstruction(

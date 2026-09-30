@@ -142,14 +142,19 @@ func (ad *AssetDir) loadAssetDetail() {
 }
 
 func (ad *AssetDir) Create(path string) (*SftpFile, error) {
-	return ad.create(path, false, path)
+	return ad.openUploadFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, path, true)
 }
 
 func (ad *AssetDir) CreateEditorTemp(path, auditPath string) (*SftpFile, error) {
-	return ad.create(path, true, auditPath)
+	return ad.openUploadFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, auditPath, false)
 }
 
-func (ad *AssetDir) create(path string, overwrite bool, auditPath string) (*SftpFile, error) {
+// OpenFile opens a native SFTP upload with the flags requested by the client.
+func (ad *AssetDir) OpenFile(path string, flags int) (*SftpFile, error) {
+	return ad.openUploadFile(path, flags, path, false)
+}
+
+func (ad *AssetDir) openUploadFile(path string, flags int, auditPath string, resolveConflict bool) (*SftpFile, error) {
 	pathData := ad.parsePath(path)
 	folderName, ok := ad.IsUniqueSu()
 	if !ok {
@@ -195,8 +200,8 @@ func (ad *AssetDir) create(path string, overwrite bool, auditPath string) (*Sftp
 		}
 		auditFilename = auditRealPath
 	}
-	for !overwrite && !con.IsOverwriteFile() {
-		if exitFile := IsExistPath(con.client, realPath); !exitFile {
+	for resolveConflict && !con.IsOverwriteFile() {
+		if exists := IsExistPath(con.client, realPath); !exists {
 			break
 		}
 		oldPath := realPath
@@ -205,7 +210,7 @@ func (ad *AssetDir) create(path string, overwrite bool, auditPath string) (*Sftp
 			strconv.FormatInt(time.Now().Unix(), 10), realPath[len(realPath)-len(ext):])
 		logger.Infof("Change duplicate dir path %s to %s", oldPath, realPath)
 	}
-	sf, err := con.client.Create(realPath)
+	sf, err := con.client.OpenFile(realPath, flags)
 	operate := model.OperateUpload
 	if err != nil {
 		ad.CreateFTPLog(su, operate, auditFilename, false)
