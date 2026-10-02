@@ -1,6 +1,8 @@
 package session
 
 import (
+	"regexp"
+
 	"github.com/jumpserver/koko/pkg/lion/guacd"
 
 	"github.com/jumpserver-dev/sdk-go/common"
@@ -89,6 +91,13 @@ func (s TunnelSession) configurationRDP() guacd.Configuration {
 	return rdpConf.GetGuacdConfiguration()
 }
 
+// Core issues virtual usernames in this format for Tinker login tickets.
+var appletLoginTicketUsername = regexp.MustCompile(`^jlt_[a-z2-7]{16}$`)
+
+func isAppletLoginTicket(option *model.AppletOption) bool {
+	return option != nil && appletLoginTicketUsername.MatchString(option.Account.Username)
+}
+
 func (s TunnelSession) configurationRemoteAppRDP() guacd.Configuration {
 	appletOpt := s.AppletOpts
 	rdpConf := RDPConfiguration{
@@ -102,6 +111,12 @@ func (s TunnelSession) configurationRemoteAppRDP() guacd.Configuration {
 		ActionsPerm:    s.ActionPerm,
 	}
 	conf := rdpConf.GetGuacdConfiguration()
+	if isAppletLoginTicket(appletOpt) {
+		// Route the opaque ticket to the local Credential Provider, including on
+		// domain members. Tinker's managed shell starts the app after redemption.
+		conf.SetParameter(guacd.RDPDomain, "localhost")
+		return conf
+	}
 	remoteAPP := appletOpt.RemoteAppOption
 	// 设置 remote app 参数
 	{
