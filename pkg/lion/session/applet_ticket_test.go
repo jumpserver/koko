@@ -26,11 +26,16 @@ func TestAppletRDPConfiguration(t *testing.T) {
 		name     string
 		username string
 		domain   string
+		security string
 		ticket   bool
 	}{
-		{name: "ticket", username: "jlt_abcdefghijkl2345", domain: "localhost", ticket: true},
-		{name: "legacy", username: "applet-user"},
-		{name: "legacy domain", username: `AD\applet-user`, domain: "AD"},
+		{name: "ticket any", username: "jlt_abcdefghijkl2345", domain: "localhost", security: "any", ticket: true},
+		{name: "ticket nla", username: "jlt_abcdefghijkl2345", domain: "localhost", security: "nla", ticket: true},
+		{name: "ticket tls", username: "jlt_abcdefghijkl2345", domain: "localhost", security: "tls", ticket: true},
+		{name: "ticket rdp", username: "jlt_abcdefghijkl2345", domain: "localhost", security: "rdp", ticket: true},
+		{name: "ticket default", username: "jlt_abcdefghijkl2345", domain: "localhost", ticket: true},
+		{name: "legacy", username: "applet-user", security: "nla"},
+		{name: "legacy domain", username: `AD\applet-user`, domain: "AD", security: "tls"},
 		{name: "prefix only", username: "jlt_admin"},
 		{name: "wrong length", username: "jlt_abcdefghijkl234"},
 		{name: "invalid character", username: "jlt_abcdefghijkl2348"},
@@ -42,6 +47,7 @@ func TestAppletRDPConfiguration(t *testing.T) {
 				t.Fatal(err)
 			}
 			option.Account.Username = tc.username
+			option.Platform.Protocols[0].Setting["security"] = tc.security
 			// Even stale RemoteApp fields must not override the ticket shell flow.
 			option.RemoteAppOption = model.RemoteAppCommandOption{
 				Name: "legacy-app", CmdLine: "legacy-args", Shell: "legacy-shell",
@@ -55,10 +61,18 @@ func TestAppletRDPConfiguration(t *testing.T) {
 			if tc.name == "legacy domain" {
 				wantUsername = "applet-user@AD"
 			}
+			platformSecurity := tc.security
+			if platformSecurity == "" {
+				platformSecurity = "any"
+			}
+			wantSecurity := platformSecurity
+			if tc.ticket {
+				wantSecurity = "tls"
+			}
 			for key, want := range map[string]string{
 				guacd.Hostname: "192.0.2.10", guacd.Port: "3390",
 				guacd.RDPUsername: wantUsername, guacd.RDPPassword: option.Account.Secret,
-				guacd.RDPDomain: tc.domain, guacd.RDPSecurity: "tls",
+				guacd.RDPDomain: tc.domain, guacd.RDPSecurity: wantSecurity,
 				guacd.RDPResizeMethod: "display-update",
 			} {
 				if got := conf.GetParameter(key); got != want {
@@ -86,6 +100,9 @@ func TestAppletRDPConfiguration(t *testing.T) {
 			conf = sess.GuaConfiguration()
 			if got := conf.GetParameter(guacd.RDPDomain); tc.ticket && got != "" {
 				t.Errorf("ordinary RDP domain = %q, want empty", got)
+			}
+			if got := conf.GetParameter(guacd.RDPSecurity); got != platformSecurity {
+				t.Errorf("ordinary RDP security = %q, want %q", got, platformSecurity)
 			}
 		})
 	}

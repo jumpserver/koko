@@ -115,6 +115,9 @@ func (s TunnelSession) configurationRemoteAppRDP() guacd.Configuration {
 		// Route the opaque ticket to the local Credential Provider, including on
 		// domain members. Tinker's managed shell starts the app after redemption.
 		conf.SetParameter(guacd.RDPDomain, "localhost")
+		// Optional server-side NLA still permits CredSSP negotiation, which would
+		// reject the virtual ticket before the Credential Provider can redeem it.
+		conf.SetParameter(guacd.RDPSecurity, SecurityTls)
 		return conf
 	}
 	remoteAPP := appletOpt.RemoteAppOption
