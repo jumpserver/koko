@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/mattn/go-runewidth"
 	"golang.org/x/term"
@@ -49,6 +51,9 @@ func (u *UserSelectHandler) searchLocalTypeAsset(searches ...string) []model.Per
 	assets := u.searchLocalAsset(searches...)
 	filtered := make([]model.PermAsset, 0, len(assets))
 	for _, asset := range assets {
+		if u.selectedType.Kind == "platform" && asset.Platform.Name != u.selectedType.Name {
+			continue
+		}
 		if u.selectedType.Category != "" && string(asset.Category) != u.selectedType.Category {
 			continue
 		}
@@ -148,6 +153,11 @@ func (u *UserSelectHandler) displayAssets(searchHeader string) {
 }
 
 func (u *UserSelectHandler) showUnavailableAsset(asset model.PermAsset) {
+	message := u.unavailableAssetMessage(asset)
+	utils.IgnoreErrWriteString(u.h.term, utils.WrapperWarn(message))
+}
+
+func (u *UserSelectHandler) unavailableAssetMessage(asset model.PermAsset) string {
 	lang := i18n.NewLang(u.h.i18nLang)
 	message := lang.T("Cannot connect to this asset.")
 	if !asset.IsActive {
@@ -171,7 +181,7 @@ func (u *UserSelectHandler) showUnavailableAsset(asset model.PermAsset) {
 			}
 		}
 	}
-	utils.IgnoreErrWriteString(u.h.term, utils.WrapperWarn(message))
+	return message
 }
 
 func GetInputUsername(sess io.ReadWriteCloser) (username string, err error) {
@@ -332,7 +342,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset, autoOnly bool) (st
 		return userFacingErrorMessage(i18n.NewLang(u.h.i18nLang).T("Core API failed"), err), true
 	}
 	if permAssetDetail.ID != asset.ID || permAssetDetail.OrgID != "" && asset.OrgID != "" &&
-		asset.OrgID != tuiGlobalOrganizationID && permAssetDetail.OrgID != asset.OrgID {
+		asset.OrgID != globalOrganizationID && permAssetDetail.OrgID != asset.OrgID {
 		logger.Errorf("Classic text mode asset detail does not match selected asset %s", asset.ID)
 		return u.h.tr("资产信息不匹配", "Asset details do not match the selected asset"), true
 	}
@@ -364,6 +374,10 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset, autoOnly bool) (st
 		return fmt.Sprintf(lang.T("No permitted connection protocol is available for asset %s. Check its protocols and authorization rules."), asset.Name), true
 	}
 	supportAccounts := u.filterValidAccount(permAssetDetail.PermedAccounts)
+	sort.Sort(model.PermAccountList(supportAccounts))
+	prioritizeConnectionChoiceLists(
+		u.h.loadRecentConnectionPreferences(asset), supportAccounts, protocols,
+	)
 	if autoOnly && !hasSingleConnectionChoice(protocols, supportAccounts) {
 		return "", false
 	}
@@ -406,16 +420,12 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset, autoOnly bool) (st
 			}
 			retry = true
 			u.selectedAccount = &selectedAccount
-			if u.h.preferences != nil {
-				u.h.preferences.storeConnection(u.user.ID, tuiAssetPreferenceKey(asset), tuiConnectionPreference{
-					Account: tuiAccountPreferenceKey(selectedAccount), Protocol: protocol,
-				})
-			}
-			passwordKey := tuiPasswordAttemptKey(asset, selectedAccount, protocol)
+			u.h.saveLastConnectionPreference(asset, selectedAccount, protocol)
+			passwordKey := manualPasswordAttemptKey(asset, selectedAccount, protocol)
 			passwordLimitError := fmt.Errorf(u.h.tr(
 				"手动密码最多允许输入 %d 次",
 				"Manual password can be entered at most %d times",
-			), maxTUIManualPasswordAttempts)
+			), maxManualPasswordAttempts)
 			_, failure, shown := connectSelectedAsset(u.h.sess, client, u.user, asset, selectedAccount, protocol, i18nLang, func() error {
 				if u.h.manualPasswords.acquire(passwordKey) {
 					return nil
@@ -434,7 +444,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset, autoOnly bool) (st
 
 func (h *InteractiveHandler) assetClient(orgID string) *service.JMService {
 	client := newLangAPIClient(h.jmsService, h.i18nLang)
-	if orgID != "" && orgID != tuiGlobalOrganizationID {
+	if orgID != "" && orgID != globalOrganizationID {
 		client.SetHeader("X-JMS-ORG", orgID)
 	}
 	client.SetHeader("Connection", "close")
@@ -447,6 +457,46 @@ func (u *UserSelectHandler) isHiddenField(field string) bool {
 		return false
 	}
 	_, ok := u.hiddenFields[fieldName]
+	return ok
+}
+
+const maxManualPasswordAttempts = 3
+
+type manualPasswordAttempts struct {
+	sync.Mutex
+	counts map[string]int
+}
+
+func (a *manualPasswordAttempts) acquire(key string) bool {
+	a.Lock()
+	defer a.Unlock()
+	if a.counts == nil {
+		a.counts = make(map[string]int)
+	}
+	if a.counts[key] >= maxManualPasswordAttempts {
+		return false
+	}
+	a.counts[key]++
+	return true
+}
+
+func manualPasswordAttemptKey(asset model.PermAsset, account model.PermAccount, protocol string) string {
+	accountKey := account.Alias
+	if accountKey == "" {
+		accountKey = account.Username + "\x00" + account.Name
+	}
+	return asset.OrgID + "\x00" + asset.ID + "\x00" + accountKey + "\x00" + protocol
+}
+
+var builtinFields = map[string]struct{}{
+	"id":      {},
+	"name":    {},
+	"address": {},
+	"comment": {},
+}
+
+func isBuiltinFields(field string) bool {
+	_, ok := builtinFields[strings.ToLower(field)]
 	return ok
 }
 

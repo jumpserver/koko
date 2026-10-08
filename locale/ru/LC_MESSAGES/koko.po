@@ -55,9 +55,6 @@ msgstr "Недопустимый номер"
 msgid "No nodes"
 msgstr "Нет узлов"
 
-msgid "Switch to TUI mode"
-msgstr "Перейти в режим TUI"
-
 msgid "View all assets"
 msgstr "Показать все активы"
 
@@ -129,9 +126,6 @@ msgstr "Введите {key}, чтобы открыть дерево избра�
 
 msgid "Enter {key} to change the interface language"
 msgstr "Введите {key}, чтобы сменить язык интерфейса"
-
-msgid "Enter {key} to switch to TUI mode"
-msgstr "Введите {key}, чтобы перейти в режим TUI"
 
 msgid "Enter {key} to view help"
 msgstr "Введите {key}, чтобы открыть справку"
@@ -205,14 +199,8 @@ msgstr "Ошибка аутентификации: неверное имя по�
 msgid "AvailableShortcutKey"
 msgstr "Доступные горячие клавиши"
 
-msgid "Back"
-msgstr "Назад"
-
 msgid "Back: B/b"
 msgstr "Назад: B/b"
-
-msgid "Cancel"
-msgstr "Отмена"
 
 msgid "Cancel confirm"
 msgstr "Отмена подтверждения входа"
@@ -241,17 +229,11 @@ msgstr "Команда %s запрещена"
 msgid "Comment"
 msgstr "Примечание"
 
-msgid "Confirm"
-msgstr "Подтвердить"
-
 msgid "ConfirmBtn"
 msgstr "Подтвердить"
 
 msgid "ConfirmDelete"
 msgstr "Вы действительно хотите удалить этот файл?"
-
-msgid "Connect"
-msgstr "Подключение"
 
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "Превышено время простоя (%d минут). Соединение разорвано"
@@ -454,8 +436,8 @@ msgstr "Выбор протокола: введите номер и нажмит
 msgid "Tree progress: %d/%d"
 msgstr "Прогресс дерева: %d/%d"
 
-msgid "Browse tree: [Enter] next line · [Space] next page"
-msgstr "Дерево: [Enter] следующая строка · [Space] следующая страница"
+msgid "Browse tree: [enter] next line · [space] next page"
+msgstr "Дерево: [enter] следующая строка · [space] следующая страница"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "Показать активы: [%c + номер] + Enter"
@@ -652,9 +634,6 @@ msgstr "Только просмотр"
 msgid "Reconnect"
 msgstr "Переподключение"
 
-msgid "Refresh"
-msgstr "Обновить"
-
 msgid "Refresh done"
 msgstr "Обновлено"
 
@@ -678,9 +657,6 @@ msgstr "Повторное использование SSH соединения (
 
 msgid "RightArrow"
 msgstr "Стрелка вправо"
-
-msgid "Search"
-msgstr "Поиск"
 
 msgid "Search: %s"
 msgstr "Поиск: %s"
@@ -765,9 +741,6 @@ msgstr "Выполняемая вами команда несёт риск, ув
 
 msgid "TheCurrentTerminalInstanceWasNotFound"
 msgstr "Текущий экземпляр терминала не найден"
-
-msgid "Theme"
-msgstr "Тема"
 
 msgid "ThemeColors"
 msgstr "Цвета темы"
@@ -956,428 +929,320 @@ msgstr "Недостаточно прав для развертывания"
 msgid "File exceeds maximum transfer size: %s"
 msgstr "Размер файла превышает максимальный размер передачи: %s"
 
-#. Koko TUI
-msgid "Account"
-msgstr "Учётная запись"
-
-#. Koko TUI
-msgid "All assets"
-msgstr "Все активы"
-
-#. Koko TUI
 msgid "All favorites"
 msgstr "Всё избранное"
 
-#. Koko TUI
-msgid "Asset"
-msgstr "Актив"
-
-#. Koko TUI
-msgid "Asset groups"
-msgstr "Группы активов"
-
-#. Koko TUI
-msgid "Assets"
-msgstr "Активы"
-
-#. Koko TUI
-msgid "Assets / New connection"
-msgstr "Активы / Новое подключение"
-
-#. Koko TUI
-msgid "Authorization"
-msgstr "Дерево доступа"
-
-#. Koko TUI
-msgid "Clear search"
-msgstr "Очистить поиск"
-
-#. Koko TUI
-msgid "Close"
-msgstr "Закрыть"
-
-#. Koko TUI
-msgid "Close menu/dialog, go back"
-msgstr "Закрыть меню/диалог, вернуться"
-
-#. Koko TUI
-msgid "Close tab"
-msgstr "Закрыть вкладку"
-
-#. Koko TUI
-msgid "Collapse/expand"
-msgstr "Свернуть/развернуть"
-
-#. Koko TUI
-msgid "Collapse/expand loaded nodes"
-msgstr "Свернуть/развернуть загруженные узлы"
-
-#. Koko TUI
-msgid "Collapse/expand node, scroll table horizontally"
-msgstr "Свернуть/развернуть узел, прокрутить таблицу по горизонтали"
-
-#. Koko TUI
-msgid "Confirm and connect"
-msgstr "Подтвердить и подключиться"
-
-#. Koko TUI
-msgid "Connected terminal"
-msgstr "Подключённый терминал"
-
-#. Koko TUI
-msgid "Disconnect and quit"
-msgstr "Отключиться и выйти"
-
-#. Koko TUI
-msgid "Disconnect session"
-msgstr "Отключить сеанс"
-
-#. Koko TUI
-msgid "Favorites"
-msgstr "Избранное"
-
-#. Koko TUI
-msgid "First/last item"
-msgstr "Первый/последний элемент"
-
-#. Koko TUI
-msgid "Focus"
-msgstr "Сменить фокус"
-
-#. Koko TUI
-msgid "Full text"
-msgstr "Полный текст"
-
-#. Koko TUI
-msgid "Full text · scrollable"
-msgstr "Полный текст · с прокруткой"
-
-#. Koko TUI
-msgid "Help"
-msgstr "Справка"
-
-#. Koko TUI
-msgid "Keys go to the remote; press Ctrl+] for window controls."
-msgstr "Клавиши передаются удалённому терминалу; для управления окнами нажмите Ctrl+]."
-
-#. Koko TUI
-msgid "Language"
-msgstr "Язык"
-
-#. Koko TUI
-msgid "Language · this session"
-msgstr "Язык · текущий сеанс"
-
-#. Koko TUI
-msgid "Load failed; press R to retry"
-msgstr "Ошибка загрузки; нажмите R для повтора"
-
-#. Koko TUI
-msgid "Load more…"
-msgstr "Загрузить ещё…"
-
-#. Koko TUI
-msgid "Loading assets…"
-msgstr "Загрузка активов…"
-
-#. Koko TUI
-msgid "Loading organizations…"
-msgstr "Загрузка организаций…"
-
-#. Koko TUI
-msgid "Loading permitted accounts…"
-msgstr "Загрузка разрешённых учётных записей…"
-
-#. Koko TUI
-msgid "Loading workspace…"
-msgstr "Загрузка рабочей области…"
-
-#. Koko TUI
-msgid "Maximum 8 sessions; close one first"
-msgstr "Не более 8 сеансов; сначала закройте один"
-
-#. Koko TUI
-msgid "Move and scroll"
-msgstr "Перемещение и прокрутка"
-
-#. Koko TUI
-msgid "Name, address, comment"
-msgstr "Имя, адрес, комментарий"
-
-#. Koko TUI
-msgid "Next"
-msgstr "Следующая"
-
-#. Koko TUI
-msgid "Next/previous window"
-msgstr "Следующее/предыдущее окно"
-
-#. Koko TUI
 msgid "No matching assets"
 msgstr "Подходящих активов нет"
 
-#. Koko TUI
-msgid "No organization memberships"
-msgstr "Нет членства в организациях"
+msgid "Account"
+msgstr "Учётная запись"
 
-#. Koko TUI
-msgid "No permitted accounts or terminal protocols"
-msgstr "Нет разрешённых учётных записей или протоколов терминала"
+msgid "Cancel"
+msgstr "Отмена"
 
-#. Koko TUI
-msgid "Previous"
-msgstr "Предыдущая"
+msgid "Clear"
+msgstr "Очистить"
 
-#. Koko TUI
+msgid "Connect"
+msgstr "Подключить"
+
+msgid "Confirm"
+msgstr "Подтвердить"
+
+msgid "Double-click"
+msgstr "Двойной щелчок"
+
+msgid "Language"
+msgstr "Язык"
+
+msgid "Page"
+msgstr "Страница"
+
 msgid "Quit"
-msgstr "Выйти"
+msgstr "Выход"
 
-#. Koko TUI
-msgid "Quitting will disconnect all asset sessions."
-msgstr "При выходе все сеансы подключения к активам будут отключены."
+msgid "Search"
+msgstr "Поиск"
 
-#. Koko TUI
-msgid "Resize terminal to at least 72 × 20"
-msgstr "Увеличьте терминал минимум до 72 × 20"
-
-#. Koko TUI
-msgid "Resize tree, or drag the divider"
-msgstr "Изменить ширину дерева или перетащить разделитель"
-
-#. Koko TUI
-msgid "Searching…"
-msgstr "Поиск…"
-
-#. Koko TUI
 msgid "Select"
 msgstr "Выбрать"
 
-#. Koko TUI
-msgid "Select account"
-msgstr "Выбор учётной записи"
+msgid "Text mode"
+msgstr "Текстовый режим"
 
-#. Koko TUI
-msgid "Send literal Ctrl+]"
-msgstr "Отправить Ctrl+] напрямую"
+msgid "Interface control (mouse)"
+msgstr "Управление интерфейсом (мышь)"
 
-#. Koko TUI
-msgid "Session ended"
-msgstr "Сеанс завершён"
+msgid "Text selection (mouse)"
+msgstr "Выделение текста (мышь)"
 
-#. Koko TUI
-msgid "Sessions"
-msgstr "Сеансы"
+msgid "Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions"
+msgstr "Переключиться на управление интерфейсом: Koko обрабатывает щелчки, прокрутку и действия в интерфейсе"
 
-#. Koko TUI
-msgid "Show/hide navigation"
-msgstr "Показать/скрыть навигацию"
+msgid "Switch to text selection; the local terminal handles dragging and copying text"
+msgstr "Переключиться на выделение текста: локальный терминал обрабатывает выделение перетаскиванием и копирование текста"
 
-#. Koko TUI
-msgid "Terminal"
-msgstr "Терминал"
+msgid "Asset tree"
+msgstr "Дерево активов"
 
-#. Koko TUI
-msgid "Tree limit reached; refresh this view"
-msgstr "Достигнут предел узлов; обновите представление"
+msgid "Clear node"
+msgstr "Сбросить узел"
 
-#. Koko TUI
-msgid "Tree view"
-msgstr "Вид дерева"
-
-#. Koko TUI
-msgid "Types"
-msgstr "Дерево типов"
-
-#. Koko TUI
-msgid "Width"
-msgstr "Ширина"
-
-#. Koko TUI
-msgid "Window bar"
-msgstr "Панель окон"
+msgid "Clear search"
+msgstr "Очистить поиск"
 
 msgid "Authorization tree"
-msgstr "Дерево доступа"
+msgstr "Дерево авторизаций"
 
 msgid "Type tree"
 msgstr "Дерево типов"
 
-msgid "Favorites tree"
+msgid "Favorite tree"
 msgstr "Дерево избранного"
 
-msgid "Load failed"
-msgstr "Не удалось загрузить"
+msgid "Refresh"
+msgstr "Обновить"
 
-msgid "Global organization"
-msgstr "Глобальная организация"
+msgid "Switch tree"
+msgstr "Переключить дерево"
 
-msgid "Asset panel"
-msgstr "Панель активов"
+msgid "Switch language"
+msgstr "Переключить язык"
 
-msgid "Mode"
-msgstr "Режим"
+msgid "Search assets in the current scope"
+msgstr "Искать активы в текущей области"
 
-msgid "Accent color"
-msgstr "Акцентный цвет"
+msgid "Clear the current asset search"
+msgstr "Очистить текущий поиск активов"
 
-msgid "Dark theme"
-msgstr "Тёмная тема"
+msgid "Move the selection up or down"
+msgstr "Переместить выбор вверх или вниз"
 
-msgid "Light theme"
-msgstr "Светлая тема"
-
-msgid "Teal"
-msgstr "Бирюзовый"
-
-msgid "Blue"
-msgstr "Синий"
-
-msgid "Green"
-msgstr "Зелёный"
-
-msgid "Purple"
-msgstr "Фиолетовый"
-
-msgid "Rose"
-msgstr "Розовый"
-
-msgid "Amber"
-msgstr "Янтарный"
-
-msgid "Orange"
-msgstr "Оранжевый"
-
-msgid "Pink"
-msgstr "Розовый"
-
-msgid "Cyan"
-msgstr "Голубой"
-
-msgid "Gray"
-msgstr "Серый"
-
-msgid "Red"
-msgstr "Красный"
-
-msgid "Lime"
-msgstr "Лаймовый"
-
-msgid "Duplicate"
-msgstr "Дублировать"
-
-msgid "Disconnect"
-msgstr "Отключить"
-
-msgid "Duplicate session"
-msgstr "Дублировать сеанс"
-
-msgid "More sessions"
-msgstr "Другие сеансы"
-
-msgid "Fullscreen"
-msgstr "Полный экран"
-
-msgid "Exit fullscreen"
-msgstr "Выйти из полноэкранного режима"
-
-msgid "Reset accent"
-msgstr "Сбросить цвет"
-
-msgid "Quit this Koko SSH session?"
-msgstr "Выйти из этого SSH-сеанса Koko?"
-
-msgid "This asset's protocols (%s) are unsupported, so it cannot be connected"
-msgstr "Протоколы этого актива (%s) не поддерживаются, поэтому подключение невозможно"
-
-msgid "Focus the organization selector"
-msgstr "Перейти к выбору организации"
-
-msgid "Focus the asset tree type selector"
-msgstr "Перейти к выбору типа дерева активов"
-
-msgid "Focus asset tree nodes"
-msgstr "Перейти к узлам дерева активов"
-
-msgid "Focus the asset list"
-msgstr "Перейти к списку активов"
-
-msgid "Show or hide the asset tree pane"
-msgstr "Показать или скрыть панель дерева активов"
-
-msgid "Focus the asset search field"
-msgstr "Перейти к полю поиска активов"
-
-msgid "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
-msgstr "Пошагово свернуть дерево активов; когда всё свернуто, развернуть узлы первого уровня"
-
-msgid "Reload the current asset tree and top-level asset list, resetting the selected node"
-msgstr "Перезагрузить текущее дерево активов и список активов верхнего уровня, сбросив выбранный узел"
-
-msgid "Reload organizations, asset tree, and asset list"
-msgstr "Перезагрузить организации, дерево активов и список активов"
-
-msgid "Narrow the asset tree pane by 4 columns"
-msgstr "Сузить панель дерева активов на 4 столбца"
-
-msgid "Widen the asset tree pane by 4 columns"
-msgstr "Расширить панель дерева активов на 4 столбца"
-
-msgid "Previous page of the asset list"
-msgstr "Предыдущая страница списка активов"
-
-msgid "Next page of the asset list"
-msgstr "Следующая страница списка активов"
-
-msgid "Refresh the current node's asset list, keeping search and page"
-msgstr "Обновить список активов текущего узла, сохранив поиск и страницу"
-
-msgid "Scroll the asset list horizontally"
-msgstr "Прокрутить список активов по горизонтали"
-
-msgid "Collapse or expand the current tree node"
-msgstr "Свернуть или развернуть текущий узел дерева"
-
-msgid "Collapse the current node or move to its parent / expand the current node"
-msgstr "Свернуть текущий узел или перейти к родителю / развернуть текущий узел"
-
-msgid "Move to a child / parent node"
-msgstr "Перейти к дочернему / родительскому узлу"
-
-msgid "Move through visible tree nodes"
-msgstr "Перемещаться между видимыми узлами дерева"
-
-msgid "Move one screen up or down in the asset tree"
-msgstr "Переместиться на один экран вверх или вниз по дереву активов"
-
-msgid "Jump to the first or last asset tree node"
-msgstr "Перейти к первому или последнему узлу дерева активов"
-
-msgid "Move between asset list rows"
-msgstr "Перемещаться между строками списка активов"
-
-msgid "Move one screen up or down within the current asset page"
-msgstr "Переместиться на один экран вверх или вниз в текущей странице активов"
-
-msgid "Jump to the first or last asset list row"
-msgstr "Перейти к первой или последней строке списка активов"
-
-msgid "Show assets in the current tree node"
-msgstr "Показать активы текущего узла дерева"
-
-msgid "Search assets immediately"
-msgstr "Сразу выполнить поиск активов"
+msgid "Go to the previous or next page"
+msgstr "Перейти на предыдущую или следующую страницу"
 
 msgid "Connect to the selected asset"
 msgstr "Подключиться к выбранному активу"
 
-msgid "Focused area controls"
-msgstr "Действия в области с фокусом"
+msgid "Open the asset tree"
+msgstr "Открыть дерево активов"
 
-msgid "Session \"%s\" has ended. Close this tab?"
-msgstr "Сеанс «%s» завершён. Закрыть эту вкладку?"
+msgid "Clear the selected tree node"
+msgstr "Очистить выбранный узел дерева"
 
-msgid "Keep tab"
-msgstr "Оставить вкладку"
+msgid "Switch the interface language"
+msgstr "Сменить язык интерфейса"
 
-msgid "Terminal supports only these protocols: %s."
-msgstr "Terminal поддерживает только следующие протоколы: %s."
+msgid "Switch to text mode"
+msgstr "Переключиться в текстовый режим"
+
+msgid "Exit the asset list"
+msgstr "Выйти из списка активов"
+
+msgid "Open shortcut help"
+msgstr "Открыть справку по сочетаниям клавиш"
+
+msgid "Close shortcut help"
+msgstr "Закрыть справку по сочетаниям клавиш"
+
+msgid "View complete information for the selected item"
+msgstr "Просмотреть полную информацию о выбранном элементе"
+
+msgid "Protocols supported by the current terminal"
+msgstr "Протоколы, поддерживаемые текущим терминалом"
+
+msgid "Collapse or expand the selected node"
+msgstr "Свернуть или развернуть выбранный узел"
+
+msgid "Use the selected node to filter assets"
+msgstr "Фильтровать активы по выбранному узлу"
+
+msgid "Switch the asset tree type"
+msgstr "Сменить тип дерева активов"
+
+msgid "Reload the current asset tree"
+msgstr "Перезагрузить текущее дерево активов"
+
+msgid "Apply the selected language"
+msgstr "Применить выбранный язык"
+
+msgid "Select an authorized account"
+msgstr "Выбрать разрешённую учётную запись"
+
+msgid "Select a connection protocol"
+msgstr "Выбрать протокол подключения"
+
+msgid "Search authorized accounts"
+msgstr "Искать разрешённые учётные записи"
+
+msgid "Connect using the selected account and protocol"
+msgstr "Подключиться с выбранной учётной записью и протоколом"
+
+msgid "Path"
+msgstr "Путь"
+
+msgid "Asset count"
+msgstr "Количество активов"
+
+msgid "Category"
+msgstr "Категория"
+
+msgid "Active"
+msgstr "Активен"
+
+msgid "Actions"
+msgstr "Действия"
+
+msgid "Key"
+msgstr "Ключ"
+
+msgid "Details"
+msgstr "Подробности"
+
+msgid "Refresh the current asset list and keep search and tree filters"
+msgstr "Обновить текущий список активов, сохранив поиск и фильтры дерева"
+
+msgid "Yes"
+msgstr "Да"
+
+msgid "No"
+msgstr "Нет"
+
+msgid "My Assets"
+msgstr "Мои активы"
+
+msgid "Direct connect"
+msgstr "Прямое подключение"
+
+msgid "Multi-session"
+msgstr "Мультисессия"
+
+msgid "Sessions"
+msgstr "Сеансы"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "Подключиться к выбранному активу в одном нативном сеансе"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "Открыть выбранный актив в мультисессионном окне"
+
+msgid "Return to the multi-session workspace"
+msgstr "Вернуться в мультисессионное окно"
+
+msgid "Asset list"
+msgstr "Список активов"
+
+msgid "Switch session"
+msgstr "Переключить сеанс"
+
+msgid "Close session"
+msgstr "Закрыть сеанс"
+
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "В мультисессионном режиме можно одновременно открыть не более %d окон сеансов"
+
+msgid "Failed to open multi-session"
+msgstr "Не удалось открыть мультисессию"
+
+msgid "Multi-session workspace closed"
+msgstr "Мультисессионное окно закрыто"
+
+msgid "Activate shortcuts"
+msgstr "Активировать сочетания клавиш"
+
+msgid "Next session"
+msgstr "Следующий сеанс"
+
+msgid "Duplicate session"
+msgstr "Дублировать сеанс"
+
+msgid "Reconnect session"
+msgstr "Переподключить сеанс"
+
+msgid "Move to the next session"
+msgstr "Перейти к следующему сеансу"
+
+msgid "Move to the previous session"
+msgstr "Перейти к предыдущему сеансу"
+
+msgid "Switch directly to session 1-9"
+msgstr "Переключиться непосредственно на сеанс 1-9"
+
+msgid "Close the current session"
+msgstr "Закрыть текущий сеанс"
+
+msgid "Duplicate the current session"
+msgstr "Дублировать текущий сеанс"
+
+msgid "Reconnect the current session"
+msgstr "Переподключить текущий сеанс"
+
+msgid "Return to the asset list"
+msgstr "Вернуться к списку активов"
+
+msgid "Send ctrl+b to the current session"
+msgstr "Отправить ctrl+b в текущий сеанс"
+
+msgid "Scroll content"
+msgstr "Прокрутить содержимое"
+
+msgid "Scroll the current session down or up"
+msgstr "Прокрутить содержимое текущего сеанса вниз или вверх"
+
+msgid "Enter session"
+msgstr "Войти в сеанс"
+
+msgid "Move to the previous or next session"
+msgstr "Перейти к предыдущему или следующему сеансу"
+
+msgid "Enter the current session"
+msgstr "Войти в текущий сеанс"
+
+msgid "Close all sessions"
+msgstr "Закрыть все сеансы"
+
+msgid "Close all sessions and return to the asset list"
+msgstr "Закрыть все сеансы и вернуться к списку активов"
+
+msgid "Session list"
+msgstr "Список сеансов"
+
+msgid "Open the session list"
+msgstr "Открыть список сеансов"
+
+msgid "Close"
+msgstr "Закрыть"
+
+msgid "Immersive mode"
+msgstr "Иммерсивный режим"
+
+msgid "Enter immersive mode"
+msgstr "Войти в иммерсивный режим"
+
+msgid "Exit immersive mode"
+msgstr "Выйти из иммерсивного режима"
+
+msgid "Close the current session?"
+msgstr "Закрыть текущий сеанс?"
+
+msgid "Close all sessions and return to the asset list?"
+msgstr "Закрыть все сеансы и вернуться к списку активов?"
+
+msgid "Quit Koko"
+msgstr "Выйти из Koko"
+
+msgid "Quit this SSH session?"
+msgstr "Завершить этот сеанс SSH?"
+
+msgid "%d multi-sessions are still active; quitting will end them."
+msgstr "Ещё активно мультисеансов: %d; при выходе все они будут завершены."
+
+msgid "Session ended"
+msgstr "Сеанс завершён"
+
+msgid "The current session has ended. Close this tab?"
+msgstr "Текущий сеанс завершён. Закрыть эту вкладку?"
+
+msgid "Keep"
+msgstr "Оставить"

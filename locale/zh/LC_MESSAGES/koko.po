@@ -55,9 +55,6 @@ msgstr "序号无效"
 msgid "No nodes"
 msgstr "暂无节点"
 
-msgid "Switch to TUI mode"
-msgstr "切换为 TUI 模式"
-
 msgid "View all assets"
 msgstr "查看全部资产"
 
@@ -129,9 +126,6 @@ msgstr "输入 {key} 查看收藏树"
 
 msgid "Enter {key} to change the interface language"
 msgstr "输入 {key} 切换界面语言"
-
-msgid "Enter {key} to switch to TUI mode"
-msgstr "输入 {key} 切换为 TUI 模式"
 
 msgid "Enter {key} to view help"
 msgstr "输入 {key} 查看帮助"
@@ -205,14 +199,8 @@ msgstr "认证失败（用户名或密码错误）"
 msgid "AvailableShortcutKey"
 msgstr "可用快捷键"
 
-msgid "Back"
-msgstr "返回"
-
 msgid "Back: B/b"
 msgstr "返回：B/b"
-
-msgid "Cancel"
-msgstr "取消"
 
 msgid "Cancel confirm"
 msgstr "取消登录复核"
@@ -241,17 +229,11 @@ msgstr "命令 `%s` 是被禁止的 ..."
 msgid "Comment"
 msgstr "备注"
 
-msgid "Confirm"
-msgstr "确认"
-
 msgid "ConfirmBtn"
 msgstr "确定"
 
 msgid "ConfirmDelete"
 msgstr "您确定要删除该文件吗？"
-
-msgid "Connect"
-msgstr "连接"
 
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "空闲时间超过%d分钟，断开连接"
@@ -454,8 +436,8 @@ msgstr "选择协议：输入序号并回车"
 msgid "Tree progress: %d/%d"
 msgstr "树进度：%d/%d"
 
-msgid "Browse tree: [Enter] next line · [Space] next page"
-msgstr "浏览树：[Enter] 下一行 · [Space] 下一页"
+msgid "Browse tree: [enter] next line · [space] next page"
+msgstr "浏览树：[enter] 下一行 · [space] 下一页"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "查看资产：[%c + 序号] + 回车"
@@ -652,9 +634,6 @@ msgstr "只读"
 msgid "Reconnect"
 msgstr "重新连接"
 
-msgid "Refresh"
-msgstr "刷新"
-
 msgid "Refresh done"
 msgstr "刷新完成"
 
@@ -678,9 +657,6 @@ msgstr "复用SSH连接（%s@%s）[连接数量: %d]"
 
 msgid "RightArrow"
 msgstr "前进箭头"
-
-msgid "Search"
-msgstr "搜索"
 
 msgid "Search: %s"
 msgstr "搜索：%s"
@@ -765,9 +741,6 @@ msgstr "您执行的命令存在风险，告警通知将发送给管理员。是
 
 msgid "TheCurrentTerminalInstanceWasNotFound"
 msgstr "当前终端实例未找到"
-
-msgid "Theme"
-msgstr "主题"
 
 msgid "ThemeColors"
 msgstr "主题颜色"
@@ -956,245 +929,68 @@ msgstr "部署权限不足"
 msgid "File exceeds maximum transfer size: %s"
 msgstr "文件超过最大传输大小：%s"
 
-#. Koko TUI
-msgid "Account"
-msgstr "账号名称"
-
-#. Koko TUI
-msgid "All assets"
-msgstr "全部资产"
-
-#. Koko TUI
 msgid "All favorites"
 msgstr "全部收藏"
 
-#. Koko TUI
-msgid "Asset"
-msgstr "资产名称"
-
-#. Koko TUI
-msgid "Asset groups"
-msgstr "资产分组"
-
-#. Koko TUI
-msgid "Assets"
-msgstr "资产"
-
-#. Koko TUI
-msgid "Assets / New connection"
-msgstr "返回资产 / 新建连接"
-
-#. Koko TUI
-msgid "Authorization"
-msgstr "授权树"
-
-#. Koko TUI
-msgid "Clear search"
-msgstr "清空搜索"
-
-#. Koko TUI
-msgid "Close"
-msgstr "关闭"
-
-#. Koko TUI
-msgid "Close menu/dialog, go back"
-msgstr "关闭菜单/弹窗，返回"
-
-#. Koko TUI
-msgid "Close tab"
-msgstr "关闭此标签"
-
-#. Koko TUI
-msgid "Collapse/expand"
-msgstr "折叠/展开"
-
-#. Koko TUI
-msgid "Collapse/expand loaded nodes"
-msgstr "折叠/展开已加载节点"
-
-#. Koko TUI
-msgid "Collapse/expand node, scroll table horizontally"
-msgstr "折叠/展开节点，水平滚动表格"
-
-#. Koko TUI
-msgid "Confirm and connect"
-msgstr "确认并连接"
-
-#. Koko TUI
-msgid "Connected terminal"
-msgstr "连接中的终端"
-
-#. Koko TUI
-msgid "Disconnect and quit"
-msgstr "断开并退出"
-
-#. Koko TUI
-msgid "Disconnect session"
-msgstr "断开此会话"
-
-#. Koko TUI
-msgid "Favorites"
-msgstr "收藏树"
-
-#. Koko TUI
-msgid "First/last item"
-msgstr "首项/末项"
-
-#. Koko TUI
-msgid "Focus"
-msgstr "切换控件"
-
-#. Koko TUI
-msgid "Full text"
-msgstr "完整内容"
-
-#. Koko TUI
-msgid "Full text · scrollable"
-msgstr "完整内容 · 可滚动"
-
-#. Koko TUI
-msgid "Help"
-msgstr "帮助"
-
-#. Koko TUI
-msgid "Keys go to the remote; press Ctrl+] for window controls."
-msgstr "普通按键交给远端；窗口操作先按 Ctrl+]。"
-
-#. Koko TUI
-msgid "Language"
-msgstr "语言"
-
-#. Koko TUI
-msgid "Language · this session"
-msgstr "语言 · 当前会话"
-
-#. Koko TUI
-msgid "Load failed; press R to retry"
-msgstr "加载失败，按 R 重试"
-
-#. Koko TUI
-msgid "Load more…"
-msgstr "加载更多…"
-
-#. Koko TUI
-msgid "Loading assets…"
-msgstr "加载资产…"
-
-#. Koko TUI
-msgid "Loading organizations…"
-msgstr "正在加载组织…"
-
-#. Koko TUI
-msgid "Loading permitted accounts…"
-msgstr "加载授权账号…"
-
-#. Koko TUI
-msgid "Loading workspace…"
-msgstr "正在加载工作区…"
-
-#. Koko TUI
-msgid "Maximum 8 sessions; close one first"
-msgstr "最多同时保留 8 个会话，请先关闭一个"
-
-#. Koko TUI
-msgid "Move and scroll"
-msgstr "移动和滚动"
-
-#. Koko TUI
-msgid "Name, address, comment"
-msgstr "名称、地址、备注"
-
-#. Koko TUI
-msgid "Next"
-msgstr "下一页"
-
-#. Koko TUI
-msgid "Next/previous window"
-msgstr "下一个/上一个窗口"
-
-#. Koko TUI
 msgid "No matching assets"
 msgstr "没有匹配资产"
 
-#. Koko TUI
-msgid "No organization memberships"
-msgstr "未加入任何组织"
+msgid "Account"
+msgstr "账号"
 
-#. Koko TUI
-msgid "No permitted accounts or terminal protocols"
-msgstr "没有可用的授权账号或终端协议"
+msgid "Cancel"
+msgstr "取消"
 
-#. Koko TUI
-msgid "Previous"
-msgstr "上一页"
+msgid "Clear"
+msgstr "清空"
 
-#. Koko TUI
+msgid "Connect"
+msgstr "连接"
+
+msgid "Confirm"
+msgstr "确认"
+
+msgid "Double-click"
+msgstr "双击"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "Page"
+msgstr "翻页"
+
 msgid "Quit"
 msgstr "退出"
 
-#. Koko TUI
-msgid "Quitting will disconnect all asset sessions."
-msgstr "退出将断开所有资产会话。"
+msgid "Search"
+msgstr "搜索"
 
-#. Koko TUI
-msgid "Resize terminal to at least 72 × 20"
-msgstr "请放大终端至至少 72 × 20"
-
-#. Koko TUI
-msgid "Resize tree, or drag the divider"
-msgstr "调整树宽度，也可拖动分隔线"
-
-#. Koko TUI
-msgid "Searching…"
-msgstr "搜索中…"
-
-#. Koko TUI
 msgid "Select"
 msgstr "选择"
 
-#. Koko TUI
-msgid "Select account"
-msgstr "选择账号"
+msgid "Text mode"
+msgstr "纯文本模式"
 
-#. Koko TUI
-msgid "Send literal Ctrl+]"
-msgstr "发送原始 Ctrl+]"
+msgid "Interface control (mouse)"
+msgstr "界面操作(鼠标)"
 
-#. Koko TUI
-msgid "Session ended"
-msgstr "连接已结束"
+msgid "Text selection (mouse)"
+msgstr "文本选择(鼠标)"
 
-#. Koko TUI
-msgid "Sessions"
-msgstr "会话"
+msgid "Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions"
+msgstr "切换到界面操作，由 Koko 接管鼠标，可点击、滚动和操作界面"
 
-#. Koko TUI
-msgid "Show/hide navigation"
-msgstr "显示/隐藏树区域"
+msgid "Switch to text selection; the local terminal handles dragging and copying text"
+msgstr "切换到文本选择，由本地终端接管鼠标，可拖动选择和复制文本"
 
-#. Koko TUI
-msgid "Terminal"
-msgstr "终端"
+msgid "Asset tree"
+msgstr "资产树"
 
-#. Koko TUI
-msgid "Tree limit reached; refresh this view"
-msgstr "节点过多，请折叠并刷新视图"
+msgid "Clear node"
+msgstr "清除节点"
 
-#. Koko TUI
-msgid "Tree view"
-msgstr "树类型"
-
-#. Koko TUI
-msgid "Types"
-msgstr "类型树"
-
-#. Koko TUI
-msgid "Width"
-msgstr "宽度"
-
-#. Koko TUI
-msgid "Window bar"
-msgstr "窗口栏"
+msgid "Clear search"
+msgstr "清除搜索"
 
 msgid "Authorization tree"
 msgstr "授权树"
@@ -1202,86 +998,251 @@ msgstr "授权树"
 msgid "Type tree"
 msgstr "类型树"
 
-msgid "Favorites tree"
+msgid "Favorite tree"
 msgstr "收藏树"
 
-msgid "Load failed"
-msgstr "加载失败"
+msgid "Refresh"
+msgstr "刷新"
 
-msgid "Global organization"
-msgstr "全局组织"
+msgid "Switch tree"
+msgstr "切换树"
 
-msgid "Asset panel"
-msgstr "资产面板"
+msgid "Switch language"
+msgstr "切换语言"
 
-msgid "Mode"
-msgstr "模式"
+msgid "Search assets in the current scope"
+msgstr "在当前范围内搜索资产"
 
-msgid "Accent color"
-msgstr "强调色"
+msgid "Clear the current asset search"
+msgstr "清除当前资产搜索"
 
-msgid "Dark theme"
-msgstr "深色主题"
+msgid "Move the selection up or down"
+msgstr "向上或向下移动选中项"
 
-msgid "Light theme"
-msgstr "浅色主题"
+msgid "Go to the previous or next page"
+msgstr "切换到上一页或下一页"
 
-msgid "Teal"
-msgstr "青绿"
+msgid "Connect to the selected asset"
+msgstr "连接选中的资产"
 
-msgid "Blue"
-msgstr "蓝色"
+msgid "Open the asset tree"
+msgstr "打开资产树"
 
-msgid "Green"
-msgstr "绿色"
+msgid "Clear the selected tree node"
+msgstr "清除当前选中的树节点"
 
-msgid "Purple"
-msgstr "紫色"
+msgid "Switch the interface language"
+msgstr "切换界面语言"
 
-msgid "Rose"
-msgstr "玫瑰"
+msgid "Switch to text mode"
+msgstr "切换到纯文本模式"
 
-msgid "Amber"
-msgstr "琥珀"
+msgid "Exit the asset list"
+msgstr "退出资产列表"
 
-msgid "Orange"
-msgstr "橙色"
+msgid "Open shortcut help"
+msgstr "打开快捷键帮助"
 
-msgid "Pink"
-msgstr "粉色"
+msgid "Close shortcut help"
+msgstr "关闭快捷键帮助"
 
-msgid "Cyan"
-msgstr "青蓝"
+msgid "View complete information for the selected item"
+msgstr "查看所选项目的完整信息"
 
-msgid "Gray"
-msgstr "灰色"
+msgid "Protocols supported by the current terminal"
+msgstr "当前终端支持的协议"
 
-msgid "Red"
-msgstr "红色"
+msgid "Collapse or expand the selected node"
+msgstr "折叠或展开选中的节点"
 
-msgid "Lime"
-msgstr "青柠"
+msgid "Use the selected node to filter assets"
+msgstr "使用选中的节点筛选资产"
 
-msgid "Duplicate"
-msgstr "复制"
+msgid "Switch the asset tree type"
+msgstr "切换资产树类型"
 
-msgid "Disconnect"
-msgstr "断开"
+msgid "Reload the current asset tree"
+msgstr "重新加载当前资产树"
+
+msgid "Apply the selected language"
+msgstr "应用选中的语言"
+
+msgid "Select an authorized account"
+msgstr "选择授权账号"
+
+msgid "Select a connection protocol"
+msgstr "选择连接协议"
+
+msgid "Search authorized accounts"
+msgstr "搜索授权账号"
+
+msgid "Connect using the selected account and protocol"
+msgstr "使用选中的账号和协议连接"
+
+msgid "Path"
+msgstr "路径"
+
+msgid "Asset count"
+msgstr "资产数量"
+
+msgid "Category"
+msgstr "类别"
+
+msgid "Active"
+msgstr "激活"
+
+msgid "Actions"
+msgstr "动作"
+
+msgid "Key"
+msgstr "键"
+
+msgid "Details"
+msgstr "详情"
+
+msgid "Refresh the current asset list and keep search and tree filters"
+msgstr "刷新当前资产列表，并保留搜索和资产树筛选条件"
+
+msgid "Yes"
+msgstr "是"
+
+msgid "No"
+msgstr "否"
+
+msgid "My Assets"
+msgstr "我的资产"
+
+msgid "Direct connect"
+msgstr "原生连接"
+
+msgid "Multi-session"
+msgstr "多会话"
+
+msgid "Sessions"
+msgstr "会话窗口"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "在原生单会话中连接选中的资产"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "在多会话窗口中打开选中的资产"
+
+msgid "Return to the multi-session workspace"
+msgstr "返回多会话窗口"
+
+msgid "Asset list"
+msgstr "资产列表"
+
+msgid "Switch session"
+msgstr "切换会话"
+
+msgid "Close session"
+msgstr "关闭会话"
+
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "多会话模式最多支持同时打开 %d 个会话窗口"
+
+msgid "Failed to open multi-session"
+msgstr "无法打开多会话"
+
+msgid "Multi-session workspace closed"
+msgstr "多会话管理页已关闭"
+
+msgid "Activate shortcuts"
+msgstr "激活快捷键"
+
+msgid "Next session"
+msgstr "下一个会话"
 
 msgid "Duplicate session"
 msgstr "复制会话"
 
-msgid "More sessions"
-msgstr "更多会话"
+msgid "Reconnect session"
+msgstr "重连会话"
 
-msgid "Fullscreen"
-msgstr "全屏"
+msgid "Move to the next session"
+msgstr "切换到下一个会话"
 
-msgid "Exit fullscreen"
-msgstr "退出全屏"
+msgid "Move to the previous session"
+msgstr "切换到上一个会话"
 
-msgid "Reset accent"
-msgstr "还原主题色"
+msgid "Switch directly to session 1-9"
+msgstr "按编号切换到对应会话"
 
-msgid "Quit this Koko SSH session?"
-msgstr "确定退出本次 Koko SSH 会话？"
+msgid "Close the current session"
+msgstr "关闭当前会话"
+
+msgid "Duplicate the current session"
+msgstr "复制当前会话"
+
+msgid "Reconnect the current session"
+msgstr "重新连接当前会话"
+
+msgid "Return to the asset list"
+msgstr "返回资产列表"
+
+msgid "Send ctrl+b to the current session"
+msgstr "向当前会话发送 ctrl+b"
+
+msgid "Scroll content"
+msgstr "滚动内容"
+
+msgid "Scroll the current session down or up"
+msgstr "向下或向上滚动当前会话内容"
+
+msgid "Enter session"
+msgstr "进入会话"
+
+msgid "Move to the previous or next session"
+msgstr "切换到左侧或右侧会话"
+
+msgid "Enter the current session"
+msgstr "进入当前会话"
+
+msgid "Close all sessions"
+msgstr "关闭所有会话"
+
+msgid "Close all sessions and return to the asset list"
+msgstr "关闭所有会话并返回资产列表"
+
+msgid "Session list"
+msgstr "会话列表"
+
+msgid "Open the session list"
+msgstr "打开会话列表"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Immersive mode"
+msgstr "沉浸模式"
+
+msgid "Enter immersive mode"
+msgstr "进入沉浸模式"
+
+msgid "Exit immersive mode"
+msgstr "退出沉浸模式"
+
+msgid "Close the current session?"
+msgstr "确定关闭当前会话？"
+
+msgid "Close all sessions and return to the asset list?"
+msgstr "确定关闭所有会话并返回资产列表？"
+
+msgid "Quit Koko"
+msgstr "退出 Koko"
+
+msgid "Quit this SSH session?"
+msgstr "确定退出本次 SSH 会话吗？"
+
+msgid "%d multi-sessions are still active; quitting will end them."
+msgstr "仍有 %d 个多会话未结束，退出后将一并结束。"
+
+msgid "Session ended"
+msgstr "会话已结束"
+
+msgid "The current session has ended. Close this tab?"
+msgstr "当前会话已结束，是否关闭此标签？"
+
+msgid "Keep"
+msgstr "保留"

@@ -82,14 +82,8 @@ msgstr "Authentication failed (incorrect username or password)"
 msgid "AvailableShortcutKey"
 msgstr "Available Shortcut Key"
 
-msgid "Back"
-msgstr "Back"
-
 msgid "Back: B/b"
 msgstr "Back: B/b"
-
-msgid "Cancel"
-msgstr "Cancel"
 
 msgid "Cancel confirm"
 msgstr "Cancel login verification"
@@ -118,17 +112,11 @@ msgstr "Command `%s` is forbidden ..."
 msgid "Comment"
 msgstr "Remarks"
 
-msgid "Confirm"
-msgstr "Confirm"
-
 msgid "ConfirmBtn"
 msgstr "Confirm"
 
 msgid "ConfirmDelete"
 msgstr "Are you sure you want to delete this file?"
-
-msgid "Connect"
-msgstr "Connect"
 
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "Idle time exceeds %d minutes, disconnecting"
@@ -331,8 +319,8 @@ msgstr "Select protocol: enter number and press Enter"
 msgid "Tree progress: %d/%d"
 msgstr "Tree progress: %d/%d"
 
-msgid "Browse tree: [Enter] next line · [Space] next page"
-msgstr "Tree: [Enter] next line · [Space] next page"
+msgid "Browse tree: [enter] next line · [space] next page"
+msgstr "Tree: [enter] next line · [space] next page"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "View assets: [%c + number] + Enter"
@@ -535,9 +523,6 @@ msgstr "Read Only"
 msgid "Reconnect"
 msgstr "Reconnect"
 
-msgid "Refresh"
-msgstr "Refresh"
-
 msgid "Refresh done"
 msgstr "Refresh complete"
 
@@ -561,9 +546,6 @@ msgstr "Reuse SSH connection (%s@%s) [connections: %d]"
 
 msgid "RightArrow"
 msgstr "Right arrow"
-
-msgid "Search"
-msgstr "Search"
 
 msgid "Search: %s"
 msgstr "Search: %s"
@@ -651,9 +633,6 @@ msgstr "The command you executed is risky. An alert notification will be sent to
 
 msgid "TheCurrentTerminalInstanceWasNotFound"
 msgstr "The current terminal instance was not found"
-
-msgid "Theme"
-msgstr "Theme"
 
 msgid "ThemeColors"
 msgstr "Theme Colors"
@@ -821,182 +800,314 @@ msgstr ""
 msgid "File exceeds maximum transfer size: %s"
 msgstr "File exceeds maximum transfer size: %s"
 
-msgid "Load failed"
-msgstr "Load failed"
+msgid "Account"
+msgstr "Account"
 
-msgid "Global organization"
-msgstr "Global organization"
+msgid "Cancel"
+msgstr "Cancel"
 
-msgid "Asset panel"
-msgstr "Asset panel"
+msgid "Clear"
+msgstr "Clear"
 
-msgid "Mode"
-msgstr "Mode"
+msgid "Connect"
+msgstr "Connect"
 
-msgid "Accent color"
-msgstr "Accent color"
+msgid "Confirm"
+msgstr "Confirm"
 
-msgid "Dark theme"
-msgstr "Dark theme"
+msgid "Double-click"
+msgstr "Double-click"
 
-msgid "Light theme"
-msgstr "Light theme"
+msgid "Language"
+msgstr "Language"
 
-msgid "Teal"
-msgstr "Teal"
+msgid "Page"
+msgstr "Page"
 
-msgid "Blue"
-msgstr "Blue"
+msgid "Quit"
+msgstr "Quit"
 
-msgid "Green"
-msgstr "Green"
+msgid "Search"
+msgstr "Search"
 
-msgid "Purple"
-msgstr "Purple"
+msgid "Select"
+msgstr "Select"
 
-msgid "Rose"
-msgstr "Rose"
+msgid "Text mode"
+msgstr "Text mode"
 
-msgid "Amber"
-msgstr "Amber"
+msgid "Interface control (mouse)"
+msgstr "Interface control (mouse)"
 
-msgid "Orange"
-msgstr "Orange"
+msgid "Text selection (mouse)"
+msgstr "Text selection (mouse)"
 
-msgid "Pink"
-msgstr "Pink"
+msgid "Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions"
+msgstr "Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions"
 
-msgid "Cyan"
-msgstr "Cyan"
+msgid "Switch to text selection; the local terminal handles dragging and copying text"
+msgstr "Switch to text selection; the local terminal handles dragging and copying text"
 
-msgid "Gray"
-msgstr "Gray"
+msgid "Asset tree"
+msgstr "Asset tree"
 
-msgid "Red"
-msgstr "Red"
+msgid "Clear node"
+msgstr "Clear node"
 
-msgid "Lime"
-msgstr "Lime"
+msgid "Clear search"
+msgstr "Clear search"
 
-msgid "Duplicate"
-msgstr "Duplicate"
+msgid "Authorization tree"
+msgstr "Authorization tree"
 
-msgid "Disconnect"
-msgstr "Disconnect"
+msgid "Type tree"
+msgstr "Type tree"
 
-msgid "Duplicate session"
-msgstr "Duplicate session"
+msgid "Favorite tree"
+msgstr "Favorite tree"
 
-msgid "More sessions"
-msgstr "More sessions"
+msgid "Refresh"
+msgstr "Refresh"
 
-msgid "Fullscreen"
-msgstr "Fullscreen"
+msgid "Switch tree"
+msgstr "Switch tree"
 
-msgid "Exit fullscreen"
-msgstr "Exit fullscreen"
+msgid "Switch language"
+msgstr "Switch language"
 
-msgid "Reset accent"
-msgstr "Reset accent"
+msgid "Search assets in the current scope"
+msgstr "Search assets in the current scope"
 
-msgid "Quit this Koko SSH session?"
-msgstr "Quit this Koko SSH session?"
+msgid "Clear the current asset search"
+msgstr "Clear the current asset search"
 
-msgid "This asset's protocols (%s) are unsupported, so it cannot be connected"
-msgstr "This asset's protocols (%s) are unsupported, so it cannot be connected"
+msgid "Move the selection up or down"
+msgstr "Move the selection up or down"
 
-msgid "Focus the organization selector"
-msgstr "Focus the organization selector"
-
-msgid "Focus the asset tree type selector"
-msgstr "Focus the asset tree type selector"
-
-msgid "Focus asset tree nodes"
-msgstr "Focus asset tree nodes"
-
-msgid "Focus the asset list"
-msgstr "Focus the asset list"
-
-msgid "Show or hide the asset tree pane"
-msgstr "Show or hide the asset tree pane"
-
-msgid "Focus the asset search field"
-msgstr "Focus the asset search field"
-
-msgid "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
-msgstr "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
-
-msgid "Reload the current asset tree and top-level asset list, resetting the selected node"
-msgstr "Reload the current asset tree and top-level asset list, resetting the selected node"
-
-msgid "Reload organizations, asset tree, and asset list"
-msgstr "Reload organizations, asset tree, and asset list"
-
-msgid "Narrow the asset tree pane by 4 columns"
-msgstr "Narrow the asset tree pane by 4 columns"
-
-msgid "Widen the asset tree pane by 4 columns"
-msgstr "Widen the asset tree pane by 4 columns"
-
-msgid "Previous page of the asset list"
-msgstr "Previous page of the asset list"
-
-msgid "Next page of the asset list"
-msgstr "Next page of the asset list"
-
-msgid "Refresh the current node's asset list, keeping search and page"
-msgstr "Refresh the current node's asset list, keeping search and page"
-
-msgid "Scroll the asset list horizontally"
-msgstr "Scroll the asset list horizontally"
-
-msgid "Collapse or expand the current tree node"
-msgstr "Collapse or expand the current tree node"
-
-msgid "Collapse the current node or move to its parent / expand the current node"
-msgstr "Collapse the current node or move to its parent / expand the current node"
-
-msgid "Move to a child / parent node"
-msgstr "Move to a child / parent node"
-
-msgid "Move through visible tree nodes"
-msgstr "Move through visible tree nodes"
-
-msgid "Move one screen up or down in the asset tree"
-msgstr "Move one screen up or down in the asset tree"
-
-msgid "Jump to the first or last asset tree node"
-msgstr "Jump to the first or last asset tree node"
-
-msgid "Move between asset list rows"
-msgstr "Move between asset list rows"
-
-msgid "Move one screen up or down within the current asset page"
-msgstr "Move one screen up or down within the current asset page"
-
-msgid "Jump to the first or last asset list row"
-msgstr "Jump to the first or last asset list row"
-
-msgid "Show assets in the current tree node"
-msgstr "Show assets in the current tree node"
-
-msgid "Search assets immediately"
-msgstr "Search assets immediately"
+msgid "Go to the previous or next page"
+msgstr "Go to the previous or next page"
 
 msgid "Connect to the selected asset"
 msgstr "Connect to the selected asset"
 
-msgid "Focused area controls"
-msgstr "Focused area controls"
+msgid "Open the asset tree"
+msgstr "Open the asset tree"
 
-msgid "Session \"%s\" has ended. Close this tab?"
-msgstr "Session \"%s\" has ended. Close this tab?"
+msgid "Clear the selected tree node"
+msgstr "Clear the selected tree node"
 
-msgid "Keep tab"
-msgstr "Keep tab"
+msgid "Switch the interface language"
+msgstr "Switch the interface language"
 
-msgid "Close tab"
-msgstr "Close tab"
+msgid "Switch to text mode"
+msgstr "Switch to text mode"
 
-msgid "Terminal supports only these protocols: %s."
-msgstr "Terminal supports only these protocols: %s."
+msgid "Exit the asset list"
+msgstr "Exit the asset list"
+
+msgid "Open shortcut help"
+msgstr "Open shortcut help"
+
+msgid "Close shortcut help"
+msgstr "Close shortcut help"
+
+msgid "View complete information for the selected item"
+msgstr "View complete information for the selected item"
+
+msgid "Protocols supported by the current terminal"
+msgstr "Protocols supported by the current terminal"
+
+msgid "Collapse or expand the selected node"
+msgstr "Collapse or expand the selected node"
+
+msgid "Use the selected node to filter assets"
+msgstr "Use the selected node to filter assets"
+
+msgid "Switch the asset tree type"
+msgstr "Switch the asset tree type"
+
+msgid "Reload the current asset tree"
+msgstr "Reload the current asset tree"
+
+msgid "Apply the selected language"
+msgstr "Apply the selected language"
+
+msgid "Select an authorized account"
+msgstr "Select an authorized account"
+
+msgid "Select a connection protocol"
+msgstr "Select a connection protocol"
+
+msgid "Search authorized accounts"
+msgstr "Search authorized accounts"
+
+msgid "Connect using the selected account and protocol"
+msgstr "Connect using the selected account and protocol"
+
+msgid "Path"
+msgstr "Path"
+
+msgid "Asset count"
+msgstr "Asset count"
+
+msgid "Category"
+msgstr "Category"
+
+msgid "Active"
+msgstr "Active"
+
+msgid "Actions"
+msgstr "Actions"
+
+msgid "Key"
+msgstr "Key"
+
+msgid "Details"
+msgstr "Details"
+
+msgid "Refresh the current asset list and keep search and tree filters"
+msgstr "Refresh the current asset list and keep search and tree filters"
+
+msgid "Yes"
+msgstr "Yes"
+
+msgid "No"
+msgstr "No"
+
+msgid "My Assets"
+msgstr "My Assets"
+
+msgid "Direct connect"
+msgstr "Direct connect"
+
+msgid "Multi-session"
+msgstr "Multi-session"
+
+msgid "Sessions"
+msgstr "Sessions"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "Connect to the selected asset in a native single session"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "Open the selected asset in the multi-session workspace"
+
+msgid "Return to the multi-session workspace"
+msgstr "Return to the multi-session workspace"
+
+msgid "Asset list"
+msgstr "Asset list"
+
+msgid "Switch session"
+msgstr "Switch session"
+
+msgid "Close session"
+msgstr "Close session"
+
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "Multi-session mode supports at most %d session windows"
+
+msgid "Failed to open multi-session"
+msgstr "Failed to open multi-session"
+
+msgid "Multi-session workspace closed"
+msgstr "Multi-session workspace closed"
+
+msgid "Activate shortcuts"
+msgstr "Activate shortcuts"
+
+msgid "Next session"
+msgstr "Next session"
+
+msgid "Duplicate session"
+msgstr "Duplicate session"
+
+msgid "Reconnect session"
+msgstr "Reconnect session"
+
+msgid "Move to the next session"
+msgstr "Move to the next session"
+
+msgid "Move to the previous session"
+msgstr "Move to the previous session"
+
+msgid "Switch directly to session 1-9"
+msgstr "Switch directly to session 1-9"
+
+msgid "Close the current session"
+msgstr "Close the current session"
+
+msgid "Duplicate the current session"
+msgstr "Duplicate the current session"
+
+msgid "Reconnect the current session"
+msgstr "Reconnect the current session"
+
+msgid "Return to the asset list"
+msgstr "Return to the asset list"
+
+msgid "Send ctrl+b to the current session"
+msgstr "Send ctrl+b to the current session"
+
+msgid "Scroll content"
+msgstr "Scroll content"
+
+msgid "Scroll the current session down or up"
+msgstr "Scroll the current session down or up"
+
+msgid "Enter session"
+msgstr "Enter session"
+
+msgid "Move to the previous or next session"
+msgstr "Move to the previous or next session"
+
+msgid "Enter the current session"
+msgstr "Enter the current session"
+
+msgid "Close all sessions"
+msgstr "Close all sessions"
+
+msgid "Close all sessions and return to the asset list"
+msgstr "Close all sessions and return to the asset list"
+
+msgid "Session list"
+msgstr "Session list"
+
+msgid "Open the session list"
+msgstr "Open the session list"
+
+msgid "Close"
+msgstr "Close"
+
+msgid "Immersive mode"
+msgstr "Immersive mode"
+
+msgid "Enter immersive mode"
+msgstr "Enter immersive mode"
+
+msgid "Exit immersive mode"
+msgstr "Exit immersive mode"
+
+msgid "Close the current session?"
+msgstr "Close the current session?"
+
+msgid "Close all sessions and return to the asset list?"
+msgstr "Close all sessions and return to the asset list?"
+
+msgid "Quit Koko"
+msgstr "Quit Koko"
+
+msgid "Quit this SSH session?"
+msgstr "Quit this SSH session?"
+
+msgid "%d multi-sessions are still active; quitting will end them."
+msgstr "%d multi-sessions are still active; quitting will end them."
+
+msgid "Session ended"
+msgstr "Session ended"
+
+msgid "The current session has ended. Close this tab?"
+msgstr "The current session has ended. Close this tab?"
+
+msgid "Keep"
+msgstr "Keep"

@@ -367,7 +367,7 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 	case TypeTypeAsset:
 		reqParam.Category = u.selectedType.Category
 		reqParam.Type = u.selectedType.AssetType
-		return u.retrieveRemoteAsset(reqParam)
+		return u.retrieveRemoteTypeAsset(reqParam)
 	case TypeFavoriteAsset:
 		return u.retrieveRemoteFavoriteAsset(reqParam)
 	case TypeAsset, TypeHost, TypeDatabase, TypeK8s:
@@ -383,7 +383,7 @@ func (u *UserSelectHandler) assetListPath() string {
 	if u.user == nil {
 		return ""
 	}
-	data := tuiData{userID: u.user.ID}
+	data := classicData{userID: u.user.ID}
 	if u.currentType == TypeFavoriteAsset {
 		return data.userPath("nodes/favorite/assets/")
 	}

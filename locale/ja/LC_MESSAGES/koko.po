@@ -55,9 +55,6 @@ msgstr "番号が無効です"
 msgid "No nodes"
 msgstr "ノードがありません"
 
-msgid "Switch to TUI mode"
-msgstr "TUI モードに切り替える"
-
 msgid "View all assets"
 msgstr "すべての資産を表示"
 
@@ -129,9 +126,6 @@ msgstr "{key} を入力してお気に入りツリーを表示"
 
 msgid "Enter {key} to change the interface language"
 msgstr "{key} を入力して表示言語を切り替え"
-
-msgid "Enter {key} to switch to TUI mode"
-msgstr "{key} を入力して TUI モードに切り替え"
 
 msgid "Enter {key} to view help"
 msgstr "{key} を入力してヘルプを表示"
@@ -205,14 +199,8 @@ msgstr "認証に失敗しました（ユーザー名またはパスワードが
 msgid "AvailableShortcutKey"
 msgstr "使用可能なショートカット"
 
-msgid "Back"
-msgstr "戻る"
-
 msgid "Back: B/b"
 msgstr "戻る：B/b"
-
-msgid "Cancel"
-msgstr "キャンセル"
 
 msgid "Cancel confirm"
 msgstr "ログインの確認をキャンセル"
@@ -241,17 +229,11 @@ msgstr "コマンド `%s` は禁止されています ..."
 msgid "Comment"
 msgstr "備考"
 
-msgid "Confirm"
-msgstr "確認"
-
 msgid "ConfirmBtn"
 msgstr "確定"
 
 msgid "ConfirmDelete"
 msgstr "このファイルを削除してもよろしいですか？"
-
-msgid "Connect"
-msgstr "接続"
 
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "アイドル時間が%d分を超えたため、接続が切断されました"
@@ -454,8 +436,8 @@ msgstr "プロトコルを選択：番号を入力して Enter"
 msgid "Tree progress: %d/%d"
 msgstr "ツリー進捗：%d/%d"
 
-msgid "Browse tree: [Enter] next line · [Space] next page"
-msgstr "ツリー：[Enter] 次の行 · [Space] 次のページ"
+msgid "Browse tree: [enter] next line · [space] next page"
+msgstr "ツリー：[enter] 次の行 · [space] 次のページ"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "資産を表示：[%c + 番号] + Enter"
@@ -652,9 +634,6 @@ msgstr "読み取り専用"
 msgid "Reconnect"
 msgstr "再接続"
 
-msgid "Refresh"
-msgstr "リフレッシュ"
-
 msgid "Refresh done"
 msgstr "更新完了"
 
@@ -678,9 +657,6 @@ msgstr "SSH接続を再利用中（%s@%s）[接続数: %d]"
 
 msgid "RightArrow"
 msgstr "進む矢印"
-
-msgid "Search"
-msgstr "検索"
 
 msgid "Search: %s"
 msgstr "検索：%s"
@@ -765,9 +741,6 @@ msgstr "あなたが実行した命令にはリスクがあります。警告通
 
 msgid "TheCurrentTerminalInstanceWasNotFound"
 msgstr "現在のターミナルインスタンスが見つかりませんでした"
-
-msgid "Theme"
-msgstr "テーマ"
 
 msgid "ThemeColors"
 msgstr "テーマカラー"
@@ -956,428 +929,320 @@ msgstr "デプロイ権限が不足しています"
 msgid "File exceeds maximum transfer size: %s"
 msgstr "ファイルが最大転送サイズを超えています: %s"
 
-#. Koko TUI
-msgid "Account"
-msgstr "アカウント"
-
-#. Koko TUI
-msgid "All assets"
-msgstr "すべての資産"
-
-#. Koko TUI
 msgid "All favorites"
 msgstr "すべてのお気に入り"
 
-#. Koko TUI
-msgid "Asset"
-msgstr "資産"
-
-#. Koko TUI
-msgid "Asset groups"
-msgstr "資産グループ"
-
-#. Koko TUI
-msgid "Assets"
-msgstr "資産"
-
-#. Koko TUI
-msgid "Assets / New connection"
-msgstr "資産 / 新しい接続"
-
-#. Koko TUI
-msgid "Authorization"
-msgstr "権限ツリー"
-
-#. Koko TUI
-msgid "Clear search"
-msgstr "検索をクリア"
-
-#. Koko TUI
-msgid "Close"
-msgstr "閉じる"
-
-#. Koko TUI
-msgid "Close menu/dialog, go back"
-msgstr "メニュー・ダイアログを閉じて戻る"
-
-#. Koko TUI
-msgid "Close tab"
-msgstr "タブを閉じる"
-
-#. Koko TUI
-msgid "Collapse/expand"
-msgstr "折りたたむ/展開"
-
-#. Koko TUI
-msgid "Collapse/expand loaded nodes"
-msgstr "読込済みノードを折りたたむ/展開"
-
-#. Koko TUI
-msgid "Collapse/expand node, scroll table horizontally"
-msgstr "ノードの折りたたみ/展開、表を横スクロール"
-
-#. Koko TUI
-msgid "Confirm and connect"
-msgstr "確定して接続"
-
-#. Koko TUI
-msgid "Connected terminal"
-msgstr "接続中の端末"
-
-#. Koko TUI
-msgid "Disconnect and quit"
-msgstr "切断して終了"
-
-#. Koko TUI
-msgid "Disconnect session"
-msgstr "セッションを切断"
-
-#. Koko TUI
-msgid "Favorites"
-msgstr "お気に入り"
-
-#. Koko TUI
-msgid "First/last item"
-msgstr "最初/最後の項目"
-
-#. Koko TUI
-msgid "Focus"
-msgstr "フォーカス移動"
-
-#. Koko TUI
-msgid "Full text"
-msgstr "全文"
-
-#. Koko TUI
-msgid "Full text · scrollable"
-msgstr "全文 · スクロール可能"
-
-#. Koko TUI
-msgid "Help"
-msgstr "ヘルプ"
-
-#. Koko TUI
-msgid "Keys go to the remote; press Ctrl+] for window controls."
-msgstr "キーは接続先に送信されます。ウィンドウ操作は Ctrl+] を先に押してください。"
-
-#. Koko TUI
-msgid "Language"
-msgstr "言語"
-
-#. Koko TUI
-msgid "Language · this session"
-msgstr "言語 · このセッション"
-
-#. Koko TUI
-msgid "Load failed; press R to retry"
-msgstr "読込に失敗しました。R で再試行"
-
-#. Koko TUI
-msgid "Load more…"
-msgstr "さらに読み込む…"
-
-#. Koko TUI
-msgid "Loading assets…"
-msgstr "資産を読込中…"
-
-#. Koko TUI
-msgid "Loading organizations…"
-msgstr "組織を読込中…"
-
-#. Koko TUI
-msgid "Loading permitted accounts…"
-msgstr "利用可能なアカウントを読込中…"
-
-#. Koko TUI
-msgid "Loading workspace…"
-msgstr "ワークスペースを読込中…"
-
-#. Koko TUI
-msgid "Maximum 8 sessions; close one first"
-msgstr "最大8セッションです。先に1つ閉じてください"
-
-#. Koko TUI
-msgid "Move and scroll"
-msgstr "移動・スクロール"
-
-#. Koko TUI
-msgid "Name, address, comment"
-msgstr "名前、アドレス、コメント"
-
-#. Koko TUI
-msgid "Next"
-msgstr "次へ"
-
-#. Koko TUI
-msgid "Next/previous window"
-msgstr "次/前のウィンドウ"
-
-#. Koko TUI
 msgid "No matching assets"
 msgstr "一致する資産がありません"
 
-#. Koko TUI
-msgid "No organization memberships"
-msgstr "所属する組織がありません"
+msgid "Account"
+msgstr "アカウント"
 
-#. Koko TUI
-msgid "No permitted accounts or terminal protocols"
-msgstr "利用可能なアカウントまたは端末プロトコルがありません"
+msgid "Cancel"
+msgstr "キャンセル"
 
-#. Koko TUI
-msgid "Previous"
-msgstr "前へ"
+msgid "Clear"
+msgstr "クリア"
 
-#. Koko TUI
+msgid "Connect"
+msgstr "接続"
+
+msgid "Confirm"
+msgstr "確認"
+
+msgid "Double-click"
+msgstr "ダブルクリック"
+
+msgid "Language"
+msgstr "言語"
+
+msgid "Page"
+msgstr "ページ"
+
 msgid "Quit"
 msgstr "終了"
 
-#. Koko TUI
-msgid "Quitting will disconnect all asset sessions."
-msgstr "終了するとすべての資産セッションが切断されます。"
+msgid "Search"
+msgstr "検索"
 
-#. Koko TUI
-msgid "Resize terminal to at least 72 × 20"
-msgstr "端末を72列×20行以上に広げてください"
-
-#. Koko TUI
-msgid "Resize tree, or drag the divider"
-msgstr "ツリー幅を変更、または境界線をドラッグ"
-
-#. Koko TUI
-msgid "Searching…"
-msgstr "検索中…"
-
-#. Koko TUI
 msgid "Select"
 msgstr "選択"
 
-#. Koko TUI
-msgid "Select account"
-msgstr "アカウントを選択"
+msgid "Text mode"
+msgstr "テキストモード"
 
-#. Koko TUI
-msgid "Send literal Ctrl+]"
-msgstr "Ctrl+] をそのまま送信"
+msgid "Interface control (mouse)"
+msgstr "画面操作(マウス)"
 
-#. Koko TUI
-msgid "Session ended"
-msgstr "セッション終了"
+msgid "Text selection (mouse)"
+msgstr "テキスト選択(マウス)"
 
-#. Koko TUI
-msgid "Sessions"
-msgstr "セッション"
+msgid "Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions"
+msgstr "画面操作に切り替えます。Koko がクリック、スクロール、画面操作を処理します"
 
-#. Koko TUI
-msgid "Show/hide navigation"
-msgstr "ナビゲーションを表示/非表示"
+msgid "Switch to text selection; the local terminal handles dragging and copying text"
+msgstr "テキスト選択に切り替えます。ローカル端末でドラッグ選択とコピーを行います"
 
-#. Koko TUI
-msgid "Terminal"
-msgstr "端末"
+msgid "Asset tree"
+msgstr "アセットツリー"
 
-#. Koko TUI
-msgid "Tree limit reached; refresh this view"
-msgstr "ノード数の上限です。この表示を更新してください"
+msgid "Clear node"
+msgstr "ノードをクリア"
 
-#. Koko TUI
-msgid "Tree view"
-msgstr "ツリー表示"
-
-#. Koko TUI
-msgid "Types"
-msgstr "種類ツリー"
-
-#. Koko TUI
-msgid "Width"
-msgstr "幅"
-
-#. Koko TUI
-msgid "Window bar"
-msgstr "ウィンドウバー"
+msgid "Clear search"
+msgstr "検索をクリア"
 
 msgid "Authorization tree"
-msgstr "権限ツリー"
+msgstr "認可ツリー"
 
 msgid "Type tree"
-msgstr "種類別ツリー"
+msgstr "タイプツリー"
 
-msgid "Favorites tree"
+msgid "Favorite tree"
 msgstr "お気に入りツリー"
 
-msgid "Load failed"
-msgstr "読み込みに失敗しました"
+msgid "Refresh"
+msgstr "更新"
 
-msgid "Global organization"
-msgstr "グローバル組織"
+msgid "Switch tree"
+msgstr "ツリーを切り替え"
 
-msgid "Asset panel"
-msgstr "資産パネル"
+msgid "Switch language"
+msgstr "言語を切り替え"
 
-msgid "Mode"
-msgstr "モード"
+msgid "Search assets in the current scope"
+msgstr "現在の範囲でアセットを検索"
 
-msgid "Accent color"
-msgstr "アクセントカラー"
+msgid "Clear the current asset search"
+msgstr "現在のアセット検索をクリア"
 
-msgid "Dark theme"
-msgstr "ダークテーマ"
+msgid "Move the selection up or down"
+msgstr "選択項目を上下に移動"
 
-msgid "Light theme"
-msgstr "ライトテーマ"
+msgid "Go to the previous or next page"
+msgstr "前または次のページへ移動"
 
-msgid "Teal"
-msgstr "ティール"
+msgid "Connect to the selected asset"
+msgstr "選択したアセットに接続"
 
-msgid "Blue"
-msgstr "ブルー"
+msgid "Open the asset tree"
+msgstr "アセットツリーを開く"
 
-msgid "Green"
-msgstr "グリーン"
+msgid "Clear the selected tree node"
+msgstr "選択したツリーノードをクリア"
 
-msgid "Purple"
-msgstr "パープル"
+msgid "Switch the interface language"
+msgstr "インターフェース言語を切り替え"
 
-msgid "Rose"
-msgstr "ローズ"
+msgid "Switch to text mode"
+msgstr "テキストモードに切り替え"
 
-msgid "Amber"
-msgstr "アンバー"
+msgid "Exit the asset list"
+msgstr "アセット一覧を終了"
 
-msgid "Orange"
-msgstr "オレンジ"
+msgid "Open shortcut help"
+msgstr "ショートカットヘルプを開く"
 
-msgid "Pink"
-msgstr "ピンク"
+msgid "Close shortcut help"
+msgstr "ショートカットヘルプを閉じる"
 
-msgid "Cyan"
-msgstr "シアン"
+msgid "View complete information for the selected item"
+msgstr "選択した項目の完全な情報を表示"
 
-msgid "Gray"
-msgstr "グレー"
+msgid "Protocols supported by the current terminal"
+msgstr "現在の端末でサポートされているプロトコル"
 
-msgid "Red"
-msgstr "レッド"
+msgid "Collapse or expand the selected node"
+msgstr "選択したノードを折りたたむか展開"
 
-msgid "Lime"
-msgstr "ライム"
+msgid "Use the selected node to filter assets"
+msgstr "選択したノードでアセットを絞り込む"
 
-msgid "Duplicate"
-msgstr "複製"
+msgid "Switch the asset tree type"
+msgstr "アセットツリーの種類を切り替え"
 
-msgid "Disconnect"
-msgstr "切断"
+msgid "Reload the current asset tree"
+msgstr "現在のアセットツリーを再読み込み"
+
+msgid "Apply the selected language"
+msgstr "選択した言語を適用"
+
+msgid "Select an authorized account"
+msgstr "許可されたアカウントを選択"
+
+msgid "Select a connection protocol"
+msgstr "接続プロトコルを選択"
+
+msgid "Search authorized accounts"
+msgstr "許可されたアカウントを検索"
+
+msgid "Connect using the selected account and protocol"
+msgstr "選択したアカウントとプロトコルで接続"
+
+msgid "Path"
+msgstr "パス"
+
+msgid "Asset count"
+msgstr "アセット数"
+
+msgid "Category"
+msgstr "カテゴリ"
+
+msgid "Active"
+msgstr "有効"
+
+msgid "Actions"
+msgstr "操作"
+
+msgid "Key"
+msgstr "キー"
+
+msgid "Details"
+msgstr "詳細"
+
+msgid "Refresh the current asset list and keep search and tree filters"
+msgstr "現在のアセット一覧を更新し、検索条件とツリーフィルターを保持します"
+
+msgid "Yes"
+msgstr "はい"
+
+msgid "No"
+msgstr "いいえ"
+
+msgid "My Assets"
+msgstr "私の資産"
+
+msgid "Direct connect"
+msgstr "直接接続"
+
+msgid "Multi-session"
+msgstr "マルチセッション"
+
+msgid "Sessions"
+msgstr "セッション画面"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "選択した資産にネイティブの単一セッションで接続"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "選択した資産をマルチセッション画面で開く"
+
+msgid "Return to the multi-session workspace"
+msgstr "マルチセッション画面に戻る"
+
+msgid "Asset list"
+msgstr "資産一覧"
+
+msgid "Switch session"
+msgstr "セッションを切り替える"
+
+msgid "Close session"
+msgstr "セッションを閉じる"
+
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "マルチセッションモードで同時に開けるセッションウィンドウは最大 %d 個です"
+
+msgid "Failed to open multi-session"
+msgstr "マルチセッションを開けません"
+
+msgid "Multi-session workspace closed"
+msgstr "マルチセッション画面を閉じました"
+
+msgid "Activate shortcuts"
+msgstr "ショートカットを有効化"
+
+msgid "Next session"
+msgstr "次のセッション"
 
 msgid "Duplicate session"
 msgstr "セッションを複製"
 
-msgid "More sessions"
-msgstr "他のセッション"
+msgid "Reconnect session"
+msgstr "セッションを再接続"
 
-msgid "Fullscreen"
-msgstr "全画面表示"
+msgid "Move to the next session"
+msgstr "次のセッションに移動"
 
-msgid "Exit fullscreen"
-msgstr "全画面表示を終了"
+msgid "Move to the previous session"
+msgstr "前のセッションに移動"
 
-msgid "Reset accent"
-msgstr "アクセントをリセット"
+msgid "Switch directly to session 1-9"
+msgstr "番号でセッション 1-9 に直接切り替え"
 
-msgid "Quit this Koko SSH session?"
-msgstr "この Koko SSH セッションを終了しますか？"
+msgid "Close the current session"
+msgstr "現在のセッションを閉じる"
 
-msgid "This asset's protocols (%s) are unsupported, so it cannot be connected"
-msgstr "この資産のプロトコル（%s）はサポートされていないため、接続できません"
+msgid "Duplicate the current session"
+msgstr "現在のセッションを複製"
 
-msgid "Focus the organization selector"
-msgstr "組織選択欄にフォーカス"
+msgid "Reconnect the current session"
+msgstr "現在のセッションを再接続"
 
-msgid "Focus the asset tree type selector"
-msgstr "資産ツリーの種類の選択欄にフォーカス"
+msgid "Return to the asset list"
+msgstr "資産一覧に戻る"
 
-msgid "Focus asset tree nodes"
-msgstr "資産ツリーのノードにフォーカス"
+msgid "Send ctrl+b to the current session"
+msgstr "現在のセッションに ctrl+b を送信"
 
-msgid "Focus the asset list"
-msgstr "資産一覧にフォーカス"
+msgid "Scroll content"
+msgstr "内容をスクロール"
 
-msgid "Show or hide the asset tree pane"
-msgstr "資産ツリー領域の表示を切り替え"
+msgid "Scroll the current session down or up"
+msgstr "現在のセッション内容を下または上にスクロール"
 
-msgid "Focus the asset search field"
-msgstr "資産検索欄にフォーカス"
+msgid "Enter session"
+msgstr "セッションに戻る"
 
-msgid "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
-msgstr "資産ツリーを段階的に折りたたむ。すべて折りたたまれたら第1階層を展開"
+msgid "Move to the previous or next session"
+msgstr "前または次のセッションに切り替える"
 
-msgid "Reload the current asset tree and top-level asset list, resetting the selected node"
-msgstr "現在の資産ツリーと最上位の資産一覧を再読み込みし、選択ノードをリセット"
+msgid "Enter the current session"
+msgstr "現在のセッションに戻る"
 
-msgid "Reload organizations, asset tree, and asset list"
-msgstr "組織、資産ツリー、資産一覧を再読み込み"
+msgid "Close all sessions"
+msgstr "すべてのセッションを閉じる"
 
-msgid "Narrow the asset tree pane by 4 columns"
-msgstr "資産ツリー領域を4列狭める"
+msgid "Close all sessions and return to the asset list"
+msgstr "すべてのセッションを閉じてアセット一覧に戻る"
 
-msgid "Widen the asset tree pane by 4 columns"
-msgstr "資産ツリー領域を4列広げる"
+msgid "Session list"
+msgstr "セッション一覧"
 
-msgid "Previous page of the asset list"
-msgstr "資産一覧の前のページ"
+msgid "Open the session list"
+msgstr "セッション一覧を開く"
 
-msgid "Next page of the asset list"
-msgstr "資産一覧の次のページ"
+msgid "Close"
+msgstr "閉じる"
 
-msgid "Refresh the current node's asset list, keeping search and page"
-msgstr "検索条件とページを維持して現在のノードの資産一覧を更新"
+msgid "Immersive mode"
+msgstr "没入モード"
 
-msgid "Scroll the asset list horizontally"
-msgstr "資産一覧を横方向にスクロール"
+msgid "Enter immersive mode"
+msgstr "没入モードに入る"
 
-msgid "Collapse or expand the current tree node"
-msgstr "現在のツリーノードを折りたたむ／展開する"
+msgid "Exit immersive mode"
+msgstr "没入モードを終了"
 
-msgid "Collapse the current node or move to its parent / expand the current node"
-msgstr "現在のノードを折りたたむか親へ移動／現在のノードを展開"
+msgid "Close the current session?"
+msgstr "現在のセッションを閉じますか？"
 
-msgid "Move to a child / parent node"
-msgstr "子ノード／親ノードへ移動"
+msgid "Close all sessions and return to the asset list?"
+msgstr "すべてのセッションを閉じてアセット一覧に戻りますか？"
 
-msgid "Move through visible tree nodes"
-msgstr "表示中のツリーノード間を移動"
+msgid "Quit Koko"
+msgstr "Koko を終了"
 
-msgid "Move one screen up or down in the asset tree"
-msgstr "資産ツリー内で1画面分上下に移動"
+msgid "Quit this SSH session?"
+msgstr "この SSH セッションを終了しますか？"
 
-msgid "Jump to the first or last asset tree node"
-msgstr "資産ツリーの先頭／末尾のノードへ移動"
+msgid "%d multi-sessions are still active; quitting will end them."
+msgstr "まだ %d 個のマルチセッションが実行中です。終了するとすべて終了します。"
 
-msgid "Move between asset list rows"
-msgstr "資産一覧の行間を移動"
+msgid "Session ended"
+msgstr "セッション終了"
 
-msgid "Move one screen up or down within the current asset page"
-msgstr "現在の資産ページ内で1画面分上下に移動"
+msgid "The current session has ended. Close this tab?"
+msgstr "現在のセッションは終了しました。このタブを閉じますか？"
 
-msgid "Jump to the first or last asset list row"
-msgstr "資産一覧の先頭／末尾の行へ移動"
-
-msgid "Show assets in the current tree node"
-msgstr "現在のツリーノードの資産を表示"
-
-msgid "Search assets immediately"
-msgstr "資産をすぐに検索"
-
-msgid "Connect to the selected asset"
-msgstr "選択した資産に接続"
-
-msgid "Focused area controls"
-msgstr "フォーカス中の領域の操作"
-
-msgid "Session \"%s\" has ended. Close this tab?"
-msgstr "セッション「%s」は終了しました。このタブを閉じますか？"
-
-msgid "Keep tab"
-msgstr "タブを残す"
-
-msgid "Terminal supports only these protocols: %s."
-msgstr "Terminal がサポートするプロトコルは %s のみです。"
+msgid "Keep"
+msgstr "保持"

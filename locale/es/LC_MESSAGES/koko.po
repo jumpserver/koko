@@ -55,9 +55,6 @@ msgstr "Número no válido"
 msgid "No nodes"
 msgstr "No hay nodos"
 
-msgid "Switch to TUI mode"
-msgstr "Cambiar al modo TUI"
-
 msgid "View all assets"
 msgstr "Ver todos los activos"
 
@@ -129,9 +126,6 @@ msgstr "Escribe {key} para ver el árbol de favoritos"
 
 msgid "Enter {key} to change the interface language"
 msgstr "Escribe {key} para cambiar el idioma de la interfaz"
-
-msgid "Enter {key} to switch to TUI mode"
-msgstr "Escribe {key} para cambiar al modo TUI"
 
 msgid "Enter {key} to view help"
 msgstr "Escribe {key} para ver la ayuda"
@@ -205,14 +199,8 @@ msgstr "Autenticación fallida (nombre de usuario o contraseña incorrectos)"
 msgid "AvailableShortcutKey"
 msgstr "Atajos disponibles"
 
-msgid "Back"
-msgstr "Regresar"
-
 msgid "Back: B/b"
 msgstr "Regresar: B/b"
-
-msgid "Cancel"
-msgstr "Cancelar"
 
 msgid "Cancel confirm"
 msgstr "Cancelar revisión de inicio de sesión"
@@ -241,17 +229,11 @@ msgstr "El comando `%s` está prohibido ..."
 msgid "Comment"
 msgstr "Nota"
 
-msgid "Confirm"
-msgstr "Confirmar"
-
 msgid "ConfirmBtn"
 msgstr "Confirmar"
 
 msgid "ConfirmDelete"
 msgstr "¿Está seguro de que desea eliminar este archivo?"
-
-msgid "Connect"
-msgstr "Conectar"
 
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "Tiempo de inactividad excedido de %d minutos, desconectando"
@@ -454,8 +436,8 @@ msgstr "Seleccionar protocolo: introduce el número y pulsa Enter"
 msgid "Tree progress: %d/%d"
 msgstr "Progreso del árbol: %d/%d"
 
-msgid "Browse tree: [Enter] next line · [Space] next page"
-msgstr "Árbol: [Enter] línea siguiente · [Space] página siguiente"
+msgid "Browse tree: [enter] next line · [space] next page"
+msgstr "Árbol: [enter] línea siguiente · [space] página siguiente"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "Ver activos: [%c + número] + Enter"
@@ -652,9 +634,6 @@ msgstr "Solo lectura"
 msgid "Reconnect"
 msgstr "Reconectar"
 
-msgid "Refresh"
-msgstr "Refrescar"
-
 msgid "Refresh done"
 msgstr "Actualización completada"
 
@@ -678,9 +657,6 @@ msgstr "Reutilizando conexión SSH (%s@%s) [Cantidad de conexiones: %d]"
 
 msgid "RightArrow"
 msgstr "Flecha hacia adelante"
-
-msgid "Search"
-msgstr "Buscar"
 
 msgid "Search: %s"
 msgstr "Buscar: %s"
@@ -765,9 +741,6 @@ msgstr "Su comando ejecutado presenta riesgos, se enviará una notificación de 
 
 msgid "TheCurrentTerminalInstanceWasNotFound"
 msgstr "No se encontró la instancia de terminal actual"
-
-msgid "Theme"
-msgstr "Tema"
 
 msgid "ThemeColors"
 msgstr "Color del tema"
@@ -956,245 +929,68 @@ msgstr "Permisos de implementación insuficientes"
 msgid "File exceeds maximum transfer size: %s"
 msgstr "El archivo supera el tamaño máximo de transferencia: %s"
 
-#. Koko TUI
-msgid "Account"
-msgstr "Cuenta"
-
-#. Koko TUI
-msgid "All assets"
-msgstr "Todos los activos"
-
-#. Koko TUI
 msgid "All favorites"
 msgstr "Todos los favoritos"
 
-#. Koko TUI
-msgid "Asset"
-msgstr "Activo"
-
-#. Koko TUI
-msgid "Asset groups"
-msgstr "Grupos de activos"
-
-#. Koko TUI
-msgid "Assets"
-msgstr "Activos"
-
-#. Koko TUI
-msgid "Assets / New connection"
-msgstr "Activos / Nueva conexión"
-
-#. Koko TUI
-msgid "Authorization"
-msgstr "Autorizaciones"
-
-#. Koko TUI
-msgid "Clear search"
-msgstr "Borrar búsqueda"
-
-#. Koko TUI
-msgid "Close"
-msgstr "Cerrar"
-
-#. Koko TUI
-msgid "Close menu/dialog, go back"
-msgstr "Cerrar menú/diálogo y volver"
-
-#. Koko TUI
-msgid "Close tab"
-msgstr "Cerrar pestaña"
-
-#. Koko TUI
-msgid "Collapse/expand"
-msgstr "Contraer/expandir"
-
-#. Koko TUI
-msgid "Collapse/expand loaded nodes"
-msgstr "Contraer/expandir nodos cargados"
-
-#. Koko TUI
-msgid "Collapse/expand node, scroll table horizontally"
-msgstr "Contraer/expandir nodo, desplazar tabla horizontalmente"
-
-#. Koko TUI
-msgid "Confirm and connect"
-msgstr "Confirmar y conectar"
-
-#. Koko TUI
-msgid "Connected terminal"
-msgstr "Terminal conectado"
-
-#. Koko TUI
-msgid "Disconnect and quit"
-msgstr "Desconectar y salir"
-
-#. Koko TUI
-msgid "Disconnect session"
-msgstr "Desconectar sesión"
-
-#. Koko TUI
-msgid "Favorites"
-msgstr "Favoritos"
-
-#. Koko TUI
-msgid "First/last item"
-msgstr "Primer/último elemento"
-
-#. Koko TUI
-msgid "Focus"
-msgstr "Cambiar foco"
-
-#. Koko TUI
-msgid "Full text"
-msgstr "Texto completo"
-
-#. Koko TUI
-msgid "Full text · scrollable"
-msgstr "Texto completo · desplazable"
-
-#. Koko TUI
-msgid "Help"
-msgstr "Ayuda"
-
-#. Koko TUI
-msgid "Keys go to the remote; press Ctrl+] for window controls."
-msgstr "Las teclas se envían al remoto; pulse Ctrl+] para controlar ventanas."
-
-#. Koko TUI
-msgid "Language"
-msgstr "Idioma"
-
-#. Koko TUI
-msgid "Language · this session"
-msgstr "Idioma · esta sesión"
-
-#. Koko TUI
-msgid "Load failed; press R to retry"
-msgstr "Error al cargar; pulse R para reintentar"
-
-#. Koko TUI
-msgid "Load more…"
-msgstr "Cargar más…"
-
-#. Koko TUI
-msgid "Loading assets…"
-msgstr "Cargando activos…"
-
-#. Koko TUI
-msgid "Loading organizations…"
-msgstr "Cargando organizaciones…"
-
-#. Koko TUI
-msgid "Loading permitted accounts…"
-msgstr "Cargando cuentas autorizadas…"
-
-#. Koko TUI
-msgid "Loading workspace…"
-msgstr "Cargando espacio de trabajo…"
-
-#. Koko TUI
-msgid "Maximum 8 sessions; close one first"
-msgstr "Máximo 8 sesiones; cierre una primero"
-
-#. Koko TUI
-msgid "Move and scroll"
-msgstr "Mover y desplazar"
-
-#. Koko TUI
-msgid "Name, address, comment"
-msgstr "Nombre, dirección, comentario"
-
-#. Koko TUI
-msgid "Next"
-msgstr "Siguiente"
-
-#. Koko TUI
-msgid "Next/previous window"
-msgstr "Ventana siguiente/anterior"
-
-#. Koko TUI
 msgid "No matching assets"
 msgstr "No hay activos coincidentes"
 
-#. Koko TUI
-msgid "No organization memberships"
-msgstr "No pertenece a ninguna organización"
+msgid "Account"
+msgstr "Cuenta"
 
-#. Koko TUI
-msgid "No permitted accounts or terminal protocols"
-msgstr "No hay cuentas autorizadas ni protocolos de terminal disponibles"
+msgid "Cancel"
+msgstr "Cancelar"
 
-#. Koko TUI
-msgid "Previous"
-msgstr "Anterior"
+msgid "Clear"
+msgstr "Limpiar"
 
-#. Koko TUI
+msgid "Connect"
+msgstr "Conectar"
+
+msgid "Confirm"
+msgstr "Confirmar"
+
+msgid "Double-click"
+msgstr "Doble clic"
+
+msgid "Language"
+msgstr "Idioma"
+
+msgid "Page"
+msgstr "Página"
+
 msgid "Quit"
 msgstr "Salir"
 
-#. Koko TUI
-msgid "Quitting will disconnect all asset sessions."
-msgstr "Al salir se desconectarán todas las sesiones de activos."
+msgid "Search"
+msgstr "Buscar"
 
-#. Koko TUI
-msgid "Resize terminal to at least 72 × 20"
-msgstr "Amplíe el terminal a un mínimo de 72 × 20"
-
-#. Koko TUI
-msgid "Resize tree, or drag the divider"
-msgstr "Cambiar ancho del árbol o arrastrar el separador"
-
-#. Koko TUI
-msgid "Searching…"
-msgstr "Buscando…"
-
-#. Koko TUI
 msgid "Select"
 msgstr "Seleccionar"
 
-#. Koko TUI
-msgid "Select account"
-msgstr "Seleccionar cuenta"
+msgid "Text mode"
+msgstr "Modo texto"
 
-#. Koko TUI
-msgid "Send literal Ctrl+]"
-msgstr "Enviar Ctrl+] literal"
+msgid "Interface control (mouse)"
+msgstr "Control de la interfaz (ratón)"
 
-#. Koko TUI
-msgid "Session ended"
-msgstr "Sesión finalizada"
+msgid "Text selection (mouse)"
+msgstr "Selección de texto (ratón)"
 
-#. Koko TUI
-msgid "Sessions"
-msgstr "Sesiones"
+msgid "Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions"
+msgstr "Cambiar al control de la interfaz; Koko gestiona los clics, el desplazamiento y las acciones de la interfaz"
 
-#. Koko TUI
-msgid "Show/hide navigation"
-msgstr "Mostrar/ocultar navegación"
+msgid "Switch to text selection; the local terminal handles dragging and copying text"
+msgstr "Cambiar a la selección de texto; el terminal local gestiona el arrastre y la copia de texto"
 
-#. Koko TUI
-msgid "Terminal"
-msgstr "Terminal"
+msgid "Asset tree"
+msgstr "Árbol de activos"
 
-#. Koko TUI
-msgid "Tree limit reached; refresh this view"
-msgstr "Se alcanzó el límite de nodos; actualice esta vista"
+msgid "Clear node"
+msgstr "Borrar nodo"
 
-#. Koko TUI
-msgid "Tree view"
-msgstr "Tipo de árbol"
-
-#. Koko TUI
-msgid "Types"
-msgstr "Tipos"
-
-#. Koko TUI
-msgid "Width"
-msgstr "Ancho"
-
-#. Koko TUI
-msgid "Window bar"
-msgstr "Barra de ventanas"
+msgid "Clear search"
+msgstr "Borrar búsqueda"
 
 msgid "Authorization tree"
 msgstr "Árbol de autorizaciones"
@@ -1202,182 +998,251 @@ msgstr "Árbol de autorizaciones"
 msgid "Type tree"
 msgstr "Árbol de tipos"
 
-msgid "Favorites tree"
+msgid "Favorite tree"
 msgstr "Árbol de favoritos"
 
-msgid "Load failed"
-msgstr "Error al cargar"
+msgid "Refresh"
+msgstr "Actualizar"
 
-msgid "Global organization"
-msgstr "Organización global"
+msgid "Switch tree"
+msgstr "Cambiar árbol"
 
-msgid "Asset panel"
-msgstr "Panel de activos"
+msgid "Switch language"
+msgstr "Cambiar idioma"
 
-msgid "Mode"
-msgstr "Modo"
+msgid "Search assets in the current scope"
+msgstr "Buscar activos en el ámbito actual"
 
-msgid "Accent color"
-msgstr "Color de acento"
+msgid "Clear the current asset search"
+msgstr "Borrar la búsqueda actual de activos"
 
-msgid "Dark theme"
-msgstr "Tema oscuro"
+msgid "Move the selection up or down"
+msgstr "Mover la selección hacia arriba o abajo"
 
-msgid "Light theme"
-msgstr "Tema claro"
+msgid "Go to the previous or next page"
+msgstr "Ir a la página anterior o siguiente"
 
-msgid "Teal"
-msgstr "Verde azulado"
+msgid "Connect to the selected asset"
+msgstr "Conectarse al activo seleccionado"
 
-msgid "Blue"
-msgstr "Azul"
+msgid "Open the asset tree"
+msgstr "Abrir el árbol de activos"
 
-msgid "Green"
-msgstr "Verde"
+msgid "Clear the selected tree node"
+msgstr "Borrar el nodo de árbol seleccionado"
 
-msgid "Purple"
-msgstr "Morado"
+msgid "Switch the interface language"
+msgstr "Cambiar el idioma de la interfaz"
 
-msgid "Rose"
-msgstr "Rosa"
+msgid "Switch to text mode"
+msgstr "Cambiar al modo texto"
 
-msgid "Amber"
-msgstr "Ámbar"
+msgid "Exit the asset list"
+msgstr "Salir de la lista de activos"
 
-msgid "Orange"
-msgstr "Naranja"
+msgid "Open shortcut help"
+msgstr "Abrir la ayuda de atajos"
 
-msgid "Pink"
-msgstr "Rosa"
+msgid "Close shortcut help"
+msgstr "Cerrar la ayuda de atajos"
 
-msgid "Cyan"
-msgstr "Cian"
+msgid "View complete information for the selected item"
+msgstr "Ver la información completa del elemento seleccionado"
 
-msgid "Gray"
-msgstr "Gris"
+msgid "Protocols supported by the current terminal"
+msgstr "Protocolos compatibles con el terminal actual"
 
-msgid "Red"
-msgstr "Rojo"
+msgid "Collapse or expand the selected node"
+msgstr "Contraer o expandir el nodo seleccionado"
 
-msgid "Lime"
-msgstr "Lima"
+msgid "Use the selected node to filter assets"
+msgstr "Usar el nodo seleccionado para filtrar activos"
 
-msgid "Duplicate"
-msgstr "Duplicar"
+msgid "Switch the asset tree type"
+msgstr "Cambiar el tipo de árbol de activos"
 
-msgid "Disconnect"
-msgstr "Desconectar"
+msgid "Reload the current asset tree"
+msgstr "Recargar el árbol de activos actual"
+
+msgid "Apply the selected language"
+msgstr "Aplicar el idioma seleccionado"
+
+msgid "Select an authorized account"
+msgstr "Seleccionar una cuenta autorizada"
+
+msgid "Select a connection protocol"
+msgstr "Seleccionar un protocolo de conexión"
+
+msgid "Search authorized accounts"
+msgstr "Buscar cuentas autorizadas"
+
+msgid "Connect using the selected account and protocol"
+msgstr "Conectarse con la cuenta y el protocolo seleccionados"
+
+msgid "Path"
+msgstr "Ruta"
+
+msgid "Asset count"
+msgstr "Número de activos"
+
+msgid "Category"
+msgstr "Categoría"
+
+msgid "Active"
+msgstr "Activo"
+
+msgid "Actions"
+msgstr "Acciones"
+
+msgid "Key"
+msgstr "Clave"
+
+msgid "Details"
+msgstr "Detalles"
+
+msgid "Refresh the current asset list and keep search and tree filters"
+msgstr "Actualizar la lista de activos actual y conservar los filtros de búsqueda y árbol"
+
+msgid "Yes"
+msgstr "Sí"
+
+msgid "No"
+msgstr "No"
+
+msgid "My Assets"
+msgstr "Mis activos"
+
+msgid "Direct connect"
+msgstr "Conexión directa"
+
+msgid "Multi-session"
+msgstr "Multisesión"
+
+msgid "Sessions"
+msgstr "Sesiones"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "Conectarse al activo seleccionado en una única sesión nativa"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "Abrir el activo seleccionado en el espacio multisesión"
+
+msgid "Return to the multi-session workspace"
+msgstr "Volver al espacio multisesión"
+
+msgid "Asset list"
+msgstr "Lista de activos"
+
+msgid "Switch session"
+msgstr "Cambiar de sesión"
+
+msgid "Close session"
+msgstr "Cerrar sesión"
+
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "El modo multisesión permite abrir simultáneamente un máximo de %d ventanas de sesión"
+
+msgid "Failed to open multi-session"
+msgstr "No se pudo abrir la multisesión"
+
+msgid "Multi-session workspace closed"
+msgstr "El espacio multisesión se cerró"
+
+msgid "Activate shortcuts"
+msgstr "Activar atajos"
+
+msgid "Next session"
+msgstr "Siguiente sesión"
 
 msgid "Duplicate session"
 msgstr "Duplicar sesión"
 
-msgid "More sessions"
-msgstr "Más sesiones"
+msgid "Reconnect session"
+msgstr "Reconectar sesión"
 
-msgid "Fullscreen"
-msgstr "Pantalla completa"
+msgid "Move to the next session"
+msgstr "Ir a la siguiente sesión"
 
-msgid "Exit fullscreen"
-msgstr "Salir de pantalla completa"
+msgid "Move to the previous session"
+msgstr "Ir a la sesión anterior"
 
-msgid "Reset accent"
-msgstr "Restablecer color"
+msgid "Switch directly to session 1-9"
+msgstr "Cambiar directamente a la sesión 1-9"
 
-msgid "Quit this Koko SSH session?"
-msgstr "¿Salir de esta sesión SSH de Koko?"
+msgid "Close the current session"
+msgstr "Cerrar la sesión actual"
 
-msgid "This asset's protocols (%s) are unsupported, so it cannot be connected"
-msgstr "Los protocolos de este activo (%s) no son compatibles, por lo que no se puede conectar"
+msgid "Duplicate the current session"
+msgstr "Duplicar la sesión actual"
 
-msgid "Focus the organization selector"
-msgstr "Enfocar el selector de organizaciones"
+msgid "Reconnect the current session"
+msgstr "Reconectar la sesión actual"
 
-msgid "Focus the asset tree type selector"
-msgstr "Enfocar el selector de tipo de árbol de activos"
+msgid "Return to the asset list"
+msgstr "Volver a la lista de activos"
 
-msgid "Focus asset tree nodes"
-msgstr "Enfocar los nodos del árbol de activos"
+msgid "Send ctrl+b to the current session"
+msgstr "Enviar ctrl+b a la sesión actual"
 
-msgid "Focus the asset list"
-msgstr "Enfocar la lista de activos"
+msgid "Scroll content"
+msgstr "Desplazar contenido"
 
-msgid "Show or hide the asset tree pane"
-msgstr "Mostrar u ocultar el panel del árbol de activos"
+msgid "Scroll the current session down or up"
+msgstr "Desplazar el contenido de la sesión actual hacia abajo o arriba"
 
-msgid "Focus the asset search field"
-msgstr "Enfocar el campo de búsqueda de activos"
+msgid "Enter session"
+msgstr "Entrar en la sesión"
 
-msgid "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
-msgstr "Contraer el árbol de activos por niveles; al estar totalmente contraído, expandir los nodos de primer nivel"
+msgid "Move to the previous or next session"
+msgstr "Ir a la sesión anterior o siguiente"
 
-msgid "Reload the current asset tree and top-level asset list, resetting the selected node"
-msgstr "Recargar el árbol de activos actual y la lista de activos de nivel superior; restablecer el nodo seleccionado"
+msgid "Enter the current session"
+msgstr "Entrar en la sesión actual"
 
-msgid "Reload organizations, asset tree, and asset list"
-msgstr "Recargar organizaciones, árbol de activos y lista de activos"
+msgid "Close all sessions"
+msgstr "Cerrar todas las sesiones"
 
-msgid "Narrow the asset tree pane by 4 columns"
-msgstr "Estrechar el panel del árbol de activos 4 columnas"
+msgid "Close all sessions and return to the asset list"
+msgstr "Cerrar todas las sesiones y volver a la lista de activos"
 
-msgid "Widen the asset tree pane by 4 columns"
-msgstr "Ensanchar el panel del árbol de activos 4 columnas"
+msgid "Session list"
+msgstr "Lista de sesiones"
 
-msgid "Previous page of the asset list"
-msgstr "Página anterior de la lista de activos"
+msgid "Open the session list"
+msgstr "Abrir la lista de sesiones"
 
-msgid "Next page of the asset list"
-msgstr "Página siguiente de la lista de activos"
+msgid "Close"
+msgstr "Cerrar"
 
-msgid "Refresh the current node's asset list, keeping search and page"
-msgstr "Actualizar la lista de activos del nodo actual, conservando la búsqueda y la página"
+msgid "Immersive mode"
+msgstr "Modo inmersivo"
 
-msgid "Scroll the asset list horizontally"
-msgstr "Desplazarse horizontalmente por la lista de activos"
+msgid "Enter immersive mode"
+msgstr "Entrar en modo inmersivo"
 
-msgid "Collapse or expand the current tree node"
-msgstr "Contraer o expandir el nodo actual del árbol"
+msgid "Exit immersive mode"
+msgstr "Salir del modo inmersivo"
 
-msgid "Collapse the current node or move to its parent / expand the current node"
-msgstr "Contraer el nodo actual o ir al padre / expandir el nodo actual"
+msgid "Close the current session?"
+msgstr "¿Cerrar la sesión actual?"
 
-msgid "Move to a child / parent node"
-msgstr "Ir a un nodo hijo / padre"
+msgid "Close all sessions and return to the asset list?"
+msgstr "¿Cerrar todas las sesiones y volver a la lista de activos?"
 
-msgid "Move through visible tree nodes"
-msgstr "Moverse entre los nodos visibles del árbol"
+msgid "Quit Koko"
+msgstr "Salir de Koko"
 
-msgid "Move one screen up or down in the asset tree"
-msgstr "Moverse una pantalla arriba o abajo en el árbol de activos"
+msgid "Quit this SSH session?"
+msgstr "¿Salir de esta sesión SSH?"
 
-msgid "Jump to the first or last asset tree node"
-msgstr "Ir al primer o último nodo del árbol de activos"
+msgid "%d multi-sessions are still active; quitting will end them."
+msgstr "Aún hay %d sesiones múltiples activas; al salir se cerrarán todas."
 
-msgid "Move between asset list rows"
-msgstr "Moverse entre las filas de la lista de activos"
+msgid "Session ended"
+msgstr "Sesión finalizada"
 
-msgid "Move one screen up or down within the current asset page"
-msgstr "Moverse una pantalla arriba o abajo en la página actual de activos"
+msgid "The current session has ended. Close this tab?"
+msgstr "La sesión actual ha finalizado. ¿Cerrar esta pestaña?"
 
-msgid "Jump to the first or last asset list row"
-msgstr "Ir a la primera o última fila de la lista de activos"
-
-msgid "Show assets in the current tree node"
-msgstr "Mostrar los activos del nodo actual del árbol"
-
-msgid "Search assets immediately"
-msgstr "Buscar activos inmediatamente"
-
-msgid "Connect to the selected asset"
-msgstr "Conectar con el activo seleccionado"
-
-msgid "Focused area controls"
-msgstr "Controles del área enfocada"
-
-msgid "Session \"%s\" has ended. Close this tab?"
-msgstr "La sesión «%s» ha terminado. ¿Cerrar esta pestaña?"
-
-msgid "Keep tab"
-msgstr "Conservar pestaña"
-
-msgid "Terminal supports only these protocols: %s."
-msgstr "Terminal solo admite estos protocolos: %s."
+msgid "Keep"
+msgstr "Conservar"

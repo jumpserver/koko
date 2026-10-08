@@ -55,9 +55,6 @@ msgstr "Số không hợp lệ"
 msgid "No nodes"
 msgstr "Không có nút"
 
-msgid "Switch to TUI mode"
-msgstr "Chuyển sang chế độ TUI"
-
 msgid "View all assets"
 msgstr "Xem tất cả tài sản"
 
@@ -129,9 +126,6 @@ msgstr "Nhập {key} để xem cây yêu thích"
 
 msgid "Enter {key} to change the interface language"
 msgstr "Nhập {key} để đổi ngôn ngữ giao diện"
-
-msgid "Enter {key} to switch to TUI mode"
-msgstr "Nhập {key} để chuyển sang chế độ TUI"
 
 msgid "Enter {key} to view help"
 msgstr "Nhập {key} để xem trợ giúp"
@@ -205,14 +199,8 @@ msgstr "Xác thực thất bại (tên người dùng hoặc mật khẩu không
 msgid "AvailableShortcutKey"
 msgstr "Phím tắt có sẵn"
 
-msgid "Back"
-msgstr "Quay lại"
-
 msgid "Back: B/b"
 msgstr "Quay lại: B/b"
-
-msgid "Cancel"
-msgstr "Hủy bỏ"
 
 msgid "Cancel confirm"
 msgstr "Hủy phê duyệt đăng nhập"
@@ -241,17 +229,11 @@ msgstr "Lệnh `%s` bị cấm ..."
 msgid "Comment"
 msgstr "Ghi chú"
 
-msgid "Confirm"
-msgstr "Xác nhận"
-
 msgid "ConfirmBtn"
 msgstr "Đồng ý"
 
 msgid "ConfirmDelete"
 msgstr "Bạn có chắc chắn muốn xóa tệp này không?"
-
-msgid "Connect"
-msgstr "Kết nối"
 
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "thời gian rảnh rỗi vượt quá %d phút, ngắt kết nối"
@@ -454,8 +436,8 @@ msgstr "Chọn giao thức: nhập số và nhấn Enter"
 msgid "Tree progress: %d/%d"
 msgstr "Tiến độ cây: %d/%d"
 
-msgid "Browse tree: [Enter] next line · [Space] next page"
-msgstr "Cây: [Enter] dòng tiếp · [Space] trang tiếp"
+msgid "Browse tree: [enter] next line · [space] next page"
+msgstr "Cây: [enter] dòng tiếp · [space] trang tiếp"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "Xem tài sản: [%c + số] + Enter"
@@ -652,9 +634,6 @@ msgstr "Chỉ đọc"
 msgid "Reconnect"
 msgstr "Kết nối lại"
 
-msgid "Refresh"
-msgstr "Làm mới"
-
 msgid "Refresh done"
 msgstr "làm mới hoàn tất"
 
@@ -678,9 +657,6 @@ msgstr "Tái sử dụng kết nối SSH (%s@%s) [Số lượng kết nối: %d]
 
 msgid "RightArrow"
 msgstr "Mũi tên tiến lên"
-
-msgid "Search"
-msgstr "Tìm kiếm"
 
 msgid "Search: %s"
 msgstr "Tìm kiếm: %s"
@@ -765,9 +741,6 @@ msgstr "Lệnh bạn thực hiện có nguy cơ, thông báo cảnh báo sẽ đ
 
 msgid "TheCurrentTerminalInstanceWasNotFound"
 msgstr "Không tìm thấy phiên bản terminal hiện tại"
-
-msgid "Theme"
-msgstr "Chủ đề"
 
 msgid "ThemeColors"
 msgstr "Màu sắc chủ đề"
@@ -925,245 +898,68 @@ msgstr "Tìm kiếm đăng nhập (nếu duy nhất)"
 msgid "Enter {key} to search, such as: /192.168"
 msgstr "Nhập {key} để tìm kiếm, ví dụ: /192.168"
 
-#. Koko TUI
-msgid "Account"
-msgstr "Tài khoản"
-
-#. Koko TUI
-msgid "All assets"
-msgstr "Tất cả tài sản"
-
-#. Koko TUI
 msgid "All favorites"
 msgstr "Tất cả mục yêu thích"
 
-#. Koko TUI
-msgid "Asset"
-msgstr "Tài sản"
-
-#. Koko TUI
-msgid "Asset groups"
-msgstr "Nhóm tài sản"
-
-#. Koko TUI
-msgid "Assets"
-msgstr "Tài sản"
-
-#. Koko TUI
-msgid "Assets / New connection"
-msgstr "Tài sản / Kết nối mới"
-
-#. Koko TUI
-msgid "Authorization"
-msgstr "Cây phân quyền"
-
-#. Koko TUI
-msgid "Clear search"
-msgstr "Xóa tìm kiếm"
-
-#. Koko TUI
-msgid "Close"
-msgstr "Đóng"
-
-#. Koko TUI
-msgid "Close menu/dialog, go back"
-msgstr "Đóng menu/hộp thoại, quay lại"
-
-#. Koko TUI
-msgid "Close tab"
-msgstr "Đóng tab"
-
-#. Koko TUI
-msgid "Collapse/expand"
-msgstr "Thu gọn/mở rộng"
-
-#. Koko TUI
-msgid "Collapse/expand loaded nodes"
-msgstr "Thu gọn/mở rộng các nút đã tải"
-
-#. Koko TUI
-msgid "Collapse/expand node, scroll table horizontally"
-msgstr "Thu gọn/mở rộng nút, cuộn bảng ngang"
-
-#. Koko TUI
-msgid "Confirm and connect"
-msgstr "Xác nhận và kết nối"
-
-#. Koko TUI
-msgid "Connected terminal"
-msgstr "Terminal đã kết nối"
-
-#. Koko TUI
-msgid "Disconnect and quit"
-msgstr "Ngắt kết nối và thoát"
-
-#. Koko TUI
-msgid "Disconnect session"
-msgstr "Ngắt phiên"
-
-#. Koko TUI
-msgid "Favorites"
-msgstr "Yêu thích"
-
-#. Koko TUI
-msgid "First/last item"
-msgstr "Mục đầu/cuối"
-
-#. Koko TUI
-msgid "Focus"
-msgstr "Chuyển tiêu điểm"
-
-#. Koko TUI
-msgid "Full text"
-msgstr "Nội dung đầy đủ"
-
-#. Koko TUI
-msgid "Full text · scrollable"
-msgstr "Nội dung đầy đủ · có thể cuộn"
-
-#. Koko TUI
-msgid "Help"
-msgstr "Trợ giúp"
-
-#. Koko TUI
-msgid "Keys go to the remote; press Ctrl+] for window controls."
-msgstr "Phím được gửi đến máy từ xa; nhấn Ctrl+] để điều khiển cửa sổ."
-
-#. Koko TUI
-msgid "Language"
-msgstr "Ngôn ngữ"
-
-#. Koko TUI
-msgid "Language · this session"
-msgstr "Ngôn ngữ · phiên hiện tại"
-
-#. Koko TUI
-msgid "Load failed; press R to retry"
-msgstr "Tải thất bại; nhấn R để thử lại"
-
-#. Koko TUI
-msgid "Load more…"
-msgstr "Tải thêm…"
-
-#. Koko TUI
-msgid "Loading assets…"
-msgstr "Đang tải tài sản…"
-
-#. Koko TUI
-msgid "Loading organizations…"
-msgstr "Đang tải tổ chức…"
-
-#. Koko TUI
-msgid "Loading permitted accounts…"
-msgstr "Đang tải tài khoản được phép…"
-
-#. Koko TUI
-msgid "Loading workspace…"
-msgstr "Đang tải không gian làm việc…"
-
-#. Koko TUI
-msgid "Maximum 8 sessions; close one first"
-msgstr "Tối đa 8 phiên; hãy đóng một phiên trước"
-
-#. Koko TUI
-msgid "Move and scroll"
-msgstr "Di chuyển và cuộn"
-
-#. Koko TUI
-msgid "Name, address, comment"
-msgstr "Tên, địa chỉ, ghi chú"
-
-#. Koko TUI
-msgid "Next"
-msgstr "Trang sau"
-
-#. Koko TUI
-msgid "Next/previous window"
-msgstr "Cửa sổ sau/trước"
-
-#. Koko TUI
 msgid "No matching assets"
 msgstr "Không có tài sản phù hợp"
 
-#. Koko TUI
-msgid "No organization memberships"
-msgstr "Chưa thuộc tổ chức nào"
+msgid "Account"
+msgstr "Tài khoản"
 
-#. Koko TUI
-msgid "No permitted accounts or terminal protocols"
-msgstr "Không có tài khoản hoặc giao thức terminal được phép"
+msgid "Cancel"
+msgstr "Hủy"
 
-#. Koko TUI
-msgid "Previous"
-msgstr "Trang trước"
+msgid "Clear"
+msgstr "Xóa"
 
-#. Koko TUI
+msgid "Connect"
+msgstr "Kết nối"
+
+msgid "Confirm"
+msgstr "Xác nhận"
+
+msgid "Double-click"
+msgstr "Nhấp đúp"
+
+msgid "Language"
+msgstr "Ngôn ngữ"
+
+msgid "Page"
+msgstr "Trang"
+
 msgid "Quit"
 msgstr "Thoát"
 
-#. Koko TUI
-msgid "Quitting will disconnect all asset sessions."
-msgstr "Thoát sẽ ngắt tất cả phiên kết nối tài sản."
+msgid "Search"
+msgstr "Tìm kiếm"
 
-#. Koko TUI
-msgid "Resize terminal to at least 72 × 20"
-msgstr "Mở rộng terminal tối thiểu 72 × 20"
-
-#. Koko TUI
-msgid "Resize tree, or drag the divider"
-msgstr "Đổi độ rộng cây hoặc kéo đường phân cách"
-
-#. Koko TUI
-msgid "Searching…"
-msgstr "Đang tìm…"
-
-#. Koko TUI
 msgid "Select"
 msgstr "Chọn"
 
-#. Koko TUI
-msgid "Select account"
-msgstr "Chọn tài khoản"
+msgid "Text mode"
+msgstr "Chế độ văn bản"
 
-#. Koko TUI
-msgid "Send literal Ctrl+]"
-msgstr "Gửi trực tiếp Ctrl+]"
+msgid "Interface control (mouse)"
+msgstr "Điều khiển giao diện (chuột)"
 
-#. Koko TUI
-msgid "Session ended"
-msgstr "Phiên đã kết thúc"
+msgid "Text selection (mouse)"
+msgstr "Chọn văn bản (chuột)"
 
-#. Koko TUI
-msgid "Sessions"
-msgstr "Phiên"
+msgid "Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions"
+msgstr "Chuyển sang điều khiển giao diện; Koko xử lý nhấp chuột, cuộn và các thao tác giao diện"
 
-#. Koko TUI
-msgid "Show/hide navigation"
-msgstr "Hiện/ẩn vùng điều hướng"
+msgid "Switch to text selection; the local terminal handles dragging and copying text"
+msgstr "Chuyển sang chọn văn bản; thiết bị đầu cuối cục bộ xử lý kéo chọn và sao chép văn bản"
 
-#. Koko TUI
-msgid "Terminal"
-msgstr "Terminal"
+msgid "Asset tree"
+msgstr "Cây tài sản"
 
-#. Koko TUI
-msgid "Tree limit reached; refresh this view"
-msgstr "Đã đạt giới hạn nút; hãy làm mới chế độ xem"
+msgid "Clear node"
+msgstr "Xóa nút"
 
-#. Koko TUI
-msgid "Tree view"
-msgstr "Loại cây"
-
-#. Koko TUI
-msgid "Types"
-msgstr "Cây loại"
-
-#. Koko TUI
-msgid "Width"
-msgstr "Độ rộng"
-
-#. Koko TUI
-msgid "Window bar"
-msgstr "Thanh cửa sổ"
+msgid "Clear search"
+msgstr "Xóa tìm kiếm"
 
 msgid "Authorization tree"
 msgstr "Cây phân quyền"
@@ -1171,182 +967,251 @@ msgstr "Cây phân quyền"
 msgid "Type tree"
 msgstr "Cây loại"
 
-msgid "Favorites tree"
+msgid "Favorite tree"
 msgstr "Cây yêu thích"
 
-msgid "Load failed"
-msgstr "Tải thất bại"
+msgid "Refresh"
+msgstr "Làm mới"
 
-msgid "Global organization"
-msgstr "Tổ chức toàn cục"
+msgid "Switch tree"
+msgstr "Chuyển cây"
 
-msgid "Asset panel"
-msgstr "Bảng tài sản"
+msgid "Switch language"
+msgstr "Chuyển ngôn ngữ"
 
-msgid "Mode"
-msgstr "Chế độ"
+msgid "Search assets in the current scope"
+msgstr "Tìm kiếm tài sản trong phạm vi hiện tại"
 
-msgid "Accent color"
-msgstr "Màu nhấn"
+msgid "Clear the current asset search"
+msgstr "Xóa tìm kiếm tài sản hiện tại"
 
-msgid "Dark theme"
-msgstr "Giao diện tối"
+msgid "Move the selection up or down"
+msgstr "Di chuyển lựa chọn lên hoặc xuống"
 
-msgid "Light theme"
-msgstr "Giao diện sáng"
-
-msgid "Teal"
-msgstr "Xanh mòng két"
-
-msgid "Blue"
-msgstr "Xanh dương"
-
-msgid "Green"
-msgstr "Xanh lá"
-
-msgid "Purple"
-msgstr "Tím"
-
-msgid "Rose"
-msgstr "Hồng"
-
-msgid "Amber"
-msgstr "Hổ phách"
-
-msgid "Orange"
-msgstr "Cam"
-
-msgid "Pink"
-msgstr "Hồng"
-
-msgid "Cyan"
-msgstr "Xanh lơ"
-
-msgid "Gray"
-msgstr "Xám"
-
-msgid "Red"
-msgstr "Đỏ"
-
-msgid "Lime"
-msgstr "Xanh chanh"
-
-msgid "Duplicate"
-msgstr "Nhân bản"
-
-msgid "Disconnect"
-msgstr "Ngắt kết nối"
-
-msgid "Duplicate session"
-msgstr "Nhân bản phiên"
-
-msgid "More sessions"
-msgstr "Các phiên khác"
-
-msgid "Fullscreen"
-msgstr "Toàn màn hình"
-
-msgid "Exit fullscreen"
-msgstr "Thoát toàn màn hình"
-
-msgid "Reset accent"
-msgstr "Đặt lại màu nhấn"
-
-msgid "Quit this Koko SSH session?"
-msgstr "Thoát phiên SSH Koko này?"
-
-msgid "This asset's protocols (%s) are unsupported, so it cannot be connected"
-msgstr "Các giao thức của tài sản này (%s) không được hỗ trợ nên không thể kết nối"
-
-msgid "Focus the organization selector"
-msgstr "Chuyển tiêu điểm đến bộ chọn tổ chức"
-
-msgid "Focus the asset tree type selector"
-msgstr "Chuyển tiêu điểm đến bộ chọn loại cây tài sản"
-
-msgid "Focus asset tree nodes"
-msgstr "Chuyển tiêu điểm đến các nút cây tài sản"
-
-msgid "Focus the asset list"
-msgstr "Chuyển tiêu điểm đến danh sách tài sản"
-
-msgid "Show or hide the asset tree pane"
-msgstr "Hiện hoặc ẩn vùng cây tài sản"
-
-msgid "Focus the asset search field"
-msgstr "Chuyển tiêu điểm đến ô tìm kiếm tài sản"
-
-msgid "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
-msgstr "Thu gọn cây tài sản theo từng cấp; khi đã thu gọn hết thì mở rộng các nút cấp đầu"
-
-msgid "Reload the current asset tree and top-level asset list, resetting the selected node"
-msgstr "Tải lại cây tài sản hiện tại và danh sách tài sản cấp cao nhất, đồng thời đặt lại nút đã chọn"
-
-msgid "Reload organizations, asset tree, and asset list"
-msgstr "Tải lại tổ chức, cây tài sản và danh sách tài sản"
-
-msgid "Narrow the asset tree pane by 4 columns"
-msgstr "Thu hẹp vùng cây tài sản 4 cột"
-
-msgid "Widen the asset tree pane by 4 columns"
-msgstr "Mở rộng vùng cây tài sản 4 cột"
-
-msgid "Previous page of the asset list"
-msgstr "Trang trước của danh sách tài sản"
-
-msgid "Next page of the asset list"
-msgstr "Trang sau của danh sách tài sản"
-
-msgid "Refresh the current node's asset list, keeping search and page"
-msgstr "Làm mới danh sách tài sản của nút hiện tại, giữ nguyên tìm kiếm và trang"
-
-msgid "Scroll the asset list horizontally"
-msgstr "Cuộn danh sách tài sản theo chiều ngang"
-
-msgid "Collapse or expand the current tree node"
-msgstr "Thu gọn hoặc mở rộng nút cây hiện tại"
-
-msgid "Collapse the current node or move to its parent / expand the current node"
-msgstr "Thu gọn nút hiện tại hoặc chuyển đến nút cha / mở rộng nút hiện tại"
-
-msgid "Move to a child / parent node"
-msgstr "Chuyển đến nút con / nút cha"
-
-msgid "Move through visible tree nodes"
-msgstr "Di chuyển giữa các nút cây đang hiển thị"
-
-msgid "Move one screen up or down in the asset tree"
-msgstr "Di chuyển lên hoặc xuống một màn hình trong cây tài sản"
-
-msgid "Jump to the first or last asset tree node"
-msgstr "Chuyển đến nút đầu hoặc cuối của cây tài sản"
-
-msgid "Move between asset list rows"
-msgstr "Di chuyển giữa các hàng trong danh sách tài sản"
-
-msgid "Move one screen up or down within the current asset page"
-msgstr "Di chuyển lên hoặc xuống một màn hình trong trang tài sản hiện tại"
-
-msgid "Jump to the first or last asset list row"
-msgstr "Chuyển đến hàng đầu hoặc cuối của danh sách tài sản"
-
-msgid "Show assets in the current tree node"
-msgstr "Hiển thị tài sản trong nút cây hiện tại"
-
-msgid "Search assets immediately"
-msgstr "Tìm kiếm tài sản ngay lập tức"
+msgid "Go to the previous or next page"
+msgstr "Chuyển đến trang trước hoặc trang sau"
 
 msgid "Connect to the selected asset"
-msgstr "Kết nối tới tài sản đã chọn"
+msgstr "Kết nối đến tài sản đã chọn"
 
-msgid "Focused area controls"
-msgstr "Thao tác trong vùng đang được chọn"
+msgid "Open the asset tree"
+msgstr "Mở cây tài sản"
 
-msgid "Session \"%s\" has ended. Close this tab?"
-msgstr "Phiên \"%s\" đã kết thúc. Đóng thẻ này?"
+msgid "Clear the selected tree node"
+msgstr "Xóa nút cây đã chọn"
 
-msgid "Keep tab"
-msgstr "Giữ thẻ"
+msgid "Switch the interface language"
+msgstr "Chuyển ngôn ngữ giao diện"
 
-msgid "Terminal supports only these protocols: %s."
-msgstr "Terminal chỉ hỗ trợ các giao thức sau: %s."
+msgid "Switch to text mode"
+msgstr "Chuyển sang chế độ văn bản"
+
+msgid "Exit the asset list"
+msgstr "Thoát danh sách tài sản"
+
+msgid "Open shortcut help"
+msgstr "Mở trợ giúp phím tắt"
+
+msgid "Close shortcut help"
+msgstr "Đóng trợ giúp phím tắt"
+
+msgid "View complete information for the selected item"
+msgstr "Xem thông tin đầy đủ của mục đã chọn"
+
+msgid "Protocols supported by the current terminal"
+msgstr "Các giao thức được thiết bị đầu cuối hiện tại hỗ trợ"
+
+msgid "Collapse or expand the selected node"
+msgstr "Thu gọn hoặc mở rộng nút đã chọn"
+
+msgid "Use the selected node to filter assets"
+msgstr "Dùng nút đã chọn để lọc tài sản"
+
+msgid "Switch the asset tree type"
+msgstr "Chuyển loại cây tài sản"
+
+msgid "Reload the current asset tree"
+msgstr "Tải lại cây tài sản hiện tại"
+
+msgid "Apply the selected language"
+msgstr "Áp dụng ngôn ngữ đã chọn"
+
+msgid "Select an authorized account"
+msgstr "Chọn tài khoản được cấp quyền"
+
+msgid "Select a connection protocol"
+msgstr "Chọn giao thức kết nối"
+
+msgid "Search authorized accounts"
+msgstr "Tìm kiếm tài khoản được cấp quyền"
+
+msgid "Connect using the selected account and protocol"
+msgstr "Kết nối bằng tài khoản và giao thức đã chọn"
+
+msgid "Path"
+msgstr "Đường dẫn"
+
+msgid "Asset count"
+msgstr "Số lượng tài sản"
+
+msgid "Category"
+msgstr "Danh mục"
+
+msgid "Active"
+msgstr "Đang hoạt động"
+
+msgid "Actions"
+msgstr "Hành động"
+
+msgid "Key"
+msgstr "Khóa"
+
+msgid "Details"
+msgstr "Chi tiết"
+
+msgid "Refresh the current asset list and keep search and tree filters"
+msgstr "Làm mới danh sách tài sản hiện tại và giữ nguyên bộ lọc tìm kiếm và cây"
+
+msgid "Yes"
+msgstr "Có"
+
+msgid "No"
+msgstr "Không"
+
+msgid "My Assets"
+msgstr "Tài sản của tôi"
+
+msgid "Direct connect"
+msgstr "Kết nối trực tiếp"
+
+msgid "Multi-session"
+msgstr "Đa phiên"
+
+msgid "Sessions"
+msgstr "Các phiên"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "Kết nối đến tài sản đã chọn bằng một phiên gốc"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "Mở tài sản đã chọn trong không gian đa phiên"
+
+msgid "Return to the multi-session workspace"
+msgstr "Quay lại không gian đa phiên"
+
+msgid "Asset list"
+msgstr "Danh sách tài sản"
+
+msgid "Switch session"
+msgstr "Chuyển phiên"
+
+msgid "Close session"
+msgstr "Đóng phiên"
+
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "Chế độ đa phiên chỉ hỗ trợ mở đồng thời tối đa %d cửa sổ phiên"
+
+msgid "Failed to open multi-session"
+msgstr "Không thể mở đa phiên"
+
+msgid "Multi-session workspace closed"
+msgstr "Không gian đa phiên đã đóng"
+
+msgid "Activate shortcuts"
+msgstr "Kích hoạt phím tắt"
+
+msgid "Next session"
+msgstr "Phiên tiếp theo"
+
+msgid "Duplicate session"
+msgstr "Nhân đôi phiên"
+
+msgid "Reconnect session"
+msgstr "Kết nối lại phiên"
+
+msgid "Move to the next session"
+msgstr "Chuyển đến phiên tiếp theo"
+
+msgid "Move to the previous session"
+msgstr "Chuyển đến phiên trước"
+
+msgid "Switch directly to session 1-9"
+msgstr "Chuyển trực tiếp đến phiên 1-9"
+
+msgid "Close the current session"
+msgstr "Đóng phiên hiện tại"
+
+msgid "Duplicate the current session"
+msgstr "Nhân đôi phiên hiện tại"
+
+msgid "Reconnect the current session"
+msgstr "Kết nối lại phiên hiện tại"
+
+msgid "Return to the asset list"
+msgstr "Quay lại danh sách tài sản"
+
+msgid "Send ctrl+b to the current session"
+msgstr "Gửi ctrl+b đến phiên hiện tại"
+
+msgid "Scroll content"
+msgstr "Cuộn nội dung"
+
+msgid "Scroll the current session down or up"
+msgstr "Cuộn nội dung phiên hiện tại xuống hoặc lên"
+
+msgid "Enter session"
+msgstr "Vào phiên"
+
+msgid "Move to the previous or next session"
+msgstr "Chuyển đến phiên trước hoặc tiếp theo"
+
+msgid "Enter the current session"
+msgstr "Vào phiên hiện tại"
+
+msgid "Close all sessions"
+msgstr "Đóng tất cả phiên"
+
+msgid "Close all sessions and return to the asset list"
+msgstr "Đóng tất cả phiên và quay lại danh sách tài sản"
+
+msgid "Session list"
+msgstr "Danh sách phiên"
+
+msgid "Open the session list"
+msgstr "Mở danh sách phiên"
+
+msgid "Close"
+msgstr "Đóng"
+
+msgid "Immersive mode"
+msgstr "Chế độ tập trung"
+
+msgid "Enter immersive mode"
+msgstr "Vào chế độ tập trung"
+
+msgid "Exit immersive mode"
+msgstr "Thoát chế độ tập trung"
+
+msgid "Close the current session?"
+msgstr "Đóng phiên hiện tại?"
+
+msgid "Close all sessions and return to the asset list?"
+msgstr "Đóng tất cả phiên và quay lại danh sách tài sản?"
+
+msgid "Quit Koko"
+msgstr "Thoát Koko"
+
+msgid "Quit this SSH session?"
+msgstr "Thoát phiên SSH này?"
+
+msgid "%d multi-sessions are still active; quitting will end them."
+msgstr "Vẫn còn %d phiên đa cửa sổ đang hoạt động; khi thoát, tất cả sẽ kết thúc."
+
+msgid "Session ended"
+msgstr "Phiên đã kết thúc"
+
+msgid "The current session has ended. Close this tab?"
+msgstr "Phiên hiện tại đã kết thúc. Đóng thẻ này?"
+
+msgid "Keep"
+msgstr "Giữ lại"

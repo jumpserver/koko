@@ -213,7 +213,7 @@ func classicTreeHints(lang i18n.LanguageCode, width, end, total int, allowRefres
 	actionLine := strings.Join(actions, " · ")
 	progress := fmt.Sprintf("%d / %d", end, total)
 	if end < total {
-		browse := lang.T("Browse tree: [Enter] next line · [Space] next page")
+		browse := lang.T("Browse tree: [enter] next line · [space] next page")
 		hints := classicRightAlignedHintLines(browse, progress, width)
 		return classicHintRows(classicHintShortcut, append(hints, classicHintLines(actionLine, width)...))
 	}

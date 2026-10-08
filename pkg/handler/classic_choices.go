@@ -3,7 +3,6 @@ package handler
 import (
 	"fmt"
 	"io"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -28,7 +27,6 @@ func (h *InteractiveHandler) chooseAccount(permAccounts []model.PermAccount, pro
 		}
 	}
 	displayAccounts := model.PermAccountList(permAccounts)
-	sort.Sort(displayAccounts)
 	render := func() (string, []classicHintRow, int) {
 		lang := i18n.NewLang(h.i18nLang)
 		width, _ := h.GetPtySize()

@@ -55,9 +55,6 @@ msgstr "잘못된 번호"
 msgid "No nodes"
 msgstr "노드 없음"
 
-msgid "Switch to TUI mode"
-msgstr "TUI 모드로 전환"
-
 msgid "View all assets"
 msgstr "모든 자산 보기"
 
@@ -129,9 +126,6 @@ msgstr "{key}를 입력해 즐겨찾기 트리 보기"
 
 msgid "Enter {key} to change the interface language"
 msgstr "{key}를 입력해 화면 언어 변경"
-
-msgid "Enter {key} to switch to TUI mode"
-msgstr "{key}를 입력해 TUI 모드로 전환"
 
 msgid "Enter {key} to view help"
 msgstr "{key}를 입력해 도움말 보기"
@@ -205,14 +199,8 @@ msgstr "인증 실패(사용자 이름 또는 비밀번호 오류)"
 msgid "AvailableShortcutKey"
 msgstr "사용 가능한 단축키"
 
-msgid "Back"
-msgstr "돌아가기"
-
 msgid "Back: B/b"
 msgstr "반환: B/b"
-
-msgid "Cancel"
-msgstr "취소"
 
 msgid "Cancel confirm"
 msgstr "로그인 검토를 취소합니다"
@@ -241,17 +229,11 @@ msgstr "명령 `%s` 는 금지되었습니다 ..."
 msgid "Comment"
 msgstr "비고"
 
-msgid "Confirm"
-msgstr "확인"
-
 msgid "ConfirmBtn"
 msgstr "확인"
 
 msgid "ConfirmDelete"
 msgstr "이 파일을 삭제하시겠습니까?"
-
-msgid "Connect"
-msgstr "연결"
 
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "%d분 넘어 노는 시간, 연결 종료"
@@ -454,8 +436,8 @@ msgstr "프로토콜 선택: 번호를 입력하고 Enter를 누르세요"
 msgid "Tree progress: %d/%d"
 msgstr "트리 진행률: %d/%d"
 
-msgid "Browse tree: [Enter] next line · [Space] next page"
-msgstr "트리: [Enter] 다음 줄 · [Space] 다음 페이지"
+msgid "Browse tree: [enter] next line · [space] next page"
+msgstr "트리: [enter] 다음 줄 · [space] 다음 페이지"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "자산 보기: [%c + 번호] + Enter"
@@ -652,9 +634,6 @@ msgstr "읽기 전용"
 msgid "Reconnect"
 msgstr "재연결"
 
-msgid "Refresh"
-msgstr "새로 고침"
-
 msgid "Refresh done"
 msgstr "새로 고침이 완료되었습니다"
 
@@ -678,9 +657,6 @@ msgstr "SSH 연결 재사용 ( %s@%s ) [연결 수: %d]"
 
 msgid "RightArrow"
 msgstr "앞으로 화살표"
-
-msgid "Search"
-msgstr "검색"
 
 msgid "Search: %s"
 msgstr "검색: %s"
@@ -765,9 +741,6 @@ msgstr "귀하가 실행한 명령은 위험이 따릅니다, 경고 알림이 �
 
 msgid "TheCurrentTerminalInstanceWasNotFound"
 msgstr "현재 터미널 인스턴스를 찾을 수 없습니다."
-
-msgid "Theme"
-msgstr "주제"
 
 msgid "ThemeColors"
 msgstr "테마 색상"
@@ -956,245 +929,68 @@ msgstr "배포 권한이 부족합니다"
 msgid "File exceeds maximum transfer size: %s"
 msgstr "파일이 최대 전송 크기를 초과했습니다: %s"
 
-#. Koko TUI
-msgid "Account"
-msgstr "계정"
-
-#. Koko TUI
-msgid "All assets"
-msgstr "모든 자산"
-
-#. Koko TUI
 msgid "All favorites"
 msgstr "모든 즐겨찾기"
 
-#. Koko TUI
-msgid "Asset"
-msgstr "자산"
-
-#. Koko TUI
-msgid "Asset groups"
-msgstr "자산 그룹"
-
-#. Koko TUI
-msgid "Assets"
-msgstr "자산"
-
-#. Koko TUI
-msgid "Assets / New connection"
-msgstr "자산 / 새 연결"
-
-#. Koko TUI
-msgid "Authorization"
-msgstr "권한 트리"
-
-#. Koko TUI
-msgid "Clear search"
-msgstr "검색 지우기"
-
-#. Koko TUI
-msgid "Close"
-msgstr "닫기"
-
-#. Koko TUI
-msgid "Close menu/dialog, go back"
-msgstr "메뉴/대화상자를 닫고 돌아가기"
-
-#. Koko TUI
-msgid "Close tab"
-msgstr "탭 닫기"
-
-#. Koko TUI
-msgid "Collapse/expand"
-msgstr "접기/펼치기"
-
-#. Koko TUI
-msgid "Collapse/expand loaded nodes"
-msgstr "불러온 노드 접기/펼치기"
-
-#. Koko TUI
-msgid "Collapse/expand node, scroll table horizontally"
-msgstr "노드 접기/펼치기, 표 가로 스크롤"
-
-#. Koko TUI
-msgid "Confirm and connect"
-msgstr "확인 후 연결"
-
-#. Koko TUI
-msgid "Connected terminal"
-msgstr "연결된 터미널"
-
-#. Koko TUI
-msgid "Disconnect and quit"
-msgstr "연결 해제 후 종료"
-
-#. Koko TUI
-msgid "Disconnect session"
-msgstr "세션 연결 해제"
-
-#. Koko TUI
-msgid "Favorites"
-msgstr "즐겨찾기"
-
-#. Koko TUI
-msgid "First/last item"
-msgstr "첫 항목/마지막 항목"
-
-#. Koko TUI
-msgid "Focus"
-msgstr "포커스 이동"
-
-#. Koko TUI
-msgid "Full text"
-msgstr "전체 내용"
-
-#. Koko TUI
-msgid "Full text · scrollable"
-msgstr "전체 내용 · 스크롤 가능"
-
-#. Koko TUI
-msgid "Help"
-msgstr "도움말"
-
-#. Koko TUI
-msgid "Keys go to the remote; press Ctrl+] for window controls."
-msgstr "키는 원격으로 전달됩니다. 창을 조작하려면 Ctrl+]를 먼저 누르세요."
-
-#. Koko TUI
-msgid "Language"
-msgstr "언어"
-
-#. Koko TUI
-msgid "Language · this session"
-msgstr "언어 · 현재 세션"
-
-#. Koko TUI
-msgid "Load failed; press R to retry"
-msgstr "불러오기 실패. R을 눌러 재시도"
-
-#. Koko TUI
-msgid "Load more…"
-msgstr "더 불러오기…"
-
-#. Koko TUI
-msgid "Loading assets…"
-msgstr "자산 불러오는 중…"
-
-#. Koko TUI
-msgid "Loading organizations…"
-msgstr "조직 불러오는 중…"
-
-#. Koko TUI
-msgid "Loading permitted accounts…"
-msgstr "허용된 계정 불러오는 중…"
-
-#. Koko TUI
-msgid "Loading workspace…"
-msgstr "작업 공간 불러오는 중…"
-
-#. Koko TUI
-msgid "Maximum 8 sessions; close one first"
-msgstr "최대 8개 세션입니다. 먼저 하나를 닫으세요"
-
-#. Koko TUI
-msgid "Move and scroll"
-msgstr "이동 및 스크롤"
-
-#. Koko TUI
-msgid "Name, address, comment"
-msgstr "이름, 주소, 설명"
-
-#. Koko TUI
-msgid "Next"
-msgstr "다음"
-
-#. Koko TUI
-msgid "Next/previous window"
-msgstr "다음/이전 창"
-
-#. Koko TUI
 msgid "No matching assets"
 msgstr "일치하는 자산 없음"
 
-#. Koko TUI
-msgid "No organization memberships"
-msgstr "소속 조직 없음"
+msgid "Account"
+msgstr "계정"
 
-#. Koko TUI
-msgid "No permitted accounts or terminal protocols"
-msgstr "허용된 계정 또는 터미널 프로토콜 없음"
+msgid "Cancel"
+msgstr "취소"
 
-#. Koko TUI
-msgid "Previous"
-msgstr "이전"
+msgid "Clear"
+msgstr "지우기"
 
-#. Koko TUI
+msgid "Connect"
+msgstr "연결"
+
+msgid "Confirm"
+msgstr "확인"
+
+msgid "Double-click"
+msgstr "두 번 클릭"
+
+msgid "Language"
+msgstr "언어"
+
+msgid "Page"
+msgstr "페이지"
+
 msgid "Quit"
 msgstr "종료"
 
-#. Koko TUI
-msgid "Quitting will disconnect all asset sessions."
-msgstr "종료하면 모든 자산 세션의 연결이 끊어집니다."
+msgid "Search"
+msgstr "검색"
 
-#. Koko TUI
-msgid "Resize terminal to at least 72 × 20"
-msgstr "터미널 크기를 최소 72 × 20으로 조정하세요"
-
-#. Koko TUI
-msgid "Resize tree, or drag the divider"
-msgstr "트리 너비 조정 또는 구분선 드래그"
-
-#. Koko TUI
-msgid "Searching…"
-msgstr "검색 중…"
-
-#. Koko TUI
 msgid "Select"
 msgstr "선택"
 
-#. Koko TUI
-msgid "Select account"
-msgstr "계정 선택"
+msgid "Text mode"
+msgstr "텍스트 모드"
 
-#. Koko TUI
-msgid "Send literal Ctrl+]"
-msgstr "Ctrl+] 자체 전송"
+msgid "Interface control (mouse)"
+msgstr "화면 조작(마우스)"
 
-#. Koko TUI
-msgid "Session ended"
-msgstr "세션 종료됨"
+msgid "Text selection (mouse)"
+msgstr "텍스트 선택(마우스)"
 
-#. Koko TUI
-msgid "Sessions"
-msgstr "세션"
+msgid "Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions"
+msgstr "화면 조작으로 전환합니다. Koko가 클릭, 스크롤 및 화면 조작을 처리합니다"
 
-#. Koko TUI
-msgid "Show/hide navigation"
-msgstr "탐색 영역 표시/숨기기"
+msgid "Switch to text selection; the local terminal handles dragging and copying text"
+msgstr "텍스트 선택으로 전환합니다. 로컬 터미널이 드래그 선택과 텍스트 복사를 처리합니다"
 
-#. Koko TUI
-msgid "Terminal"
-msgstr "터미널"
+msgid "Asset tree"
+msgstr "자산 트리"
 
-#. Koko TUI
-msgid "Tree limit reached; refresh this view"
-msgstr "노드 한도에 도달했습니다. 보기를 새로 고치세요"
+msgid "Clear node"
+msgstr "노드 지우기"
 
-#. Koko TUI
-msgid "Tree view"
-msgstr "트리 유형"
-
-#. Koko TUI
-msgid "Types"
-msgstr "유형 트리"
-
-#. Koko TUI
-msgid "Width"
-msgstr "너비"
-
-#. Koko TUI
-msgid "Window bar"
-msgstr "창 표시줄"
+msgid "Clear search"
+msgstr "검색 지우기"
 
 msgid "Authorization tree"
 msgstr "권한 트리"
@@ -1202,182 +998,251 @@ msgstr "권한 트리"
 msgid "Type tree"
 msgstr "유형 트리"
 
-msgid "Favorites tree"
+msgid "Favorite tree"
 msgstr "즐겨찾기 트리"
 
-msgid "Load failed"
-msgstr "불러오지 못했습니다"
+msgid "Refresh"
+msgstr "새로 고침"
 
-msgid "Global organization"
-msgstr "전체 조직"
+msgid "Switch tree"
+msgstr "트리 전환"
 
-msgid "Asset panel"
-msgstr "자산 패널"
+msgid "Switch language"
+msgstr "언어 전환"
 
-msgid "Mode"
-msgstr "모드"
+msgid "Search assets in the current scope"
+msgstr "현재 범위에서 자산 검색"
 
-msgid "Accent color"
-msgstr "강조 색상"
+msgid "Clear the current asset search"
+msgstr "현재 자산 검색 지우기"
 
-msgid "Dark theme"
-msgstr "어두운 테마"
+msgid "Move the selection up or down"
+msgstr "선택 항목을 위아래로 이동"
 
-msgid "Light theme"
-msgstr "밝은 테마"
-
-msgid "Teal"
-msgstr "청록"
-
-msgid "Blue"
-msgstr "파랑"
-
-msgid "Green"
-msgstr "초록"
-
-msgid "Purple"
-msgstr "보라"
-
-msgid "Rose"
-msgstr "로즈"
-
-msgid "Amber"
-msgstr "호박색"
-
-msgid "Orange"
-msgstr "주황"
-
-msgid "Pink"
-msgstr "분홍"
-
-msgid "Cyan"
-msgstr "시안"
-
-msgid "Gray"
-msgstr "회색"
-
-msgid "Red"
-msgstr "빨강"
-
-msgid "Lime"
-msgstr "라임"
-
-msgid "Duplicate"
-msgstr "복제"
-
-msgid "Disconnect"
-msgstr "연결 해제"
-
-msgid "Duplicate session"
-msgstr "세션 복제"
-
-msgid "More sessions"
-msgstr "더 많은 세션"
-
-msgid "Fullscreen"
-msgstr "전체 화면"
-
-msgid "Exit fullscreen"
-msgstr "전체 화면 종료"
-
-msgid "Reset accent"
-msgstr "강조 색상 초기화"
-
-msgid "Quit this Koko SSH session?"
-msgstr "현재 Koko SSH 세션을 종료하시겠습니까?"
-
-msgid "This asset's protocols (%s) are unsupported, so it cannot be connected"
-msgstr "현재 자산의 프로토콜(%s)은 지원되지 않아 연결할 수 없습니다"
-
-msgid "Focus the organization selector"
-msgstr "조직 선택 항목으로 포커스 이동"
-
-msgid "Focus the asset tree type selector"
-msgstr "자산 트리 유형 선택 항목으로 포커스 이동"
-
-msgid "Focus asset tree nodes"
-msgstr "자산 트리 노드로 포커스 이동"
-
-msgid "Focus the asset list"
-msgstr "자산 목록으로 포커스 이동"
-
-msgid "Show or hide the asset tree pane"
-msgstr "자산 트리 영역 표시 또는 숨기기"
-
-msgid "Focus the asset search field"
-msgstr "자산 검색창으로 포커스 이동"
-
-msgid "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
-msgstr "자산 트리를 단계별로 접기. 모두 접혔으면 첫 번째 수준의 노드 펼치기"
-
-msgid "Reload the current asset tree and top-level asset list, resetting the selected node"
-msgstr "현재 자산 트리와 최상위 자산 목록을 다시 불러오고 선택한 노드 초기화"
-
-msgid "Reload organizations, asset tree, and asset list"
-msgstr "조직, 자산 트리 및 자산 목록 다시 불러오기"
-
-msgid "Narrow the asset tree pane by 4 columns"
-msgstr "자산 트리 영역을 4열 좁히기"
-
-msgid "Widen the asset tree pane by 4 columns"
-msgstr "자산 트리 영역을 4열 넓히기"
-
-msgid "Previous page of the asset list"
-msgstr "자산 목록의 이전 페이지"
-
-msgid "Next page of the asset list"
-msgstr "자산 목록의 다음 페이지"
-
-msgid "Refresh the current node's asset list, keeping search and page"
-msgstr "검색 조건과 페이지를 유지하며 현재 노드의 자산 목록 새로고침"
-
-msgid "Scroll the asset list horizontally"
-msgstr "자산 목록을 가로로 스크롤"
-
-msgid "Collapse or expand the current tree node"
-msgstr "현재 트리 노드 접기 또는 펼치기"
-
-msgid "Collapse the current node or move to its parent / expand the current node"
-msgstr "현재 노드를 접거나 부모로 이동 / 현재 노드 펼치기"
-
-msgid "Move to a child / parent node"
-msgstr "자식 / 부모 노드로 이동"
-
-msgid "Move through visible tree nodes"
-msgstr "표시된 트리 노드 사이 이동"
-
-msgid "Move one screen up or down in the asset tree"
-msgstr "자산 트리에서 한 화면 위아래로 이동"
-
-msgid "Jump to the first or last asset tree node"
-msgstr "자산 트리의 첫 번째 또는 마지막 노드로 이동"
-
-msgid "Move between asset list rows"
-msgstr "자산 목록의 행 사이 이동"
-
-msgid "Move one screen up or down within the current asset page"
-msgstr "현재 자산 페이지에서 한 화면 위아래로 이동"
-
-msgid "Jump to the first or last asset list row"
-msgstr "자산 목록의 첫 번째 또는 마지막 행으로 이동"
-
-msgid "Show assets in the current tree node"
-msgstr "현재 트리 노드의 자산 표시"
-
-msgid "Search assets immediately"
-msgstr "즉시 자산 검색"
+msgid "Go to the previous or next page"
+msgstr "이전 또는 다음 페이지로 이동"
 
 msgid "Connect to the selected asset"
 msgstr "선택한 자산에 연결"
 
-msgid "Focused area controls"
-msgstr "현재 포커스 영역의 조작"
+msgid "Open the asset tree"
+msgstr "자산 트리 열기"
 
-msgid "Session \"%s\" has ended. Close this tab?"
-msgstr "세션 \"%s\"이(가) 종료되었습니다. 이 탭을 닫으시겠습니까?"
+msgid "Clear the selected tree node"
+msgstr "선택한 트리 노드 지우기"
 
-msgid "Keep tab"
-msgstr "탭 유지"
+msgid "Switch the interface language"
+msgstr "인터페이스 언어 전환"
 
-msgid "Terminal supports only these protocols: %s."
-msgstr "Terminal은 다음 프로토콜만 지원합니다: %s."
+msgid "Switch to text mode"
+msgstr "텍스트 모드로 전환"
+
+msgid "Exit the asset list"
+msgstr "자산 목록 종료"
+
+msgid "Open shortcut help"
+msgstr "단축키 도움말 열기"
+
+msgid "Close shortcut help"
+msgstr "단축키 도움말 닫기"
+
+msgid "View complete information for the selected item"
+msgstr "선택한 항목의 전체 정보 보기"
+
+msgid "Protocols supported by the current terminal"
+msgstr "현재 터미널에서 지원하는 프로토콜"
+
+msgid "Collapse or expand the selected node"
+msgstr "선택한 노드 접기 또는 펼치기"
+
+msgid "Use the selected node to filter assets"
+msgstr "선택한 노드로 자산 필터링"
+
+msgid "Switch the asset tree type"
+msgstr "자산 트리 유형 전환"
+
+msgid "Reload the current asset tree"
+msgstr "현재 자산 트리 다시 불러오기"
+
+msgid "Apply the selected language"
+msgstr "선택한 언어 적용"
+
+msgid "Select an authorized account"
+msgstr "승인된 계정 선택"
+
+msgid "Select a connection protocol"
+msgstr "연결 프로토콜 선택"
+
+msgid "Search authorized accounts"
+msgstr "승인된 계정 검색"
+
+msgid "Connect using the selected account and protocol"
+msgstr "선택한 계정과 프로토콜로 연결"
+
+msgid "Path"
+msgstr "경로"
+
+msgid "Asset count"
+msgstr "자산 수"
+
+msgid "Category"
+msgstr "카테고리"
+
+msgid "Active"
+msgstr "활성"
+
+msgid "Actions"
+msgstr "작업"
+
+msgid "Key"
+msgstr "키"
+
+msgid "Details"
+msgstr "세부 정보"
+
+msgid "Refresh the current asset list and keep search and tree filters"
+msgstr "현재 자산 목록을 새로 고치고 검색 및 트리 필터 유지"
+
+msgid "Yes"
+msgstr "예"
+
+msgid "No"
+msgstr "아니요"
+
+msgid "My Assets"
+msgstr "내 자산"
+
+msgid "Direct connect"
+msgstr "직접 연결"
+
+msgid "Multi-session"
+msgstr "다중 세션"
+
+msgid "Sessions"
+msgstr "세션 화면"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "선택한 자산에 기본 단일 세션으로 연결"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "선택한 자산을 다중 세션 화면에서 열기"
+
+msgid "Return to the multi-session workspace"
+msgstr "다중 세션 화면으로 돌아가기"
+
+msgid "Asset list"
+msgstr "자산 목록"
+
+msgid "Switch session"
+msgstr "세션 전환"
+
+msgid "Close session"
+msgstr "세션 닫기"
+
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "다중 세션 모드에서는 세션 창을 동시에 최대 %d개까지 열 수 있습니다"
+
+msgid "Failed to open multi-session"
+msgstr "다중 세션을 열 수 없습니다"
+
+msgid "Multi-session workspace closed"
+msgstr "다중 세션 화면이 닫혔습니다"
+
+msgid "Activate shortcuts"
+msgstr "단축키 활성화"
+
+msgid "Next session"
+msgstr "다음 세션"
+
+msgid "Duplicate session"
+msgstr "세션 복제"
+
+msgid "Reconnect session"
+msgstr "세션 다시 연결"
+
+msgid "Move to the next session"
+msgstr "다음 세션으로 이동"
+
+msgid "Move to the previous session"
+msgstr "이전 세션으로 이동"
+
+msgid "Switch directly to session 1-9"
+msgstr "번호로 세션 1-9에 바로 전환"
+
+msgid "Close the current session"
+msgstr "현재 세션 닫기"
+
+msgid "Duplicate the current session"
+msgstr "현재 세션 복제"
+
+msgid "Reconnect the current session"
+msgstr "현재 세션 다시 연결"
+
+msgid "Return to the asset list"
+msgstr "자산 목록으로 돌아가기"
+
+msgid "Send ctrl+b to the current session"
+msgstr "현재 세션에 ctrl+b 보내기"
+
+msgid "Scroll content"
+msgstr "내용 스크롤"
+
+msgid "Scroll the current session down or up"
+msgstr "현재 세션 내용을 아래 또는 위로 스크롤"
+
+msgid "Enter session"
+msgstr "세션으로 돌아가기"
+
+msgid "Move to the previous or next session"
+msgstr "이전 또는 다음 세션으로 전환"
+
+msgid "Enter the current session"
+msgstr "현재 세션으로 돌아가기"
+
+msgid "Close all sessions"
+msgstr "모든 세션 닫기"
+
+msgid "Close all sessions and return to the asset list"
+msgstr "모든 세션을 닫고 자산 목록으로 돌아가기"
+
+msgid "Session list"
+msgstr "세션 목록"
+
+msgid "Open the session list"
+msgstr "세션 목록 열기"
+
+msgid "Close"
+msgstr "닫기"
+
+msgid "Immersive mode"
+msgstr "몰입 모드"
+
+msgid "Enter immersive mode"
+msgstr "몰입 모드로 전환"
+
+msgid "Exit immersive mode"
+msgstr "몰입 모드 종료"
+
+msgid "Close the current session?"
+msgstr "현재 세션을 닫으시겠습니까?"
+
+msgid "Close all sessions and return to the asset list?"
+msgstr "모든 세션을 닫고 자산 목록으로 돌아가시겠습니까?"
+
+msgid "Quit Koko"
+msgstr "Koko 종료"
+
+msgid "Quit this SSH session?"
+msgstr "이 SSH 세션을 종료하시겠습니까?"
+
+msgid "%d multi-sessions are still active; quitting will end them."
+msgstr "아직 %d개의 다중 세션이 실행 중입니다. 종료하면 모두 종료됩니다."
+
+msgid "Session ended"
+msgstr "세션 종료"
+
+msgid "The current session has ended. Close this tab?"
+msgstr "현재 세션이 종료되었습니다. 이 탭을 닫으시겠습니까?"
+
+msgid "Keep"
+msgstr "유지"

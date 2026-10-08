@@ -21,26 +21,28 @@ import (
 
 func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *service.JMService,
 	termConfig model.TerminalConfig) *InteractiveHandler {
-	return newInteractiveHandler(NewWrapperSession(sess), user, jmsService, termConfig, nil, nil)
+	return newInteractiveHandler(NewWrapperSession(sess), user, jmsService, termConfig, true)
 }
 
 func newInteractiveHandler(sess *WrapperSession, user *model.User, jmsService *service.JMService,
-	termConfig model.TerminalConfig, preferences *tuiPreferences, shutdown <-chan struct{}) *InteractiveHandler {
+	termConfig model.TerminalConfig, initialize bool) *InteractiveHandler {
 	language := getUserDefaultLangCode(user)
-	if preferences != nil {
-		language, _, _, _, _ = preferences.display(user.ID, language)
-	}
 	api := newLangAPIClient(jmsService, language)
+	handler := &InteractiveHandler{
+		sess: sess, user: user, jmsService: api,
+		terminalConf: &termConfig, i18nLang: language,
+		interfaceMode: terminalInterfaceModeTUI, mouseMode: terminalMouseModeKoko,
+	}
+	handler.loadTerminalPreference()
 	publicSetting, err := api.GetPublicSetting()
 	if err != nil {
 		logger.Errorf("Get public setting error: %s", err)
 	}
-	handler := &InteractiveHandler{
-		sess: sess, user: user, term: term.NewTerminal(sess, "Opt> "), jmsService: api,
-		terminalConf: &termConfig, i18nLang: language, publicSetting: &publicSetting,
-		preferences: preferences, shutdown: shutdown, pendingMode: terminalModeText,
+	handler.publicSetting = &publicSetting
+	handler.term = term.NewTerminal(handler.sess, "Opt> ")
+	if initialize {
+		handler.Initial()
 	}
-	handler.Initial()
 	return handler
 }
 
@@ -60,9 +62,7 @@ type InteractiveHandler struct {
 	terminalConf      *model.TerminalConfig
 	publicSetting     *model.PublicSetting
 	i18nLang          string
-	preferences       *tuiPreferences
-	shutdown          <-chan struct{}
-	manualPasswords   tuiManualPasswordAttempts
+	manualPasswords   manualPasswordAttempts
 	classicView       classicView
 	helpReturnView    classicView
 	helpBackTarget    string
@@ -71,13 +71,21 @@ type InteractiveHandler struct {
 	idleState         chan bool
 	exitRequested     bool
 	classicNavigation bool
-	pendingMode       terminalMode
+	switchTUI         bool
+	interfaceMode     terminalInterfaceMode
+	mouseMode         terminalMouseMode
+	preferenceStore   *terminalPreferenceStore
 }
 
 func (h *InteractiveHandler) Initial() {
+	h.displayHelp()
+	h.initializeAssetSelector()
+	h.firstLoadData()
+}
+
+func (h *InteractiveHandler) initializeAssetSelector() {
 	conf := config.GetConf()
 	h.assetLoadPolicy = strings.ToLower(conf.AssetLoadPolicy)
-	h.displayHelp()
 	hiddenFields := make(map[string]struct{}, len(conf.HiddenFields))
 	for _, field := range conf.HiddenFields {
 		hiddenFields[strings.ToLower(strings.TrimSpace(field))] = struct{}{}
@@ -94,7 +102,6 @@ func (h *InteractiveHandler) Initial() {
 			h.selectHandler.SetAllLocalData(allAssets)
 		}
 	}
-	h.firstLoadData()
 }
 
 func (h *InteractiveHandler) GetPtySize() (int, int) {
@@ -255,9 +262,6 @@ func (h *InteractiveHandler) watchSession(done <-chan struct{}) {
 	}
 	for {
 		select {
-		case <-h.shutdown:
-			_ = h.sess.Sess.Close()
-			return
 		case <-done:
 			return
 		case <-h.sess.Context().Done():
@@ -287,7 +291,7 @@ func (h *InteractiveHandler) refreshAuthorizationTreeCache() bool {
 		utils.IgnoreErrWriteString(h.term, utils.WrapperWarn(userFacingErrorMessage(i18n.NewLang(h.i18nLang).T("Core API failed"), err)))
 		return false
 	}
-	nodes, err := (tuiData{
+	nodes, err := (classicData{
 		api: h.jmsService, userID: h.user.ID, lang: h.i18nLang,
 	}).authorizationNodes()
 	if err != nil {
@@ -305,7 +309,7 @@ func (h *InteractiveHandler) refreshAuthorizationTreeCache() bool {
 }
 
 func (h *InteractiveHandler) loadUserNodes() {
-	nodes, err := (tuiData{
+	nodes, err := (classicData{
 		api: h.jmsService, userID: h.user.ID, lang: h.i18nLang,
 	}).authorizationNodes()
 	if err != nil {
@@ -318,7 +322,7 @@ func (h *InteractiveHandler) loadUserNodes() {
 }
 
 func (h *InteractiveHandler) loadUserTypeNodes() error {
-	types, err := (tuiData{
+	types, err := (classicData{
 		api: h.jmsService, userID: h.user.ID, lang: h.i18nLang,
 	}).typeNodes()
 	if err != nil {
@@ -330,7 +334,7 @@ func (h *InteractiveHandler) loadUserTypeNodes() error {
 }
 
 func (h *InteractiveHandler) loadUserFavoriteNodes() error {
-	favorites, err := (tuiData{
+	favorites, err := (classicData{
 		api: h.jmsService, userID: h.user.ID, lang: h.i18nLang,
 	}).favoriteNodes()
 	if err != nil {

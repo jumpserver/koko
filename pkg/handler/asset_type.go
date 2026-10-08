@@ -2,9 +2,13 @@ package handler
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/xlab/treeprint"
+
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 type classicTypeNode struct {
@@ -14,12 +18,63 @@ type classicTypeNode struct {
 	Kind         string
 	Category     string
 	AssetType    string
+	PlatformID   string
 	AssetsAmount int
 	Path         string
 }
 
-func (d tuiData) typeNodes() ([]classicTypeNode, error) {
-	var page tuiTreePage
+func (u *UserSelectHandler) retrieveRemoteTypeAsset(reqParam model.PaginationParam) []model.PermAsset {
+	if u.selectedType.Kind != "platform" || u.selectedType.PlatformID == "" {
+		return u.retrieveRemoteAsset(reqParam)
+	}
+	pageSize := reqParam.PageSize
+	loadAll := pageSize <= 0
+	if loadAll {
+		pageSize = 100
+	}
+	params := map[string]string{
+		"limit":    strconv.Itoa(pageSize),
+		"offset":   strconv.Itoa(max(0, reqParam.Offset)),
+		"order":    reqParam.Order,
+		"platform": u.selectedType.PlatformID,
+	}
+	if len(reqParam.Searches) > 0 {
+		searches := make([]string, 0, len(reqParam.Searches))
+		for _, search := range reqParam.Searches {
+			searches = append(searches, strings.TrimSpace(search))
+		}
+		params["search"] = strings.Join(searches, ",")
+	}
+	var response model.PaginationResponse
+	path := classicData{userID: u.user.ID}.userPath("assets/")
+	_, err := u.h.jmsService.Call("GET", path, nil, &response, params)
+	if err != nil {
+		logger.Errorf("Get user %s platform assets failed: %s", u.user.Name, err)
+		u.loadErr = err
+		return nil
+	}
+	if loadAll {
+		all := append([]model.PermAsset(nil), response.Data...)
+		for response.NextURL != "" {
+			response, err = u.h.jmsService.GetNextURLPermAssets(response.NextURL)
+			if err != nil {
+				logger.Errorf("Get user %s next platform assets failed: %s", u.user.Name, err)
+				u.loadErr = err
+				return nil
+			}
+			all = append(all, response.Data...)
+		}
+		response.Data = all
+		response.Total = len(all)
+		response.NextURL = ""
+		response.PreviousURL = ""
+	}
+	assets := u.updateRemotePageData(reqParam, response)
+	return u.prepareAssetPage(assets, path)
+}
+
+func (d classicData) typeNodes() ([]classicTypeNode, error) {
+	var page classicTreePage
 	client := newLangAPIClient(d.api, d.lang)
 	_, err := client.Call("GET", d.userPath("nodes/children-with-assets/category/tree/"), nil, &page,
 		map[string]string{"include_assets": "false"})
@@ -35,7 +90,7 @@ func (d tuiData) typeNodes() ([]classicTypeNode, error) {
 		if kind != "category" && kind != "type" {
 			continue
 		}
-		name, amount := typeTreeAmount(item.Name)
+		name, amount := classicTreeAmount(item.Name)
 		node := classicTypeNode{
 			ID: item.ID, Parent: item.Parent, Name: strings.TrimSpace(name), Kind: kind,
 			Category: item.Meta.Category, AssetsAmount: 0,
@@ -60,6 +115,18 @@ func (d tuiData) typeNodes() ([]classicTypeNode, error) {
 		nodes = append(nodes, node)
 	}
 	return nodes, nil
+}
+
+// Lina's type tree takes category/type counts from the trailing label amount.
+func classicTreeAmount(label string) (string, *int) {
+	text := strings.TrimSpace(label)
+	start := strings.LastIndex(text, "(")
+	if start >= 0 && strings.HasSuffix(text, ")") {
+		if count, err := strconv.Atoi(text[start+1 : len(text)-1]); err == nil && count >= 0 {
+			return strings.TrimSpace(text[:start]), &count
+		}
+	}
+	return label, nil
 }
 
 func constructTypeTreeRows(nodes []classicTypeNode) ([]string, []classicTypeNode) {
