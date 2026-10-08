@@ -667,6 +667,73 @@ func TestAssetTUIHelpDialogKeyboardAndRendering(t *testing.T) {
 	}
 }
 
+func TestAssetTUIHelpDialogScrollsOverflowingContent(t *testing.T) {
+	tui := assetTUI{
+		handler: &InteractiveHandler{i18nLang: "en"}, selector: &UserSelectHandler{},
+		width: 80, height: 10, helpDialog: true,
+	}
+	protocols := srvconn.SupportedProtocols()
+	if len(protocols) == 0 {
+		t.Fatal("expected supported protocols")
+	}
+	protocolLines := tui.helpProtocolLines(tui.helpDialogGeometry(tui.helpShortcutRows()).width - 6)
+	if !tui.helpDialogUsesUnifiedScroll(protocolLines) {
+		t.Fatal("short help dialog did not enable unified vertical scrolling")
+	}
+
+	tui.Update(tea.KeyMsg{Type: tea.KeyEnd})
+	if tui.helpScroll == 0 {
+		t.Fatal("overflowing help content did not scroll")
+	}
+	if view := tui.View(); !strings.Contains(view, protocols[len(protocols)-1]) {
+		t.Fatalf("last supported protocol remains unreachable after scrolling: %q", view)
+	}
+
+	tui.Update(tea.KeyMsg{Type: tea.KeyHome})
+	if tui.helpScroll != 0 {
+		t.Fatalf("home did not return to the first help row: %d", tui.helpScroll)
+	}
+}
+
+func TestAssetTUIHelpDescriptionsWrapWithoutTruncation(t *testing.T) {
+	tui := assetTUI{handler: &InteractiveHandler{i18nLang: "zh-CN"}}
+	rows := tui.helpShortcutRows()
+	width := 40
+	_, descriptionWidth := helpDialogColumnWidths(rows, width)
+	wrapped := wrappedHelpDialogRows(rows, width)
+	want := tui.mouseModeHelpDescription()
+	got := ""
+	found := false
+	continuation := false
+	for _, row := range wrapped {
+		if row.separator {
+			if found {
+				break
+			}
+			continue
+		}
+		if row.key == "v" {
+			found = true
+		} else if found && row.key != "" {
+			break
+		}
+		if !found {
+			continue
+		}
+		if runewidth.StringWidth(row.description) > descriptionWidth {
+			t.Fatalf("wrapped description exceeds its column: %q", row.description)
+		}
+		if row.key == "" {
+			continuation = true
+		}
+		got += row.description
+	}
+	if !found || !continuation || got != want {
+		t.Fatalf("mouse help was not completely wrapped: found=%t continuation=%t got=%q want=%q",
+			found, continuation, got, want)
+	}
+}
+
 func TestAssetTUILanguageDialogMouse(t *testing.T) {
 	handler := &InteractiveHandler{i18nLang: "en"}
 	tui := assetTUI{handler: handler, width: 80, height: 24}

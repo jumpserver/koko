@@ -94,6 +94,8 @@ type assetTUIHelpRow struct {
 	key         string
 	description string
 	separator   bool
+	fullWidth   string
+	divider     bool
 }
 
 type assetTUIConnection struct {
@@ -1125,16 +1127,56 @@ func (m *assetTUI) helpDialogGeometry(rows []assetTUIHelpRow) assetTUIDialogGeom
 		width = maxWidth
 	}
 	protocolLines := m.helpProtocolLines(max(0, width-6))
+	maxHeight := max(1, m.height-1)
+	if m.helpDialogUsesUnifiedScroll(protocolLines) {
+		displayRows := wrappedHelpDialogRows(rows, width)
+		displayRows = appendHelpProtocolRows(displayRows, protocolLines)
+		height := min(len(displayRows)+6, maxHeight)
+		return assetTUIDialogGeometry{
+			x: max(0, m.width-width-1), y: max(0, m.height-height-1),
+			width: width, height: height, rows: max(0, height-6),
+		}
+	}
 	protocolRows := 0
 	if len(protocolLines) > 0 {
 		protocolRows = len(protocolLines) + 1
 	}
-	displayRows := helpDialogRows(rows)
-	height := min(len(displayRows)+6+protocolRows, max(1, m.height-1))
+	displayRows := wrappedHelpDialogRows(rows, width)
+	height := min(len(displayRows)+6+protocolRows, maxHeight)
 	return assetTUIDialogGeometry{
 		x: max(0, m.width-width-1), y: max(0, m.height-height-1),
 		width: width, height: height, rows: max(0, height-6-protocolRows),
 	}
+}
+
+func (m *assetTUI) helpDialogUsesUnifiedScroll(protocolLines []string) bool {
+	if len(protocolLines) == 0 {
+		return false
+	}
+	// Keep at least one shortcut row visible when protocols fit. On shorter
+	// terminals, scroll the whole body so no protocol line is discarded.
+	return len(protocolLines)+1 > max(0, max(1, m.height-1)-7)
+}
+
+func appendHelpProtocolRows(rows []assetTUIHelpRow, protocolLines []string) []assetTUIHelpRow {
+	if len(protocolLines) == 0 {
+		return rows
+	}
+	rows = append(rows, assetTUIHelpRow{divider: true})
+	for _, line := range protocolLines {
+		rows = append(rows, assetTUIHelpRow{fullWidth: line})
+	}
+	return rows
+}
+
+func (m *assetTUI) helpDialogScrollableRows(rows []assetTUIHelpRow,
+	geometry assetTUIDialogGeometry) []assetTUIHelpRow {
+	displayRows := wrappedHelpDialogRows(rows, geometry.width)
+	protocolLines := m.helpProtocolLines(max(0, geometry.width-6))
+	if m.helpDialogUsesUnifiedScroll(protocolLines) {
+		displayRows = appendHelpProtocolRows(displayRows, protocolLines)
+	}
+	return displayRows
 }
 
 func helpDialogRows(rows []assetTUIHelpRow) []assetTUIHelpRow {
@@ -1148,9 +1190,42 @@ func helpDialogRows(rows []assetTUIHelpRow) []assetTUIHelpRow {
 	return displayRows
 }
 
+func helpDialogColumnWidths(rows []assetTUIHelpRow, width int) (int, int) {
+	keyWidth := 0
+	for _, row := range rows {
+		keyWidth = max(keyWidth, runewidth.StringWidth(row.key))
+	}
+	keyWidth = min(keyWidth, max(1, width/3))
+	return keyWidth, max(1, width-keyWidth-8)
+}
+
+func wrappedHelpDialogRows(rows []assetTUIHelpRow, width int) []assetTUIHelpRow {
+	_, descriptionWidth := helpDialogColumnWidths(rows, width)
+	displayRows := make([]assetTUIHelpRow, 0, max(0, len(rows)*2-1))
+	for rowIndex, row := range rows {
+		lines := strings.Split(runewidth.Wrap(row.description, descriptionWidth), "\n")
+		if len(lines) == 0 {
+			lines = []string{""}
+		}
+		for lineIndex, line := range lines {
+			key := ""
+			if lineIndex == 0 {
+				key = row.key
+			}
+			displayRows = append(displayRows, assetTUIHelpRow{key: key, description: line})
+		}
+		if rowIndex+1 < len(rows) {
+			displayRows = append(displayRows, assetTUIHelpRow{separator: true})
+		}
+	}
+	return displayRows
+}
+
 func (m *assetTUI) updateHelpDialogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	rows := helpDialogRows(m.helpShortcutRows())
-	visible := max(1, m.helpDialogGeometry(m.helpShortcutRows()).rows)
+	shortcutRows := m.helpShortcutRows()
+	geometry := m.helpDialogGeometry(shortcutRows)
+	rows := m.helpDialogScrollableRows(shortcutRows, geometry)
+	visible := max(1, geometry.rows)
 	maxScroll := max(0, len(rows)-visible)
 	switch msg.Type {
 	case tea.KeyEsc:
@@ -1178,8 +1253,9 @@ func (m *assetTUI) updateHelpDialogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *assetTUI) updateHelpDialogMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) {
-	rows := helpDialogRows(m.helpShortcutRows())
-	geometry := m.helpDialogGeometry(m.helpShortcutRows())
+	shortcutRows := m.helpShortcutRows()
+	geometry := m.helpDialogGeometry(shortcutRows)
+	rows := m.helpDialogScrollableRows(shortcutRows, geometry)
 	listY := geometry.y + 3
 	if m.helpDragging {
 		if event.Action == tea.MouseActionRelease {
@@ -1353,49 +1429,46 @@ func (m *assetTUI) renderHelpDialog(lines []string) {
 	lang := i18n.NewLang(m.handler.i18nLang)
 	popup[1] = "│" + tuiCenter(lang.T("View help"), geometry.width-2) + "│"
 	popup[2] = "├" + strings.Repeat("─", geometry.width-2) + "┤"
-	displayRows := helpDialogRows(rows)
+	protocolLines := m.helpProtocolLines(max(0, geometry.width-6))
+	unifiedScroll := m.helpDialogUsesUnifiedScroll(protocolLines)
+	displayRows := m.helpDialogScrollableRows(rows, geometry)
 	m.helpScroll = max(0, min(m.helpScroll, max(0, len(displayRows)-geometry.rows)))
-	keyWidth := 0
-	for _, row := range rows {
-		keyWidth = max(keyWidth, runewidth.StringWidth(row.key))
-	}
-	keyWidth = min(keyWidth, max(1, geometry.width/3))
-	descriptionWidth := max(0, geometry.width-keyWidth-8)
+	keyWidth, descriptionWidth := helpDialogColumnWidths(rows, geometry.width)
 	showScrollbar := len(displayRows) > geometry.rows
 	for index := 0; index < geometry.rows; index++ {
-		key, description := "", ""
-		separator := false
+		row := assetTUIHelpRow{}
 		if position := m.helpScroll + index; position < len(displayRows) {
-			key, description = displayRows[position].key, displayRows[position].description
-			separator = displayRows[position].separator
+			row = displayRows[position]
 		}
 		scrollbar := " "
 		if showScrollbar {
 			scrollbar = tuiScrollbarCell(index, m.helpScroll, len(displayRows), geometry.rows)
 		}
-		if separator {
+		if row.divider {
+			popup[index+3] = "├" + strings.Repeat("─", geometry.width-2) + "┤"
+			continue
+		}
+		if row.fullWidth != "" {
+			popup[index+3] = "│  " + tuiFit(row.fullWidth, geometry.width-6) + " " + scrollbar + "│"
+			continue
+		}
+		if row.separator {
 			popup[index+3] = "│  " + strings.Repeat(" ", keyWidth) + " │ " +
 				strings.Repeat(" ", descriptionWidth) + scrollbar + "│"
 			continue
 		}
-		if key == "" && description == "" {
+		if row.key == "" && row.description == "" {
 			popup[index+3] = "│" + strings.Repeat(" ", geometry.width-3) + scrollbar + "│"
 			continue
 		}
-		popup[index+3] = "│  " + tuiFit(key, keyWidth) + " │ " +
-			tuiFit(description, descriptionWidth) + scrollbar + "│"
+		popup[index+3] = "│  " + tuiFit(row.key, keyWidth) + " │ " +
+			tuiFit(row.description, descriptionWidth) + scrollbar + "│"
 	}
-	protocolWidth := max(0, geometry.width-6)
-	protocolLines := m.helpProtocolLines(protocolWidth)
 	protocolStart := geometry.rows + 3
-	availableProtocolRows := max(0, geometry.height-protocolStart-4)
-	if len(protocolLines) > availableProtocolRows {
-		protocolLines = protocolLines[:availableProtocolRows]
-	}
-	if len(protocolLines) > 0 {
+	if !unifiedScroll && len(protocolLines) > 0 {
 		popup[protocolStart] = "├" + strings.Repeat("─", geometry.width-2) + "┤"
 		for index, line := range protocolLines {
-			popup[protocolStart+index+1] = "│  " + tuiFit(line, protocolWidth) + "  │"
+			popup[protocolStart+index+1] = "│  " + tuiFit(line, geometry.width-6) + "  │"
 		}
 	}
 	popup[geometry.height-3] = "├" + strings.Repeat("─", geometry.width-2) + "┤"

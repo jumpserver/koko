@@ -906,8 +906,9 @@ func (m *assetTUIMultiSessionManager) closeHelp() {
 
 func (m *assetTUIMultiSessionManager) scrollHelp(delta int) {
 	m.outputMu.Lock()
-	rows := helpDialogRows(assetTUIMultiHelpRows(m.handler.tr))
 	m.mu.Lock()
+	popupWidth := max(1, min(m.width-1, 64))
+	rows := wrappedHelpDialogRows(assetTUIMultiHelpRows(m.handler.tr), popupWidth)
 	visible := assetTUIMultiHelpVisibleRows(m.height, len(rows))
 	m.helpScroll = max(0, min(max(0, len(rows)-visible), m.helpScroll+delta))
 	m.mu.Unlock()
@@ -2171,14 +2172,9 @@ func (m *assetTUIMultiSessionManager) renderHelpLocked() {
 	}
 	lang := m.handler.tr
 	rows := assetTUIMultiHelpRows(lang)
-	displayRows := helpDialogRows(rows)
 	popupWidth := min(width-1, 64)
-	keyWidth := 0
-	for _, row := range rows {
-		keyWidth = max(keyWidth, runewidth.StringWidth(row.key))
-	}
-	keyWidth = min(keyWidth, max(1, popupWidth/3))
-	descriptionWidth := max(0, popupWidth-keyWidth-8)
+	displayRows := wrappedHelpDialogRows(rows, popupWidth)
+	keyWidth, descriptionWidth := helpDialogColumnWidths(rows, popupWidth)
 	contentTop, contentBottom := assetTUIMultiContentBounds(height)
 	bottom := contentBottom - 1
 	visibleRows := assetTUIMultiHelpVisibleRows(height, len(displayRows))
