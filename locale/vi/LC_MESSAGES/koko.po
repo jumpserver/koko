@@ -940,6 +940,21 @@ msgstr "Chọn"
 msgid "Text mode"
 msgstr "Chế độ văn bản"
 
+msgid "Interaction mode (mouse)"
+msgstr "Chế độ tương tác (chuột)"
+
+msgid "Selection mode (mouse)"
+msgstr "Chế độ chọn (chuột)"
+
+msgid "Switch to interaction mode and let Koko handle mouse events"
+msgstr "Chuyển sang chế độ tương tác và để Koko xử lý sự kiện chuột"
+
+msgid "Switch to selection mode and let the local terminal handle the mouse for text selection"
+msgstr "Chuyển sang chế độ chọn và để thiết bị đầu cuối cục bộ xử lý chuột khi chọn văn bản"
+
+msgid "Failed to save mouse mode"
+msgstr "Không thể lưu chế độ chuột"
+
 msgid "Asset tree"
 msgstr "Cây tài sản"
 

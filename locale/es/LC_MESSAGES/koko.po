@@ -971,6 +971,21 @@ msgstr "Seleccionar"
 msgid "Text mode"
 msgstr "Modo texto"
 
+msgid "Interaction mode (mouse)"
+msgstr "Modo interactivo (ratón)"
+
+msgid "Selection mode (mouse)"
+msgstr "Modo de selección (ratón)"
+
+msgid "Switch to interaction mode and let Koko handle mouse events"
+msgstr "Cambiar al modo interactivo y permitir que Koko gestione los eventos del ratón"
+
+msgid "Switch to selection mode and let the local terminal handle the mouse for text selection"
+msgstr "Cambiar al modo de selección y permitir que el terminal local gestione el ratón para seleccionar texto"
+
+msgid "Failed to save mouse mode"
+msgstr "No se pudo guardar el modo del ratón"
+
 msgid "Asset tree"
 msgstr "Árbol de activos"
 

@@ -971,6 +971,21 @@ msgstr "Выбрать"
 msgid "Text mode"
 msgstr "Текстовый режим"
 
+msgid "Interaction mode (mouse)"
+msgstr "Интерактивный режим (мышь)"
+
+msgid "Selection mode (mouse)"
+msgstr "Режим выделения (мышь)"
+
+msgid "Switch to interaction mode and let Koko handle mouse events"
+msgstr "Переключиться в интерактивный режим и передать обработку событий мыши Koko"
+
+msgid "Switch to selection mode and let the local terminal handle the mouse for text selection"
+msgstr "Переключиться в режим выделения и передать мышь локальному терминалу для выделения текста"
+
+msgid "Failed to save mouse mode"
+msgstr "Не удалось сохранить режим мыши"
+
 msgid "Asset tree"
 msgstr "Дерево активов"
 

@@ -210,7 +210,11 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 		}
 
 		logger.Infof("User %s request pty %s", sess.User(), pty.Term)
-		s.runTerminalModes(sess, user, termConf, winChan)
+		preferenceToken := ""
+		if client, ok4 := sess.Context().Value(auth.ContextKeyClient).(*auth.UserAuthClient); ok4 {
+			preferenceToken = client.BearerToken()
+		}
+		s.runTerminalModes(sess, user, termConf, winChan, preferenceToken)
 		utils.IgnoreErrWriteWindowTitle(sess, termConf.HeaderTitle)
 		return
 	}

@@ -36,6 +36,7 @@ func newInteractiveHandler(sess *WrapperSession, user *model.User, jmsService *s
 		sess: sess, user: user, jmsService: api,
 		terminalConf: &termConfig, i18nLang: language,
 		publicSetting: &publicSetting, coreVersion: coreVersion,
+		interfaceMode: terminalInterfaceModeTUI, mouseMode: terminalMouseModeKoko,
 	}
 	handler.term = term.NewTerminal(handler.sess, "Opt> ")
 	if initialize {
@@ -80,6 +81,9 @@ type InteractiveHandler struct {
 	exitRequested     bool
 	classicNavigation bool
 	switchTUI         bool
+	preferenceToken   string
+	interfaceMode     terminalInterfaceMode
+	mouseMode         terminalMouseMode
 }
 
 func (h *InteractiveHandler) Initial() {

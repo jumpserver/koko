@@ -79,22 +79,60 @@ func TestAssetTUICursorWriterResetsViewportOnAlternateScreen(t *testing.T) {
 }
 
 func TestAssetTUISearchLineDefaultLabel(t *testing.T) {
-	model := assetTUI{handler: &InteractiveHandler{i18nLang: "zh-CN"}, width: 40}
-	if line := strings.TrimSpace(model.searchLine()); line != "我的资产" {
+	model := assetTUI{handler: &InteractiveHandler{i18nLang: "zh-CN"}, width: 80}
+	label := "我的资产"
+	if line := strings.TrimSpace(model.searchLine()); line != label {
 		t.Fatalf("unexpected default search label: %q", line)
 	}
 	model.searching = true
 	model.searchInput = []rune("主机")
-	if line := strings.TrimSpace(model.searchLine()); line != "我的资产 · 搜索:主机" {
+	if line := strings.TrimSpace(model.searchLine()); line != label+" · 搜索:主机" {
 		t.Fatalf("unexpected localized search prompt: %q", line)
 	}
 	model.searching = false
 	model.query = "主机"
-	if line := strings.TrimSpace(model.searchLine()); line != "我的资产 · 搜索:主机" {
+	if line := strings.TrimSpace(model.searchLine()); line != label+" · 搜索:主机" {
 		t.Fatalf("submitted search changed the localized search prompt: %q", line)
 	}
 	if line, _ := tuiSearchField("账号", "搜索", []rune("root"), 40); strings.TrimSpace(line) != "账号 · 搜索:root" {
 		t.Fatalf("unexpected account search prompt: %q", line)
+	}
+}
+
+func TestTerminalWindowSupportsTUI(t *testing.T) {
+	for _, test := range []struct {
+		width, height int
+		want          bool
+	}{
+		{width: 80, height: 24, want: true},
+		{width: 79, height: 24, want: false},
+		{width: 80, height: 23, want: false},
+		{width: 0, height: 0, want: true},
+	} {
+		if got := terminalWindowSupportsTUI(test.width, test.height); got != test.want {
+			t.Fatalf("terminalWindowSupportsTUI(%d, %d) = %v, want %v",
+				test.width, test.height, got, test.want)
+		}
+	}
+}
+
+func TestAssetTUITogglesMouseMode(t *testing.T) {
+	handler := &InteractiveHandler{i18nLang: "en", mouseMode: terminalMouseModeKoko}
+	tui := assetTUI{handler: handler}
+	if _, cmd := tui.toggleMouseMode(); cmd == nil || handler.mouseMode != terminalMouseModeClient {
+		t.Fatalf("mouse mode did not switch to local selection: mode=%q cmd=%v", handler.mouseMode, cmd)
+	}
+	if shortcut := tui.mouseModeShortcut(); shortcut != "v:Interaction mode (mouse)" {
+		t.Fatalf("unexpected local selection shortcut: %q", shortcut)
+	}
+	if help := tui.mouseModeHelpDescription(); help != "Switch to interaction mode and let Koko handle mouse events" {
+		t.Fatalf("unexpected local selection help: %q", help)
+	}
+	if _, cmd := tui.toggleMouseMode(); cmd == nil || handler.mouseMode != terminalMouseModeKoko {
+		t.Fatalf("mouse mode did not switch back to Koko: mode=%q cmd=%v", handler.mouseMode, cmd)
+	}
+	if shortcut := tui.mouseModeShortcut(); shortcut != "v:Selection mode (mouse)" {
+		t.Fatalf("unexpected Koko mouse shortcut: %q", shortcut)
 	}
 }
 
@@ -731,7 +769,7 @@ func TestAssetTUITreeCacheAndScopeLabel(t *testing.T) {
 	tui.multiSessionCount = 9
 	tui.width = 500
 	footer := tui.footerLine()
-	for _, shortcut := range []string{"/:Search", "x:Clear search", "enter:Connect", "c:Direct connect", "w:Sessions(9/9)", "space:Details", "g:Asset tree", "d:Clear node", "t:Text mode", "q:Quit", "?:View help"} {
+	for _, shortcut := range []string{"/:Search", "x:Clear search", "enter:Connect", "c:Direct connect", "w:Sessions(9/9)", "space:Details", "g:Asset tree", "d:Clear node", "v:Selection mode (mouse)", "t:Text mode", "q:Quit", "?:View help"} {
 		if !strings.Contains(footer, shortcut) {
 			t.Fatalf("asset footer is missing common shortcut %q: %q", shortcut, footer)
 		}
@@ -1214,11 +1252,14 @@ func TestAssetTUIMultiSessionShortcutMode(t *testing.T) {
 	if assetTUIMultiSessionCursorVisible(false, 1) {
 		t.Fatal("scrollback view left the session cursor visible")
 	}
-	if mode := assetTUIMultiMouseTracking(false); mode != assetTUIMouseDisable {
+	if mode := assetTUIMultiMouseTracking(false, true); mode != assetTUIMouseDisable {
 		t.Fatalf("focused session did not release terminal mouse control: %q", mode)
 	}
-	if mode := assetTUIMultiMouseTracking(true); mode != assetTUIMouseEnable {
+	if mode := assetTUIMultiMouseTracking(true, true); mode != assetTUIMouseEnable {
 		t.Fatalf("shortcut mode did not capture terminal mouse control: %q", mode)
+	}
+	if mode := assetTUIMultiMouseTracking(true, false); mode != assetTUIMouseDisable {
+		t.Fatalf("local selection mode did not keep mouse control in the terminal: %q", mode)
 	}
 
 	manager := &assetTUIMultiSessionManager{commandMode: true}

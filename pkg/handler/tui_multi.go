@@ -1730,7 +1730,7 @@ func (m *assetTUIMultiSessionManager) renderCurrentLocked() {
 		mode += assetTUIMultiScrollRegion(height, commandMode) + "\x1b[?6h"
 	}
 	_, _ = io.WriteString(m.physical,
-		assetTUIMultiMouseTracking(commandMode)+"\x1b[?6l\x1b[r"+utils.CharClear+mode)
+		m.mouseTracking(commandMode)+"\x1b[?6l\x1b[r"+utils.CharClear+mode)
 	for index := range visibleRows {
 		_, _ = fmt.Fprintf(m.physical, "\x1b[%d;1H%s", index+1, tuiANSIFit(visibleRows[index], width))
 	}
@@ -1867,11 +1867,17 @@ func assetTUIMultiSessionCursorVisible(commandMode bool, scrollOffset int) bool 
 	return !commandMode && scrollOffset == 0
 }
 
-func assetTUIMultiMouseTracking(commandMode bool) string {
-	if commandMode {
+func assetTUIMultiMouseTracking(commandMode, kokoControlsMouse bool) string {
+	if commandMode && kokoControlsMouse {
 		return assetTUIMouseEnable
 	}
 	return assetTUIMouseDisable
+}
+
+func (m *assetTUIMultiSessionManager) mouseTracking(commandMode bool) string {
+	return assetTUIMultiMouseTracking(
+		commandMode, m.handler.mouseMode == terminalMouseModeKoko,
+	)
 }
 
 func (m *assetTUIMultiSessionManager) renderChromeLocked(preserveCursor bool) {
@@ -1907,7 +1913,7 @@ func (m *assetTUIMultiSessionManager) renderChromeLocked(preserveCursor bool) {
 	}
 	_, _ = io.WriteString(m.physical, "\x1b[?6l")
 	_, _ = io.WriteString(m.physical, assetTUIMultiScrollRegion(height, commandMode))
-	_, _ = io.WriteString(m.physical, assetTUIMultiMouseTracking(commandMode))
+	_, _ = io.WriteString(m.physical, m.mouseTracking(commandMode))
 	if commandMode && height >= 3 {
 		_, _ = fmt.Fprintf(m.physical, "\x1b[%d;1H\x1b[2K", height-2)
 	}

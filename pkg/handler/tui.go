@@ -70,6 +70,10 @@ type assetUnavailableMsg struct {
 	message string
 }
 
+type assetTUIPreferenceSavedMsg struct {
+	err error
+}
+
 type assetTUIDialog struct {
 	asset             model.PermAsset
 	accounts          []model.PermAccount
@@ -125,6 +129,7 @@ type assetTUI struct {
 	loadingChoices     bool
 	status             string
 	switchText         bool
+	persistTextMode    bool
 	resume             bool
 	dialog             *assetTUIDialog
 	languageDialog     *assetTUILanguageDialog
@@ -243,6 +248,12 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case assetUnavailableMsg:
 		m.loadingChoices = false
 		return m, m.showStatus(msg.message)
+	case assetTUIPreferenceSavedMsg:
+		if msg.err != nil {
+			return m, m.showStatus(userFacingErrorMessage(
+				m.tr("保存鼠标模式失败", "Failed to save mouse mode"), msg.err,
+			))
+		}
 	case assetTUITreeNodesMsg:
 		return m, m.updateTreeNodes(msg)
 	case assetTUITreeCountsMsg:
@@ -297,8 +308,11 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if !m.loadingChoices {
 						m.openLanguageDialog()
 					}
+				case 'v', 'V':
+					return m.toggleMouseMode()
 				case 't', 'T':
 					m.switchText = true
+					m.persistTextMode = true
 					return m, tea.Quit
 				case 'q', 'Q':
 					m.quitDialog = true
@@ -357,6 +371,8 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.refreshPage()
 			case 's', 'S':
 				m.openLanguageDialog()
+			case 'v', 'V':
+				return m.toggleMouseMode()
 			case 'g', 'G':
 				return m.reopenTreeDialog()
 			case 'c', 'C':
@@ -379,6 +395,7 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case 't', 'T':
 				m.switchText = true
+				m.persistTextMode = true
 				return m, tea.Quit
 			case 'q', 'Q':
 				m.quitDialog = true
@@ -387,6 +404,24 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+func (m *assetTUI) toggleMouseMode() (tea.Model, tea.Cmd) {
+	mouseCmd := tea.Cmd(tea.DisableMouse)
+	if m.handler.mouseMode == terminalMouseModeClient {
+		m.handler.mouseMode = terminalMouseModeKoko
+		mouseCmd = tea.EnableMouseCellMotion
+	} else {
+		m.handler.mouseMode = terminalMouseModeClient
+	}
+	interfaceMode := m.handler.interfaceMode
+	mouseMode := m.handler.mouseMode
+	saveCmd := func() tea.Msg {
+		return assetTUIPreferenceSavedMsg{
+			err: m.handler.saveTerminalPreference(interfaceMode, mouseMode),
+		}
+	}
+	return m, tea.Batch(mouseCmd, saveCmd)
 }
 
 func (m *assetTUI) moveAssetCursor(delta int) {
@@ -1422,6 +1457,7 @@ func (m *assetTUI) helpShortcutRows() []assetTUIHelpRow {
 			rows = append(rows, row("g", "Open the asset tree"), row("s", "Switch the interface language"))
 		}
 		return append(rows,
+			assetTUIHelpRow{key: "v", description: m.mouseModeHelpDescription()},
 			row("t", "Switch to text mode"), row("ctrl+c, q", "Quit"),
 			row("?", "Open shortcut help"),
 		)
@@ -1446,7 +1482,9 @@ func (m *assetTUI) helpShortcutRows() []assetTUIHelpRow {
 		rows = append(rows, row("d", "Clear the selected tree node"))
 	}
 	return append(rows,
-		row("s", "Switch the interface language"), row("t", "Switch to text mode"),
+		row("s", "Switch the interface language"),
+		assetTUIHelpRow{key: "v", description: m.mouseModeHelpDescription()},
+		row("t", "Switch to text mode"),
 		row("ctrl+c, q", "Quit"),
 		row("?", "Open shortcut help"),
 	)
@@ -1827,6 +1865,26 @@ func (m *assetTUI) searchLabel() string {
 	return label + " · " + title + ":" + m.selectedPath
 }
 
+func (m *assetTUI) mouseModeShortcut() string {
+	if m.handler.mouseMode == terminalMouseModeClient {
+		return "v:" + m.tr("交互模式(鼠标)", "Interaction mode (mouse)")
+	}
+	return "v:" + m.tr("选择模式(鼠标)", "Selection mode (mouse)")
+}
+
+func (m *assetTUI) mouseModeHelpDescription() string {
+	if m.handler.mouseMode == terminalMouseModeClient {
+		return m.tr(
+			"切换到交互模式，由 Koko 接管鼠标事件",
+			"Switch to interaction mode and let Koko handle mouse events",
+		)
+	}
+	return m.tr(
+		"切换到选择模式，由本地终端接管鼠标以选择文本",
+		"Switch to selection mode and let the local terminal handle the mouse for text selection",
+	)
+}
+
 func tuiSearchField(label, search string, input []rune, width int) (string, int) {
 	if width <= 0 {
 		return "", 0
@@ -1901,7 +1959,7 @@ func (m *assetTUI) footerLine() string {
 	if m.selectedTree != 0 {
 		items = append(items, "d:"+lang.T("Clear node"))
 	}
-	items = append(items, "t:"+lang.T("Text mode"), "q:"+lang.T("Quit"))
+	items = append(items, m.mouseModeShortcut(), "t:"+lang.T("Text mode"), "q:"+lang.T("Quit"))
 	return tuiShortcutLine(m.width, items, "?:"+lang.T("View help"))
 }
 
@@ -2021,9 +2079,11 @@ func tuiRightAlign(value string, width int) string {
 }
 
 func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf model.TerminalConfig,
-	winChan <-chan ssh.Window) {
+	winChan <-chan ssh.Window, preferenceToken string) {
 	input := NewWrapperSession(sess)
 	handler := newInteractiveHandler(input, user, s.jmsService, termConf, false)
+	handler.preferenceToken = preferenceToken
+	handler.loadTerminalPreference()
 	handler.initializeAssetSelector()
 	handler.selectHandler.SetSelectType(TypeAsset)
 	multiSessions := newAssetTUIMultiSessionManager(handler, input)
@@ -2049,18 +2109,32 @@ func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf m
 	}()
 
 	model := newAssetTUI(handler)
+	window := input.Pty().Window
+	if !terminalWindowSupportsTUI(window.Width, window.Height) ||
+		handler.interfaceMode == terminalInterfaceModeText {
+		model.switchText = true
+	}
 	classicStarted := false
 	for {
 		model.multiSessionCount = multiSessions.Count()
 		model.unfinishedSessions = multiSessions.UnfinishedCount()
-		err := runAssetTUI(handler, model)
-		_ = input.Close()
-		if err != nil {
-			logger.Errorf("TUI session %s: %s", sess.User(), err)
-			utils.IgnoreErrWriteString(sess, handler.tr("TUI 不可用，已切换到纯文本模式。", "TUI is unavailable; switched to text mode.")+utils.CharNewLine)
-			model.switchText = true
+		if !model.switchText {
+			err := runAssetTUI(handler, model)
+			_ = input.Close()
+			if err != nil {
+				logger.Errorf("TUI session %s: %s", sess.User(), err)
+				utils.IgnoreErrWriteString(sess, handler.tr("TUI 不可用，已切换到纯文本模式。", "TUI is unavailable; switched to text mode.")+utils.CharNewLine)
+				model.switchText = true
+			}
 		}
 		if model.switchText {
+			if model.persistTextMode {
+				handler.interfaceMode = terminalInterfaceModeText
+				if err := handler.saveTerminalPreference(handler.interfaceMode, handler.mouseMode); err != nil {
+					logger.Warnf("Save user terminal interface mode failed: %s", err)
+				}
+				model.persistTextMode = false
+			}
 			handler.displayHelp()
 			if !classicStarted {
 				handler.firstLoadData()
@@ -2069,6 +2143,10 @@ func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf m
 			handler.Dispatch()
 			if !handler.switchTUI {
 				return
+			}
+			handler.interfaceMode = terminalInterfaceModeTUI
+			if err := handler.saveTerminalPreference(handler.interfaceMode, handler.mouseMode); err != nil {
+				logger.Warnf("Save user terminal interface mode failed: %s", err)
 			}
 			handler.classicNavigation = false
 			handler.treeOrigin = 0
@@ -2177,14 +2255,17 @@ func runAssetTUI(handler *InteractiveHandler, model *assetTUI) error {
 	model.width, model.height = width, height
 
 	output := &assetTUICursorWriter{output: handler.sess}
-	program := tea.NewProgram(model,
+	options := []tea.ProgramOption{
 		tea.WithInput(handler.sess),
 		tea.WithOutput(output),
 		tea.WithAltScreen(),
 		tea.WithContext(handler.sess.Context()),
 		tea.WithoutSignalHandler(),
-		tea.WithMouseCellMotion(),
-	)
+	}
+	if handler.mouseMode == terminalMouseModeKoko {
+		options = append(options, tea.WithMouseCellMotion())
+	}
+	program := tea.NewProgram(model, options...)
 	resizeDone := make(chan struct{})
 	defer close(resizeDone)
 	go func() {

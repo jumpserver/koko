@@ -971,6 +971,21 @@ msgstr "選択"
 msgid "Text mode"
 msgstr "テキストモード"
 
+msgid "Interaction mode (mouse)"
+msgstr "操作モード（マウス）"
+
+msgid "Selection mode (mouse)"
+msgstr "選択モード（マウス）"
+
+msgid "Switch to interaction mode and let Koko handle mouse events"
+msgstr "操作モードに切り替え、Koko がマウスイベントを処理します"
+
+msgid "Switch to selection mode and let the local terminal handle the mouse for text selection"
+msgstr "選択モードに切り替え、テキスト選択のためにローカル端末へマウス制御を渡します"
+
+msgid "Failed to save mouse mode"
+msgstr "マウスモードを保存できませんでした"
+
 msgid "Asset tree"
 msgstr "アセットツリー"
 
