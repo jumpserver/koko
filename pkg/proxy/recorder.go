@@ -52,6 +52,15 @@ func (c *CommandRecorder) record() {
 	for {
 		select {
 		case <-c.closed:
+			// End may race with the worker receiving the final queued commands.
+			// Drain them before deciding that the recording is complete.
+			for len(c.queue) > 0 {
+				command := <-c.queue
+				cmdList = append(cmdList, command)
+				if command.RiskLevel >= model.WarningLevel && command.RiskLevel < model.ReviewAccept {
+					notificationList = append(notificationList, command)
+				}
+			}
 			if len(cmdList) == 0 {
 				return
 			}
@@ -159,7 +168,7 @@ func NewReplayRecord(sid string, jmsService *service.JMService,
 	options = append(options, asciinema.WithHeight(info.Height))
 	options = append(options, asciinema.WithWidth(info.Width))
 	options = append(options, asciinema.WithTimestamp(info.TimeStamp))
-	recorder.Writer = asciinema.NewWriter(recorder.file, options...)
+	recorder.Writer = asciinema.NewWriter(newReplayWriter(recorder.file, sid), options...)
 	return recorder, nil
 }
 

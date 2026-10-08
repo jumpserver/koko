@@ -1124,7 +1124,7 @@ func (m *assetTUI) helpDialogGeometry(rows []assetTUIHelpRow) assetTUIDialogGeom
 	if m.showHelpProtocols() {
 		width = maxWidth
 	}
-	protocolLines := m.helpProtocolLines(max(0, width-4))
+	protocolLines := m.helpProtocolLines(max(0, width-6))
 	protocolRows := 0
 	if len(protocolLines) > 0 {
 		protocolRows = len(protocolLines) + 1

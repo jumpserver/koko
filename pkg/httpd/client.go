@@ -307,10 +307,14 @@ func (c *Client) WriteAgentToolData(p []byte) error {
 	return err
 }
 
-func (c *Client) setInputLock(cancel context.CancelFunc) {
+func (c *Client) setInputLock(cancel context.CancelFunc) bool {
 	c.inputMu.Lock()
+	defer c.inputMu.Unlock()
+	if cancel != nil && c.inputCancel != nil {
+		return false
+	}
 	c.inputCancel = cancel
-	c.inputMu.Unlock()
+	return true
 }
 
 func (c *Client) setTerminalObserver(observer *sessiontools.TerminalObserver) bool {

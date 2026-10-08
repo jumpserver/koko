@@ -119,6 +119,7 @@ type Parser struct {
 	agentToolGrant  func(string) (CommandACLDecision, bool)
 
 	disableInputAsCmd bool
+	winRMConnection   *srvconn.WinRMConnection
 }
 
 func (p *Parser) setCurrentCmdStatusLevel(level int64) {
@@ -813,6 +814,14 @@ func (p *Parser) ParseUserInput(b []byte) []byte {
 	if p.userInputFilter != nil {
 		b = p.userInputFilter(b)
 	}
+	if p.winRMConnection != nil {
+		if len(b) > 0 {
+			if _, err := p.winRMConnection.WriteInput(b, p.currentActiveUser.User); err != nil {
+				p.srvOutputChan <- []byte("\r\n" + err.Error() + "\r\n")
+			}
+		}
+		return nil
+	}
 	nb := p.parseInputState(b)
 	return nb
 }
@@ -1078,6 +1087,9 @@ func sanitizeZmodemAbortOutput(b []byte) []byte {
 
 // ParseServerOutput 解析服务器输出
 func (p *Parser) ParseServerOutput(b []byte) []byte {
+	if p.winRMConnection != nil {
+		return b
+	}
 	p.outputLock.Lock()
 	defer p.outputLock.Unlock()
 	return p.splitCmdStream(b)
