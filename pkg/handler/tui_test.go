@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -116,22 +117,135 @@ func TestTerminalWindowSupportsTUI(t *testing.T) {
 	}
 }
 
+func TestTerminalTextModePriority(t *testing.T) {
+	for _, test := range []struct {
+		name          string
+		width, height int
+		mode          terminalInterfaceMode
+		want          bool
+	}{
+		{name: "large TUI", width: 80, height: 24, mode: terminalInterfaceModeTUI},
+		{name: "large text", width: 80, height: 24, mode: terminalInterfaceModeText, want: true},
+		{name: "narrow TUI", width: 79, height: 24, mode: terminalInterfaceModeTUI, want: true},
+		{name: "short TUI", width: 80, height: 23, mode: terminalInterfaceModeTUI, want: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := terminalShouldUseTextMode(test.width, test.height, test.mode); got != test.want {
+				t.Fatalf("terminalShouldUseTextMode() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestTerminalPreferenceFile(t *testing.T) {
+	userID := t.Name()
+	store := newTerminalPreferenceStore(t.TempDir())
+	asset := model.PermAsset{ID: "asset-1", OrgID: "org-1"}
+
+	first := &InteractiveHandler{
+		user: &model.User{ID: userID}, i18nLang: "en", preferenceStore: store,
+	}
+	first.loadTerminalPreference()
+	if first.interfaceMode != terminalInterfaceModeTUI {
+		t.Fatalf("unexpected default interface mode: %q", first.interfaceMode)
+	}
+	first.mouseMode = terminalMouseModeClient
+	first.saveTerminalPreference(terminalInterfaceModeText)
+	first.saveTerminalLanguage("zh")
+	first.saveLastConnectionPreference(asset, model.PermAccount{
+		Alias: "account-1", Name: "Root", Username: "root", Secret: "must-not-be-cached",
+	}, "ssh")
+
+	next := &InteractiveHandler{
+		user: &model.User{ID: userID}, i18nLang: "en", preferenceStore: store,
+	}
+	next.loadTerminalPreference()
+	if next.interfaceMode != terminalInterfaceModeText {
+		t.Fatalf("cached interface mode was not restored: %q", next.interfaceMode)
+	}
+	if next.mouseMode != terminalMouseModeKoko {
+		t.Fatalf("mouse mode must not persist across logins: %q", next.mouseMode)
+	}
+	if next.i18nLang != "zh" {
+		t.Fatalf("cached language was not restored: %q", next.i18nLang)
+	}
+	recent := next.loadRecentConnectionPreferences(asset)
+	if len(recent) != 1 || recent[0].AccountAlias != "account-1" ||
+		recent[0].AccountName != "Root" || recent[0].AccountUsername != "root" ||
+		recent[0].Protocol != "ssh" {
+		t.Fatalf("recent connection preference was not restored: %#v", recent)
+	}
+	data, err := os.ReadFile(store.userFile(userID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "must-not-be-cached") {
+		t.Fatal("account secret must not be cached")
+	}
+	if info, err := os.Stat(store.userFile(userID)); err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("unexpected preference file permissions: info=%v err=%v", info, err)
+	}
+}
+
+func TestTerminalPreferenceKeepsFiveRecentConnectionsPerAsset(t *testing.T) {
+	store := newTerminalPreferenceStore(t.TempDir())
+	handler := &InteractiveHandler{
+		user: &model.User{ID: t.Name()}, preferenceStore: store,
+	}
+	asset := model.PermAsset{ID: "asset-1", OrgID: "org-1"}
+	otherAsset := model.PermAsset{ID: "asset-2", OrgID: "org-1"}
+	for index := 1; index <= 6; index++ {
+		handler.saveLastConnectionPreference(asset, model.PermAccount{
+			Alias: fmt.Sprintf("account-%d", index),
+		}, fmt.Sprintf("protocol-%d", index))
+	}
+	handler.saveLastConnectionPreference(otherAsset, model.PermAccount{Alias: "other"}, "ssh")
+
+	recent := handler.loadRecentConnectionPreferences(asset)
+	if len(recent) != terminalPreferenceRecentLimit {
+		t.Fatalf("recent connection count = %d, want %d", len(recent), terminalPreferenceRecentLimit)
+	}
+	if recent[0].AccountAlias != "account-6" || recent[4].AccountAlias != "account-2" {
+		t.Fatalf("unexpected recent connection order: %#v", recent)
+	}
+	otherRecent := handler.loadRecentConnectionPreferences(otherAsset)
+	if len(otherRecent) != 1 || otherRecent[0].AccountAlias != "other" {
+		t.Fatalf("other asset history was not isolated: %#v", otherRecent)
+	}
+}
+
+func TestTerminalPreferenceReadFailureUsesDefaults(t *testing.T) {
+	store := newTerminalPreferenceStore(t.TempDir())
+	userID := t.Name()
+	if err := os.WriteFile(store.userFile(userID), []byte("not-json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	handler := &InteractiveHandler{
+		user: &model.User{ID: userID}, i18nLang: "ja", preferenceStore: store,
+	}
+	handler.loadTerminalPreference()
+	if handler.interfaceMode != terminalInterfaceModeTUI || handler.i18nLang != "ja" {
+		t.Fatalf("read failure did not preserve defaults: mode=%q language=%q",
+			handler.interfaceMode, handler.i18nLang)
+	}
+}
+
 func TestAssetTUITogglesMouseMode(t *testing.T) {
 	handler := &InteractiveHandler{i18nLang: "en", mouseMode: terminalMouseModeKoko}
 	tui := assetTUI{handler: handler}
 	if _, cmd := tui.toggleMouseMode(); cmd == nil || handler.mouseMode != terminalMouseModeClient {
 		t.Fatalf("mouse mode did not switch to local selection: mode=%q cmd=%v", handler.mouseMode, cmd)
 	}
-	if shortcut := tui.mouseModeShortcut(); shortcut != "v:Interaction mode (mouse)" {
+	if shortcut := tui.mouseModeShortcut(); shortcut != "v:Interface control (mouse)" {
 		t.Fatalf("unexpected local selection shortcut: %q", shortcut)
 	}
-	if help := tui.mouseModeHelpDescription(); help != "Switch to interaction mode and let Koko handle mouse events" {
+	if help := tui.mouseModeHelpDescription(); help != "Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions" {
 		t.Fatalf("unexpected local selection help: %q", help)
 	}
 	if _, cmd := tui.toggleMouseMode(); cmd == nil || handler.mouseMode != terminalMouseModeKoko {
 		t.Fatalf("mouse mode did not switch back to Koko: mode=%q cmd=%v", handler.mouseMode, cmd)
 	}
-	if shortcut := tui.mouseModeShortcut(); shortcut != "v:Selection mode (mouse)" {
+	if shortcut := tui.mouseModeShortcut(); shortcut != "v:Text selection (mouse)" {
 		t.Fatalf("unexpected Koko mouse shortcut: %q", shortcut)
 	}
 }
@@ -195,12 +309,11 @@ func TestAssetTUITopLineShowsProductNameAndUserName(t *testing.T) {
 			i18nLang:      "en",
 			user:          &model.User{Name: "Alice", Username: "hidden-login"},
 			publicSetting: setting,
-			coreVersion:   "v4.10.0",
 		},
 		width: 80,
 	}
 	line := model.searchLine()
-	if !strings.HasSuffix(line, "Alice | JumpServer (v4.10.0)") {
+	if !strings.HasSuffix(line, "Alice | JumpServer") {
 		t.Fatalf("top-right product information is missing: %q", line)
 	}
 	if strings.Contains(line, "hidden-login") {
@@ -412,7 +525,10 @@ func TestAssetTUIPagingShortcutsUseOffsetAndTotal(t *testing.T) {
 }
 
 func TestAssetTUILanguageDialogKeyboard(t *testing.T) {
-	handler := &InteractiveHandler{i18nLang: "en"}
+	store := newTerminalPreferenceStore(t.TempDir())
+	handler := &InteractiveHandler{
+		user: &model.User{ID: t.Name()}, i18nLang: "en", preferenceStore: store,
+	}
 	tui := assetTUI{handler: handler, width: 200, height: 24}
 	if footer := tui.footerLine(); !strings.Contains(footer, "?:View help") {
 		t.Fatalf("help shortcut is missing from the footer: %q", footer)
@@ -425,6 +541,13 @@ func TestAssetTUILanguageDialogKeyboard(t *testing.T) {
 	tui.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if tui.languageDialog != nil || handler.i18nLang != "zh" {
 		t.Fatalf("language was not selected: dialog=%#v language=%q", tui.languageDialog, handler.i18nLang)
+	}
+	reloaded := &InteractiveHandler{
+		user: &model.User{ID: t.Name()}, i18nLang: "en", preferenceStore: store,
+	}
+	reloaded.loadTerminalPreference()
+	if reloaded.i18nLang != "zh" {
+		t.Fatalf("selected language was not persisted: %q", reloaded.i18nLang)
 	}
 
 	tui.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
@@ -769,7 +892,7 @@ func TestAssetTUITreeCacheAndScopeLabel(t *testing.T) {
 	tui.multiSessionCount = 9
 	tui.width = 500
 	footer := tui.footerLine()
-	for _, shortcut := range []string{"/:Search", "x:Clear search", "enter:Connect", "c:Direct connect", "w:Sessions(9/9)", "space:Details", "g:Asset tree", "d:Clear node", "v:Selection mode (mouse)", "t:Text mode", "q:Quit", "?:View help"} {
+	for _, shortcut := range []string{"/:Search", "x:Clear search", "enter:Connect", "c:Direct connect", "w:Sessions(9/9)", "space:Details", "g:Asset tree", "d:Clear node", "v:Text selection (mouse)", "t:Text mode", "q:Quit", "?:View help"} {
 		if !strings.Contains(footer, shortcut) {
 			t.Fatalf("asset footer is missing common shortcut %q: %q", shortcut, footer)
 		}
@@ -1055,8 +1178,8 @@ func TestAssetTUIDialogCreatesConnection(t *testing.T) {
 	if _, cmd := tui.updateDialogKey(tea.KeyMsg{Type: tea.KeyEnter}); cmd == nil || tui.connection == nil {
 		t.Fatal("dialog selection should create a TUI connection")
 	}
-	if !tui.hasLastConnection || tui.lastAccount.Alias != "account-1" || tui.lastProtocol != "ssh" {
-		t.Fatalf("dialog selection was not remembered: account=%#v protocol=%q", tui.lastAccount, tui.lastProtocol)
+	if tui.connection.account.Alias != "account-1" || tui.connection.protocol != "ssh" {
+		t.Fatalf("unexpected connection selection: %#v", tui.connection)
 	}
 }
 
@@ -1923,14 +2046,15 @@ func TestAssetTUIMultiUserConnectionBuffersAndClosesInput(t *testing.T) {
 }
 
 func TestAssetTUIConnectionChoicesPreferLastSelection(t *testing.T) {
-	tui := assetTUI{
-		lastAccount:       model.PermAccount{Alias: "account-2"},
-		lastProtocol:      "telnet",
-		hasLastConnection: true,
-	}
+	store := newTerminalPreferenceStore(t.TempDir())
+	handler := &InteractiveHandler{user: &model.User{ID: t.Name()}, preferenceStore: store}
+	asset := model.PermAsset{ID: "asset-1", OrgID: "org-1"}
+	handler.saveLastConnectionPreference(asset, model.PermAccount{Alias: "account-1"}, "ssh")
+	handler.saveLastConnectionPreference(asset, model.PermAccount{Alias: "account-2"}, "telnet")
+	tui := assetTUI{handler: handler}
 	accounts := []model.PermAccount{{Alias: "account-1"}, {Alias: "account-2"}, {Alias: "account-3"}}
 	protocols := []string{"ssh", "telnet", "mysql"}
-	tui.Update(assetChoicesMsg{asset: model.PermAsset{ID: "asset-1"}, accounts: accounts, protocols: protocols})
+	tui.Update(assetChoicesMsg{asset: asset, accounts: accounts, protocols: protocols})
 	if tui.dialog == nil || tui.dialog.accounts[0].Alias != "account-2" || tui.dialog.protocols[0] != "telnet" {
 		t.Fatalf("last connection choices were not moved to the front: dialog=%#v", tui.dialog)
 	}

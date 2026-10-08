@@ -971,20 +971,17 @@ msgstr "선택"
 msgid "Text mode"
 msgstr "텍스트 모드"
 
-msgid "Interaction mode (mouse)"
-msgstr "상호작용 모드(마우스)"
+msgid "Interface control (mouse)"
+msgstr "화면 조작(마우스)"
 
-msgid "Selection mode (mouse)"
-msgstr "선택 모드(마우스)"
+msgid "Text selection (mouse)"
+msgstr "텍스트 선택(마우스)"
 
-msgid "Switch to interaction mode and let Koko handle mouse events"
-msgstr "상호작용 모드로 전환하여 Koko가 마우스 이벤트를 처리하도록 합니다"
+msgid "Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions"
+msgstr "화면 조작으로 전환합니다. Koko가 클릭, 스크롤 및 화면 조작을 처리합니다"
 
-msgid "Switch to selection mode and let the local terminal handle the mouse for text selection"
-msgstr "선택 모드로 전환하여 텍스트 선택을 위해 로컬 터미널이 마우스를 처리하도록 합니다"
-
-msgid "Failed to save mouse mode"
-msgstr "마우스 모드를 저장하지 못했습니다"
+msgid "Switch to text selection; the local terminal handles dragging and copying text"
+msgstr "텍스트 선택으로 전환합니다. 로컬 터미널이 드래그 선택과 텍스트 복사를 처리합니다"
 
 msgid "Asset tree"
 msgstr "자산 트리"

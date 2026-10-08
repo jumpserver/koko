@@ -55,4 +55,5 @@ func (h *InteractiveHandler) ChangeLang() {
 		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
 	}
 	h.i18nLang = language
+	h.saveTerminalLanguage(language)
 }

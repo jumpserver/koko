@@ -971,20 +971,17 @@ msgstr "選擇"
 msgid "Text mode"
 msgstr "純文字模式"
 
-msgid "Interaction mode (mouse)"
-msgstr "互動模式(滑鼠)"
+msgid "Interface control (mouse)"
+msgstr "介面操作(滑鼠)"
 
-msgid "Selection mode (mouse)"
-msgstr "選取模式(滑鼠)"
+msgid "Text selection (mouse)"
+msgstr "文字選取(滑鼠)"
 
-msgid "Switch to interaction mode and let Koko handle mouse events"
-msgstr "切換到互動模式，由 Koko 接管滑鼠事件"
+msgid "Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions"
+msgstr "切換到介面操作，由 Koko 接管滑鼠，可點擊、捲動和操作介面"
 
-msgid "Switch to selection mode and let the local terminal handle the mouse for text selection"
-msgstr "切換到選取模式，由本機終端接管滑鼠以選取文字"
-
-msgid "Failed to save mouse mode"
-msgstr "儲存滑鼠模式失敗"
+msgid "Switch to text selection; the local terminal handles dragging and copying text"
+msgstr "切換到文字選取，由本機終端接管滑鼠，可拖曳選取和複製文字"
 
 msgid "Asset tree"
 msgstr "資產樹"

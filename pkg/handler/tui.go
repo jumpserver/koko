@@ -70,10 +70,6 @@ type assetUnavailableMsg struct {
 	message string
 }
 
-type assetTUIPreferenceSavedMsg struct {
-	err error
-}
-
 type assetTUIDialog struct {
 	asset             model.PermAsset
 	accounts          []model.PermAccount
@@ -151,9 +147,6 @@ type assetTUI struct {
 	multiSessionCount  int
 	unfinishedSessions int
 	showMultiSessions  bool
-	lastAccount        model.PermAccount
-	lastProtocol       string
-	hasLastConnection  bool
 	lastClickRow       int
 	lastClickAt        time.Time
 }
@@ -230,7 +223,7 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.showStatus(userFacingErrorMessage(m.tr("无法获取连接选项", "Failed to load connection options"), msg.err))
 		}
 		m.clearStatus()
-		m.prioritizeConnectionChoices(msg.accounts, msg.protocols)
+		m.prioritizeConnectionChoices(msg.asset, msg.accounts, msg.protocols)
 		if len(msg.accounts) == 1 && len(msg.protocols) == 1 {
 			return m.selectConnection(msg.asset, msg.accounts[0], msg.protocols[0])
 		}
@@ -248,12 +241,6 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case assetUnavailableMsg:
 		m.loadingChoices = false
 		return m, m.showStatus(msg.message)
-	case assetTUIPreferenceSavedMsg:
-		if msg.err != nil {
-			return m, m.showStatus(userFacingErrorMessage(
-				m.tr("保存鼠标模式失败", "Failed to save mouse mode"), msg.err,
-			))
-		}
 	case assetTUITreeNodesMsg:
 		return m, m.updateTreeNodes(msg)
 	case assetTUITreeCountsMsg:
@@ -414,14 +401,7 @@ func (m *assetTUI) toggleMouseMode() (tea.Model, tea.Cmd) {
 	} else {
 		m.handler.mouseMode = terminalMouseModeClient
 	}
-	interfaceMode := m.handler.interfaceMode
-	mouseMode := m.handler.mouseMode
-	saveCmd := func() tea.Msg {
-		return assetTUIPreferenceSavedMsg{
-			err: m.handler.saveTerminalPreference(interfaceMode, mouseMode),
-		}
-	}
-	return m, tea.Batch(mouseCmd, saveCmd)
+	return m, mouseCmd
 }
 
 func (m *assetTUI) moveAssetCursor(delta int) {
@@ -775,39 +755,73 @@ func (m *assetTUI) selectConnection(asset model.PermAsset, account model.PermAcc
 	m.connection = &assetTUIConnection{
 		asset: asset, account: account, protocol: protocol, multiWindow: m.pendingMultiWindow,
 	}
-	m.lastAccount = account
-	m.lastProtocol = protocol
-	m.hasLastConnection = true
+	if m.handler != nil {
+		m.handler.saveLastConnectionPreference(asset, account, protocol)
+	}
 	m.dialog = nil
 	return m, tea.Quit
 }
 
-func (m *assetTUI) prioritizeConnectionChoices(accounts []model.PermAccount, protocols []string) {
-	if !m.hasLastConnection {
+func (m *assetTUI) prioritizeConnectionChoices(asset model.PermAsset,
+	accounts []model.PermAccount, protocols []string) {
+	if m.handler == nil {
 		return
 	}
-	for index := range accounts {
-		if !samePermAccount(accounts[index], m.lastAccount) {
-			continue
+	recent := m.handler.loadRecentConnectionPreferences(asset)
+	if len(recent) == 0 {
+		return
+	}
+	prioritizeConnectionChoiceLists(recent, accounts, protocols)
+}
+
+func prioritizeConnectionChoiceLists(recent []terminalConnectionPreference,
+	accounts []model.PermAccount, protocols []string) {
+	for index, preference := range recent {
+		if findPermAccount(accounts, preference.account()) >= 0 &&
+			findProtocol(protocols, preference.Protocol) >= 0 {
+			if index > 0 {
+				copy(recent[1:index+1], recent[:index])
+				recent[0] = preference
+			}
+			break
 		}
-		if index > 0 {
+	}
+	accountTarget := 0
+	protocolTarget := 0
+	for _, preference := range recent {
+		if index := findPermAccount(accounts[accountTarget:], preference.account()); index >= 0 {
+			index += accountTarget
 			account := accounts[index]
-			copy(accounts[1:index+1], accounts[:index])
-			accounts[0] = account
+			copy(accounts[accountTarget+1:index+1], accounts[accountTarget:index])
+			accounts[accountTarget] = account
+			accountTarget++
 		}
-		break
-	}
-	for index := range protocols {
-		if !strings.EqualFold(protocols[index], m.lastProtocol) {
-			continue
-		}
-		if index > 0 {
+		if index := findProtocol(protocols[protocolTarget:], preference.Protocol); index >= 0 {
+			index += protocolTarget
 			protocol := protocols[index]
-			copy(protocols[1:index+1], protocols[:index])
-			protocols[0] = protocol
+			copy(protocols[protocolTarget+1:index+1], protocols[protocolTarget:index])
+			protocols[protocolTarget] = protocol
+			protocolTarget++
 		}
-		break
 	}
+}
+
+func findPermAccount(accounts []model.PermAccount, expected model.PermAccount) int {
+	for index := range accounts {
+		if samePermAccount(accounts[index], expected) {
+			return index
+		}
+	}
+	return -1
+}
+
+func findProtocol(protocols []string, expected string) int {
+	for index := range protocols {
+		if strings.EqualFold(protocols[index], expected) {
+			return index
+		}
+	}
+	return -1
 }
 
 func samePermAccount(left, right model.PermAccount) bool {
@@ -882,6 +896,7 @@ func (m *assetTUI) chooseLanguage() (tea.Model, tea.Cmd) {
 	if m.handler.jmsService != nil {
 		setAPIClientLang(m.handler.jmsService, m.handler.i18nLang)
 	}
+	m.handler.saveTerminalLanguage(m.handler.i18nLang)
 	return m, m.showStatus(language.T("Switch language successfully"))
 }
 
@@ -1840,10 +1855,6 @@ func (m *assetTUI) topRightInfo() string {
 	if m.handler.publicSetting != nil {
 		productName = strings.TrimSpace(m.handler.publicSetting.Interface.LoginTitle)
 	}
-	version := strings.TrimSpace(m.handler.coreVersion)
-	if productName != "" && version != "" {
-		productName += " (" + version + ")"
-	}
 	if productName == "" {
 		return name
 	}
@@ -1867,21 +1878,21 @@ func (m *assetTUI) searchLabel() string {
 
 func (m *assetTUI) mouseModeShortcut() string {
 	if m.handler.mouseMode == terminalMouseModeClient {
-		return "v:" + m.tr("交互模式(鼠标)", "Interaction mode (mouse)")
+		return "v:" + m.tr("界面操作(鼠标)", "Interface control (mouse)")
 	}
-	return "v:" + m.tr("选择模式(鼠标)", "Selection mode (mouse)")
+	return "v:" + m.tr("文本选择(鼠标)", "Text selection (mouse)")
 }
 
 func (m *assetTUI) mouseModeHelpDescription() string {
 	if m.handler.mouseMode == terminalMouseModeClient {
 		return m.tr(
-			"切换到交互模式，由 Koko 接管鼠标事件",
-			"Switch to interaction mode and let Koko handle mouse events",
+			"切换到界面操作，由 Koko 接管鼠标，可点击、滚动和操作界面",
+			"Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions",
 		)
 	}
 	return m.tr(
-		"切换到选择模式，由本地终端接管鼠标以选择文本",
-		"Switch to selection mode and let the local terminal handle the mouse for text selection",
+		"切换到文本选择，由本地终端接管鼠标，可拖动选择和复制文本",
+		"Switch to text selection; the local terminal handles dragging and copying text",
 	)
 }
 
@@ -2079,11 +2090,9 @@ func tuiRightAlign(value string, width int) string {
 }
 
 func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf model.TerminalConfig,
-	winChan <-chan ssh.Window, preferenceToken string) {
+	winChan <-chan ssh.Window) {
 	input := NewWrapperSession(sess)
 	handler := newInteractiveHandler(input, user, s.jmsService, termConf, false)
-	handler.preferenceToken = preferenceToken
-	handler.loadTerminalPreference()
 	handler.initializeAssetSelector()
 	handler.selectHandler.SetSelectType(TypeAsset)
 	multiSessions := newAssetTUIMultiSessionManager(handler, input)
@@ -2110,8 +2119,7 @@ func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf m
 
 	model := newAssetTUI(handler)
 	window := input.Pty().Window
-	if !terminalWindowSupportsTUI(window.Width, window.Height) ||
-		handler.interfaceMode == terminalInterfaceModeText {
+	if terminalShouldUseTextMode(window.Width, window.Height, handler.interfaceMode) {
 		model.switchText = true
 	}
 	classicStarted := false
@@ -2130,9 +2138,7 @@ func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf m
 		if model.switchText {
 			if model.persistTextMode {
 				handler.interfaceMode = terminalInterfaceModeText
-				if err := handler.saveTerminalPreference(handler.interfaceMode, handler.mouseMode); err != nil {
-					logger.Warnf("Save user terminal interface mode failed: %s", err)
-				}
+				handler.saveTerminalPreference(handler.interfaceMode)
 				model.persistTextMode = false
 			}
 			handler.displayHelp()
@@ -2144,10 +2150,12 @@ func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf m
 			if !handler.switchTUI {
 				return
 			}
-			handler.interfaceMode = terminalInterfaceModeTUI
-			if err := handler.saveTerminalPreference(handler.interfaceMode, handler.mouseMode); err != nil {
-				logger.Warnf("Save user terminal interface mode failed: %s", err)
+			window = input.Pty().Window
+			if !terminalWindowSupportsTUI(window.Width, window.Height) {
+				continue
 			}
+			handler.interfaceMode = terminalInterfaceModeTUI
+			handler.saveTerminalPreference(handler.interfaceMode)
 			handler.classicNavigation = false
 			handler.treeOrigin = 0
 			handler.selectHandler.SetSelectType(TypeAsset)

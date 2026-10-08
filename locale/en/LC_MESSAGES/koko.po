@@ -836,20 +836,17 @@ msgstr "Select"
 msgid "Text mode"
 msgstr "Text mode"
 
-msgid "Interaction mode (mouse)"
-msgstr "Interaction mode (mouse)"
+msgid "Interface control (mouse)"
+msgstr "Interface control (mouse)"
 
-msgid "Selection mode (mouse)"
-msgstr "Selection mode (mouse)"
+msgid "Text selection (mouse)"
+msgstr "Text selection (mouse)"
 
-msgid "Switch to interaction mode and let Koko handle mouse events"
-msgstr "Switch to interaction mode and let Koko handle mouse events"
+msgid "Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions"
+msgstr "Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions"
 
-msgid "Switch to selection mode and let the local terminal handle the mouse for text selection"
-msgstr "Switch to selection mode and let the local terminal handle the mouse for text selection"
-
-msgid "Failed to save mouse mode"
-msgstr "Failed to save mouse mode"
+msgid "Switch to text selection; the local terminal handles dragging and copying text"
+msgstr "Switch to text selection; the local terminal handles dragging and copying text"
 
 msgid "Asset tree"
 msgstr "Asset tree"

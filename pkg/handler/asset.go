@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -373,6 +374,10 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset, autoOnly bool) (st
 		return fmt.Sprintf(lang.T("No permitted connection protocol is available for asset %s. Check its protocols and authorization rules."), asset.Name), true
 	}
 	supportAccounts := u.filterValidAccount(permAssetDetail.PermedAccounts)
+	sort.Sort(model.PermAccountList(supportAccounts))
+	prioritizeConnectionChoiceLists(
+		u.h.loadRecentConnectionPreferences(asset), supportAccounts, protocols,
+	)
 	if autoOnly && !hasSingleConnectionChoice(protocols, supportAccounts) {
 		return "", false
 	}
@@ -415,6 +420,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset, autoOnly bool) (st
 			}
 			retry = true
 			u.selectedAccount = &selectedAccount
+			u.h.saveLastConnectionPreference(asset, selectedAccount, protocol)
 			passwordKey := manualPasswordAttemptKey(asset, selectedAccount, protocol)
 			passwordLimitError := fmt.Errorf(u.h.tr(
 				"手动密码最多允许输入 %d 次",
