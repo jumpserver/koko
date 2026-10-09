@@ -62,13 +62,13 @@ const (
 		Linux 相关
 	*/
 
-	LinuxSuCommand = "su - %s; exit"
+	LinuxSuCommand = "su - -- %s; exit"
 
-	LinuxSudoCommand = "sudo su - %s; exit"
+	LinuxSudoCommand = "sudo su - -- %s; exit"
 
-	LinuxOnlySuCommand = "su %s; exit"
+	LinuxOnlySuCommand = "su -- %s; exit"
 
-	LinuxOnlySudoCommand = "sudo su %s; exit"
+	LinuxOnlySudoCommand = "sudo su -- %s; exit"
 
 	/*
 		Cisco 相关
@@ -157,6 +157,7 @@ type SuConfig struct {
 }
 
 func (s *SuConfig) SuCommand() string {
+	username := "'" + strings.ReplaceAll(s.SudoUsername, "'", "'\"'\"'") + "'"
 	switch s.MethodType {
 	case SuMethodEnable:
 		return SuCommandEnable
@@ -165,15 +166,15 @@ func (s *SuConfig) SuCommand() string {
 	case SuMethodSuperLevel:
 		return SuCommandSuperH3C
 	case SuMethodSudo:
-		return fmt.Sprintf(LinuxSudoCommand, s.SudoUsername)
+		return fmt.Sprintf(LinuxSudoCommand, username)
 	case SuMethodOnlySudo:
-		return fmt.Sprintf(LinuxOnlySudoCommand, s.SudoUsername)
+		return fmt.Sprintf(LinuxOnlySudoCommand, username)
 	case SuMethodOnlySu:
-		return fmt.Sprintf(LinuxOnlySuCommand, s.SudoUsername)
+		return fmt.Sprintf(LinuxOnlySuCommand, username)
 	default:
 
 	}
-	return fmt.Sprintf(LinuxSuCommand, s.SudoUsername)
+	return fmt.Sprintf(LinuxSuCommand, username)
 }
 
 func (s *SuConfig) UsernameMatchPattern() string {
