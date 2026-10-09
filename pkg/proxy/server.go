@@ -631,7 +631,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		for i := range questions {
 			q := questions[i]
 			vt.SetPrompt(questions[i])
-			logger.Debugf("Conn[%s] keyboard auth question %d [ %s ]", s.UserConn.ID(), i, q)
+			logger.Debugf("Conn[%s] keyboard auth question %d", s.UserConn.ID(), i)
 			if strings.Contains(strings.ToLower(q), "password") {
 				if password != "" {
 					ans[i] = password
