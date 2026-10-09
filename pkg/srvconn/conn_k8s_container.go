@@ -2,6 +2,7 @@ package srvconn
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -259,7 +260,7 @@ func HasShellInContainer(opt *ContainerOptions, shell string) error {
 		return err
 	}
 	var buf bytes.Buffer
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
 		Stdout: &buf,
 		Tty:    false,
 	})
@@ -321,7 +322,7 @@ func execContainerShell(k8sClient *kubernetes.Clientset, k8sCfg *rest.Config, c 
 		Tty:               true,
 	}
 	// 这个 stream 是阻塞的方法
-	err = exec.Stream(streamOption)
+	err = exec.StreamWithContext(context.Background(), streamOption)
 	return err
 }
 
