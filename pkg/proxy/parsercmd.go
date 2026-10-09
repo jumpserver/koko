@@ -11,6 +11,7 @@ import (
 	"unicode"
 
 	"github.com/LeeEirc/terminalparser"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 var terminalDebug = false
@@ -72,7 +73,9 @@ func (s *TerminalParser) GetCursorRow() string {
 }
 
 func (s *TerminalParser) feed(p []byte) {
-	s.Terminal.Write(p)
+	if _, err := s.Terminal.Write(p); err != nil {
+		logger.Warnf("Terminal parser feed failed: %s", err)
+	}
 	if terminalDebug {
 		fmt.Println("---------Feed-------------")
 		fmt.Println(hex.Dump(p))

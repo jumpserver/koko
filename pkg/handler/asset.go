@@ -159,7 +159,7 @@ func (u *UserSelectHandler) showUnavailableAsset(asset model.PermAsset) {
 
 func (u *UserSelectHandler) unavailableAssetMessage(asset model.PermAsset) string {
 	lang := i18n.NewLang(u.h.i18nLang)
-	message := lang.T("Cannot connect to this asset.")
+	var message string
 	if !asset.IsActive {
 		message = lang.T("Cannot connect: asset disabled.")
 	} else {

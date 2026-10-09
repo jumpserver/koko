@@ -436,7 +436,7 @@ func (d *MCPDispatcher) execute(
 	response := MCPResponse{JSONRPC: "2.0", ID: call.request.ID}
 	toolResult, resultPayload := newMCPCallToolResult(result, callErr)
 	if len(resultPayload) == 0 || len(resultPayload) > MaxToolResultBytes {
-		toolResult, resultPayload = newMCPCallToolResult(
+		toolResult, _ = newMCPCallToolResult(
 			nil, errors.New("MCP tool result exceeded the response limit"),
 		)
 	}

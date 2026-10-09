@@ -11,7 +11,6 @@ import (
 )
 
 func (h *InteractiveHandler) ChangeLang() {
-	language := h.i18nLang
 	render := func() (string, []classicHintRow, int) {
 		lang := i18n.NewLang(h.i18nLang)
 		width, _ := h.GetPtySize()
@@ -48,7 +47,7 @@ func (h *InteractiveHandler) ChangeLang() {
 		return
 	}
 	lang := i18n.AllCodes[number-1]
-	language = lang.String()
+	language := lang.String()
 	if language != h.i18nLang {
 		setAPIClientLang(h.jmsService, language)
 		utils.IgnoreErrWriteString(h.term, utils.WrapperString(lang.T("Switch language successfully"), utils.Green))
