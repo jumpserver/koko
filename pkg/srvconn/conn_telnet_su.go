@@ -141,12 +141,12 @@ func (s *SuSwitchService) loginUsernameOrPassword(resultChan chan<- error) {
 			logger.Debug("Sudo step result matched and rest")
 			continue
 		case StatusFailed:
-			resultChan <- fmt.Errorf("failed login: %s", recStr.String())
+			resultChan <- fmt.Errorf("failed login: privilege switch rejected")
 		case StatusUnMatch:
 		default:
 
 		}
-		logger.Debugf("Sudo step result do not match any: %s", recStr.String())
+		logger.Debug("Sudo step result did not match any pattern")
 		// 没有匹配到，继续等待
 		time.Sleep(time.Millisecond * 100)
 	}
@@ -161,7 +161,7 @@ func (s *SuSwitchService) handleResult(p []byte) matchStatus {
 		for _, line := range lineBytes {
 			if s.usernameRegexp.Match(line) {
 				_, _ = s.SrvConn.Write([]byte(s.cfg.SudoUsername + "\r"))
-				logger.Debugf("Su switch step username pattern ok: %s", p)
+				logger.Debug("Su switch step username pattern matched")
 				return StatusMatch
 			}
 		}
@@ -171,7 +171,7 @@ func (s *SuSwitchService) handleResult(p []byte) matchStatus {
 			if s.passwordRegexp.Match(line) {
 				_, _ = s.SrvConn.Write([]byte(s.cfg.SudoPassword + "\r"))
 				s.inputAuthOnce = true
-				logger.Debugf("Su switch step password pattern ok: %s", p)
+				logger.Debug("Su switch step password pattern matched")
 				return StatusMatch
 			}
 		}
@@ -180,7 +180,7 @@ func (s *SuSwitchService) handleResult(p []byte) matchStatus {
 		if s.failureRegexp != nil {
 			for _, line := range lineBytes {
 				if s.failureRegexp.Match(line) {
-					logger.Debugf("Su switch step failed pattern ok: %s", p)
+					logger.Debug("Su switch step failure pattern matched")
 					return StatusFailed
 				}
 			}
@@ -193,7 +193,7 @@ func (s *SuSwitchService) handleResult(p []byte) matchStatus {
 		}
 		for _, line := range lineBytes {
 			if s.successRegexp.Match(line) {
-				logger.Debugf("Su switch step success pattern ok: %s", p)
+				logger.Debug("Su switch step success pattern matched")
 				return StatusSuccess
 			}
 		}
