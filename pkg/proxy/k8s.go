@@ -394,8 +394,5 @@ func nonEmptyLines(s string) []string {
 }
 
 func shellEscape(s string) string {
-	if !strings.ContainsAny(s, " \t\n'\"\\$`") {
-		return s
-	}
 	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
 }
