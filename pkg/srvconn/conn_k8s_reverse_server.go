@@ -61,7 +61,7 @@ func (k *K8sReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	tokens := strings.SplitN(bearerToken, " ", 2)
 	schemaName := strings.TrimSpace(tokens[0])
 	if len(tokens) != 2 || schemaName != "Bearer" {
-		logger.Errorf("k8s proxy reverse request unauthorized: invalid token: %s", bearerToken)
+		logger.Error("k8s proxy reverse request unauthorized: invalid authorization format")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -88,7 +88,7 @@ func (k *K8sReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			req.Header.Del("Authorization")
 		},
 	}
-	logger.Debugf("k8s reverse proxy %s request start: %s", tokenId, r.URL.Path)
+	logger.Debugf("k8s reverse proxy request start: %s", r.URL.Path)
 	proxy.ServeHTTP(w, r)
-	logger.Debugf("k8s reverse proxy %s request end: %s", tokenId, r.URL.Path)
+	logger.Debugf("k8s reverse proxy request end: %s", r.URL.Path)
 }
