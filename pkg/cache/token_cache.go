@@ -78,8 +78,8 @@ func (c *ConnectTokenCache) run() {
 }
 
 func (c *ConnectTokenCache) GC() {
-	readyDelete := make([]string, 0, len(c.data))
 	c.lock.Lock()
+	readyDelete := make([]string, 0, len(c.data))
 	now := time.Now()
 	for k, v := range c.data {
 		if v.IsExpired(now) {
