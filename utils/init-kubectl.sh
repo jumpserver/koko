@@ -16,6 +16,7 @@ mkdir -p /nonexistent
 mount -t tmpfs -o size=10M tmpfs /nonexistent
 cd /nonexistent
 touch .bashrc
+echo 'shopt -u promptvars' >> .bashrc
 echo 'PS1="${K8S_NAME}# "' >> .bashrc
 echo "export TERM=xterm" >> .bashrc
 echo "source /usr/share/bash-completion/bash_completion" >> .bashrc
