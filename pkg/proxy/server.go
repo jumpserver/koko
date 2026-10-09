@@ -971,7 +971,7 @@ func (s *Server) Proxy() {
 			FaceMonitorToken: faceMonitorToken,
 			SessionId:        s.sessionInfo.ID,
 		}
-		logger.Infof("Conn[%s] join face monitor %s", s.UserConn.ID(), faceMonitorToken)
+		logger.Infof("Conn[%s] join face monitor", s.UserConn.ID())
 		if err := s.jmsService.JoinFaceMonitor(faceReq); err != nil {
 			logger.Errorf("Conn[%s] join face monitor err: %s", s.UserConn.ID(), err)
 		}
