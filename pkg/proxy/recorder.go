@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -372,6 +373,10 @@ func (r *FTPFileRecorder) FinishFTPFile(id string) {
 	if info == nil {
 		return
 	}
+	if info.discarded {
+		r.removeFTPFile(id)
+		return
+	}
 	_ = info.Close()
 	go r.UploadFile(3, id)
 }
@@ -412,8 +417,21 @@ func (r *FTPFileRecorder) ChunkedRecord(ftpLog *model.FTPLog, readerAt io.Reader
 		return
 	}
 	info := r.getFTPFile(ftpLog.ID)
-	if info == nil && totalSize >= r.MaxFileSize {
+	if info != nil && info.discarded {
+		return nil
+	}
+	if offset < 0 || totalSize < 0 {
+		return fmt.Errorf("invalid FTP file recording range: offset=%d, size=%d", offset, totalSize)
+	}
+	limit := r.MaxFileSize
+	if info != nil {
+		limit = min(limit, info.maxWrittenSize)
+	}
+	if limit <= 0 || (totalSize > 0 && (offset >= limit || totalSize >= limit-offset)) {
 		logger.Errorf("FTP file %s is exceeds the max limit and discard it", ftpLog.ID)
+		r.DiscardFTPFile(ftpLog.ID)
+		// Retain rejection until Finish so later chunks cannot recreate a partial recording.
+		r.setFTPFile(ftpLog.ID, &FTPFileInfo{ftpLog: ftpLog, discarded: true})
 		return nil
 	}
 	if info == nil {
@@ -505,6 +523,7 @@ type FTPFileInfo struct {
 
 	maxWrittenSize int64
 	writtenBytes   int64
+	discarded      bool
 }
 
 func (f *FTPFileInfo) WriteFromReader(r io.Reader) error {
