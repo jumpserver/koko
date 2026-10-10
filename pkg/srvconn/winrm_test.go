@@ -3,8 +3,10 @@ package srvconn
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/pem"
 	"errors"
 	"io"
 	"net"
@@ -12,6 +14,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -326,16 +329,90 @@ func TestWinRMTerminalEditsAndInterruptsInput(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("terminal input stalled after AI output")
 	}
-	// An overflow followed by editing must not turn truncated input into a command.
+	// Editing a long line must preserve all text instead of executing a truncation.
 	_, _ = c.WriteInput([]byte(strings.Repeat("x", 4097)+"\x7f\r"), "shared user")
-	_, _ = c.WriteInput([]byte("Get-Service\r"), "shared user")
 	select {
 	case command := <-commands:
-		if command != "shared user:Get-Service" {
-			t.Fatalf("truncated input was executed: %q", command)
+		if command != "shared user:"+strings.Repeat("x", 4096) {
+			t.Fatalf("long input was changed: length %d", len(command))
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("terminal did not recover from oversized input")
+		t.Fatal("terminal stalled editing a long line")
+	}
+}
+
+func TestWinRMTerminalStreamsLargeInput(t *testing.T) {
+	for _, test := range []struct {
+		name, text string
+		chunk      int
+		paste      bool
+	}{
+		{name: "single write", text: "#" + strings.Repeat("A", 100000), chunk: 100001},
+		{name: "split UTF-8", text: "#" + strings.Repeat("中文", 17000), chunk: 1021},
+		{name: "bracketed paste", text: "#" + strings.Repeat("A", 100000), chunk: 1021, paste: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			c := newWinRMTestTerminal(t)
+			commands := make(chan string, 1)
+			c.Start(func(ctx context.Context, command, user string, output io.Writer) error {
+				commands <- user + ":" + command
+				return nil
+			})
+			send := func(text string, chunk int) {
+				for len(text) > 0 {
+					n := min(chunk, len(text))
+					if written, err := c.WriteInput([]byte(text[:n]), "user"); err != nil || written != n {
+						t.Fatalf("input write: %d, %v", written, err)
+					}
+					text = text[n:]
+				}
+			}
+			if test.paste {
+				send("\x1b[200~", 1)
+			}
+			send(test.text, test.chunk)
+			if test.paste {
+				send("\x1b[201~", 1)
+			}
+			// Escape sequences split across writes must still edit the completed line.
+			send("\x1b[D\x7fZ\x1b[F\r", 1)
+			runes := []rune(test.text)
+			want := "user:" + string(runes[:len(runes)-2]) + "Z" + string(runes[len(runes)-1:])
+			select {
+			case got := <-commands:
+				if got != want {
+					t.Fatalf("long command changed: got %d bytes, want %d", len(got), len(want))
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("large input stalled")
+			}
+			send("Write-Output \"WINRM_INPUT_TEST_OK\"\r", 1024)
+			select {
+			case got := <-commands:
+				if got != "user:Write-Output \"WINRM_INPUT_TEST_OK\"" {
+					t.Fatalf("next command changed: %q", got)
+				}
+			case <-time.After(2 * time.Second):
+				t.Fatal("session unusable after large input")
+			}
+		})
+	}
+}
+
+func TestWinRMEmptyInputDoesNotWaitForQueue(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	c := &WinRMConnection{ctx: ctx, input: make(chan winRMInput, 1)}
+	c.input <- winRMInput{data: []byte("queued")}
+	done := make(chan error, 1)
+	go func() { _, err := c.Write(nil); done <- err }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("empty bridge write blocked on the input queue")
 	}
 }
 
@@ -380,9 +457,86 @@ func TestWinRMRefusesEncryptionDowngrade(t *testing.T) {
 	for _, flags := range []uint32{0, 0x10, 0x30} {
 		binary.LittleEndian.PutUint32(data[20:], flags)
 		header.Set("WWW-Authenticate", "Negotiate "+base64.StdEncoding.EncodeToString(data))
-		if err := validateWinRMChallenge(header); (err == nil) != (flags == 0x30) {
+		if err := validateWinRMChallenge(header, true); (err == nil) != (flags == 0x30) {
 			t.Fatalf("encryption flags %#x: %v", flags, err)
 		}
+		if err := validateWinRMChallenge(header, false); err != nil {
+			t.Fatalf("TLS unnecessarily required message encryption: %v", err)
+		}
+	}
+}
+
+func TestWinRMTLSProtectsAuthenticatedSOAP(t *testing.T) {
+	const soap = "<SOAP>command</SOAP>"
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		body, _ := io.ReadAll(req.Body)
+		if req.TLS == nil || string(body) != soap || req.Header.Get("Content-Type") != "application/soap+xml" {
+			t.Error("TLS changed the SOAP request or message encryption was used")
+		}
+		w.Header().Set("Content-Type", "application/soap+xml")
+		_, _ = io.WriteString(w, soap)
+	}))
+	defer server.Close()
+	client := server.Client()
+	defer client.CloseIdleConnections()
+	client.Transport = &winRMBoundedTransport{Transport: client.Transport.(*http.Transport), authenticated: func() bool { return true }}
+	protected := &winRMEncryptedTransport{http: client} // TLS does not need an NTLM sealing session.
+	request, _ := http.NewRequest(http.MethodPost, server.URL, strings.NewReader(soap))
+	request.Header.Set("Content-Type", "application/soap+xml")
+	response, err := protected.RoundTrip(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil || string(body) != soap {
+		t.Fatalf("TLS SOAP response rejected or changed: %q, %v", body, err)
+	}
+}
+
+func TestWinRMTLSCertificateValidation(t *testing.T) {
+	var probes atomic.Int32
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		probes.Add(1)
+		body, _ := io.ReadAll(req.Body)
+		if len(body) != 0 || req.TLS == nil {
+			t.Error("unauthenticated TLS probe disclosed SOAP")
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer server.Close()
+	host, port, _ := net.SplitHostPort(strings.TrimPrefix(server.URL, "https://"))
+	portNumber, _ := strconv.Atoi(port)
+	ca := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}))
+	for _, test := range []struct {
+		name, serverName, ca string
+		skip, reachable      bool
+	}{
+		{name: "untrusted certificate", serverName: "example.com"},
+		{name: "trusted certificate through tunnel", serverName: "example.com", ca: ca, reachable: true},
+		{name: "wrong server name", serverName: "wrong.invalid", ca: ca},
+		{name: "allow invalid certificate", serverName: "wrong.invalid", skip: true, reachable: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			before := probes.Load()
+			client, err := NewWinRMClient(WinRMConfig{Host: host, Port: portNumber, ServerName: test.serverName,
+				Username: "user", Password: "test-password", UseSSL: true, CACert: test.ca, AllowInvalidCert: test.skip})
+			if client != nil {
+				_ = client.Close()
+				t.Fatal("unauthenticated TLS endpoint accepted")
+			}
+			if (probes.Load() > before) != test.reachable {
+				t.Fatalf("unexpected TLS reachability: %v", err)
+			}
+			var certificateErr *tls.CertificateVerificationError
+			if test.reachable {
+				if !errors.Is(err, errWinRMAuthentication) {
+					t.Fatalf("TLS did not reach authentication: %v", err)
+				}
+			} else if !errors.As(err, &certificateErr) {
+				t.Fatalf("certificate validation failure missing: %v", err)
+			}
+		})
 	}
 }
 

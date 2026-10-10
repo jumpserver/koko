@@ -119,7 +119,6 @@ type Parser struct {
 	agentToolGrant  func(string) (CommandACLDecision, bool)
 
 	disableInputAsCmd bool
-	winRMConnection   *srvconn.WinRMConnection
 }
 
 func (p *Parser) setCurrentCmdStatusLevel(level int64) {
@@ -201,11 +200,22 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 		zmodemTicker := time.NewTicker(time.Second)
 		defer zmodemTicker.Stop()
 		lastActiveTime := time.Now()
+		var pendingInput []byte
 		for {
+			input := userInChan
+			var output chan<- []byte
+			if pendingInput != nil {
+				// Keep draining remote echo while the connection writer is busy.
+				input = nil
+				output = p.userOutputChan
+			}
 			select {
+			case output <- pendingInput:
+				pendingInput = nil
+				continue
 			case <-p.closed:
 				return
-			case msg, ok := <-userInChan:
+			case msg, ok := <-input:
 				if !ok {
 					return
 				}
@@ -218,10 +228,8 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 				if len(b) > 0 {
 					b = p.ParseUserInput(b)
 				}
-				select {
-				case <-p.closed:
-					return
-				case p.userOutputChan <- b:
+				if len(b) > 0 {
+					pendingInput = b
 				}
 
 			case b, ok := <-srvInChan:
@@ -814,14 +822,6 @@ func (p *Parser) ParseUserInput(b []byte) []byte {
 	if p.userInputFilter != nil {
 		b = p.userInputFilter(b)
 	}
-	if p.winRMConnection != nil {
-		if len(b) > 0 {
-			if _, err := p.winRMConnection.WriteInput(b, p.currentActiveUser.User); err != nil {
-				p.srvOutputChan <- []byte("\r\n" + err.Error() + "\r\n")
-			}
-		}
-		return nil
-	}
 	nb := p.parseInputState(b)
 	return nb
 }
@@ -1087,9 +1087,6 @@ func sanitizeZmodemAbortOutput(b []byte) []byte {
 
 // ParseServerOutput 解析服务器输出
 func (p *Parser) ParseServerOutput(b []byte) []byte {
-	if p.winRMConnection != nil {
-		return b
-	}
 	p.outputLock.Lock()
 	defer p.outputLock.Unlock()
 	return p.splitCmdStream(b)

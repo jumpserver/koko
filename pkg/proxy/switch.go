@@ -164,42 +164,99 @@ func (s *SwitchSession) generateCommandResult(item *ExecutedCommand) *model.Comm
 	return s.p.GenerateCommandItem(user, input, output, item)
 }
 
+type sessionWriteRequest struct {
+	data   []byte
+	user   string
+	window *srvconn.Windows
+}
+
+// Serialize connection writes without blocking output or session shutdown.
+// The bridge holds at most one pending request; this channel is unbuffered.
+func startSessionWriter(conn srvconn.ServerConnection, done <-chan struct{}, filter func([]byte) []byte) (chan<- sessionWriteRequest, <-chan error) {
+	requests := make(chan sessionWriteRequest)
+	errors := make(chan error, 1)
+	write := func(data []byte, _ string) (int, error) { return conn.Write(data) }
+	if input, ok := conn.(interface {
+		WriteInput([]byte, string) (int, error)
+	}); ok {
+		write = input.WriteInput
+	}
+	go func() {
+		defer close(errors)
+		for {
+			select {
+			case <-done:
+				return
+			case request := <-requests:
+				if request.window != nil {
+					_ = conn.SetWinSize(request.window.Width, request.window.Height)
+					continue
+				}
+				data := filter(request.data)
+				if len(data) == 0 {
+					continue
+				}
+				n, err := write(data, request.user)
+				if err == nil && n != len(data) {
+					err = io.ErrShortWrite
+				}
+				if err != nil {
+					errors <- err
+					return
+				}
+			}
+		}
+	}()
+	return requests, errors
+}
+
 // Bridge 桥接两个链接
 func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
-
-	parser, err := s.p.GetFilterParser()
-	if err != nil {
-		return err
-	}
-	logger.Infof("Conn[%s] create ParseEngine success", userConn.ID())
-	if conn, ok := srvConn.(*srvconn.WinRMConnection); ok {
-		// WinRM audits complete submitted commands, without inferring them from VT output.
-		parser.winRMConnection = conn
-		conn.Start(func(ctx context.Context, command, user string, output io.Writer) error {
-			return s.p.executeWinRMCommand(conn, ctx, command, user, output)
-		})
+	var parser *Parser
+	winRM, isWinRM := srvConn.(*srvconn.WinRMConnection)
+	if !isWinRM {
+		parser, err = s.p.GetFilterParser()
+		if err != nil {
+			return err
+		}
+		logger.Infof("Conn[%s] create ParseEngine success", userConn.ID())
 	}
 	replayRecorder := s.p.GetReplayRecorder()
 	logger.Infof("Conn[%s] create replay success", userConn.ID())
 	srvInChan := make(chan []byte, 1)
 	done := make(chan struct{})
 	userInputMessageChan := make(chan *exchange.RoomMessage, 1)
-	// 处理数据流
-	userOutChan, srvOutChan := parser.ParseStream(userInputMessageChan, srvInChan)
-	parser.SetUserInputFilter(s.filterUserInput)
+	var userOutChan <-chan []byte
+	var srvOutChan <-chan []byte = srvInChan
+	var directInput <-chan *exchange.RoomMessage
+	if isWinRM {
+		// WinRM already edits and audits complete commands in its local terminal.
+		// Reuse the bridge's output path without the character-stream parser.
+		directInput = userInputMessageChan
+		winRM.Start(func(ctx context.Context, command, user string, output io.Writer) error {
+			return s.p.executeWinRMCommand(winRM, ctx, command, user, output)
+		})
+	} else {
+		parser.SetUserInputFilter(s.filterUserInput)
+		userOutChan, srvOutChan = parser.ParseStream(userInputMessageChan, srvInChan)
+	}
+	writeRequests, writeErrors := startSessionWriter(srvConn, done, s.filterUserInput)
 
 	defer func() {
 		close(done)
 		_ = userConn.Close()
 		_ = srvConn.Close()
-		parser.Close()
+		if parser != nil {
+			parser.Close()
+		}
 		// 关闭录像
 		replayRecorder.End()
 	}()
 
 	// 记录命令
-	cmdChan := parser.CommandRecordChan()
-	go s.recordCommand(cmdChan)
+	if parser != nil {
+		go s.recordCommand(parser.CommandRecordChan())
+	}
 
 	winCh := userConn.WinCh()
 	maxIdleTime := time.Duration(s.MaxIdleTime) * time.Minute
@@ -257,7 +314,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		Event: exchange.ShareJoin,
 		Meta:  meta,
 	})
-	if parser.zmodemParser != nil {
+	if parser != nil && parser.zmodemParser != nil {
 		parser.zmodemParser.FireStatusEvent = func(event zmodem.StatusEvent) {
 			msg := exchange.RoomMessage{Event: exchange.ActionEvent}
 			switch event {
@@ -291,22 +348,49 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	defer keepAliveTick.Stop()
 	lang := s.p.connOpts.getLang()
 	var pendingOutput *exchange.RoomMessage
+	var pendingWrite *sessionWriteRequest
 	for {
 		serverOutput := srvOutChan
 		userOutput := userOutChan
+		userMessages := directInput
 		windows := winCh
 		notifications := s.notifyMsgChan
 		var broadcast chan<- *exchange.RoomMessage
+		var writes chan<- sessionWriteRequest
+		var nextWrite sessionWriteRequest
+		if pendingWrite != nil {
+			writes = writeRequests
+			nextWrite = *pendingWrite
+			userOutput = nil
+			userMessages = nil
+			windows = nil
+		}
 		if pendingOutput != nil {
 			// Keep only one pending message and continue handling session exit
 			// while the primary subscriber is applying backpressure.
 			serverOutput = nil
 			userOutput = nil
+			userMessages = nil
 			windows = nil
 			notifications = nil
 			broadcast = room.BroadcastChan()
 		}
 		select {
+		case writes <- nextWrite:
+			pendingWrite = nil
+			continue
+		case err := <-writeErrors:
+			logger.Errorf("Session[%s] connection write err: %s", s.ID, err)
+			s.recordSessionFinished(model.ReasonErrConnectDisconnect)
+			return err
+		case msg, ok := <-userMessages:
+			if !ok {
+				s.recordSessionFinished(model.ReasonErrUserClose)
+				return nil
+			}
+			if msg.Event == exchange.DataEvent && len(msg.Body) > 0 {
+				pendingWrite = &sessionWriteRequest{data: msg.Body, user: msg.Meta.User}
+			}
 		case broadcast <- pendingOutput:
 			pendingOutput = nil
 			continue
@@ -358,9 +442,11 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			if !ok {
 				return
 			}
-			_ = srvConn.SetWinSize(win.Width, win.Height)
-			if err := parser.TerminalParser.Resize(win.Width, win.Height); err != nil {
-				logger.Errorf("Session[%s] resize terminal parser failed: %s", s.ID, err)
+			pendingWrite = &sessionWriteRequest{window: &srvconn.Windows{Width: win.Width, Height: win.Height}}
+			if parser != nil {
+				if err := parser.TerminalParser.Resize(win.Width, win.Height); err != nil {
+					logger.Errorf("Session[%s] resize terminal parser failed: %s", s.ID, err)
+				}
 			}
 			logger.Infof("Session[%s] Window server change: %d*%d",
 				s.ID, win.Width, win.Height)
@@ -376,7 +462,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				s.recordSessionFinished(model.ReasonErrConnectDisconnect)
 				return
 			}
-			if parser.NeedRecord() {
+			if parser == nil || parser.NeedRecord() {
 				replayRecorder.Record(p)
 			}
 			msg := exchange.RoomMessage{
@@ -390,8 +476,8 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				s.recordSessionFinished(model.ReasonErrUserClose)
 				return
 			}
-			if _, err1 := srvConn.Write(p); err1 != nil {
-				logger.Errorf("Session[%s] srvConn write err: %s", s.ID, err1)
+			if len(p) > 0 {
+				pendingWrite = &sessionWriteRequest{data: p}
 			}
 
 		case now := <-keepAliveTick.C:
@@ -422,7 +508,7 @@ func (s *SwitchSession) disconnection(room *exchange.Room, parser *Parser, repla
 	replayRecorder.Record([]byte(msg))
 
 	roomMessage := &exchange.RoomMessage{Event: exchange.DataEvent, Body: []byte("\n\r" + msg)}
-	if parser.zmodemParser.IsStartSession() {
+	if parser != nil && parser.zmodemParser.IsStartSession() {
 		expectedSize := len(zmodem.SkipSequence) + len(zmodem.CancelSequence)
 		roomMessage.Body = make([]byte, 0, expectedSize)
 		roomMessage.Body = append(roomMessage.Body, zmodem.SkipSequence...)
