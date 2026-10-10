@@ -289,7 +289,13 @@ func (u *sftpVolume) SaveFile(
 		}
 	}()
 
-	fd, err := u.conn.CreateEditorTemp(tempPath, path)
+	createOnly := options.expectedVersion != nil && !options.force && *options.expectedVersion == webSftpAbsentVersion
+	var fd *srvconn.SftpFile
+	if createOnly {
+		fd, err = u.conn.OpenUploadTemp(tempPath, true)
+	} else {
+		fd, err = u.conn.CreateEditorTemp(tempPath, path)
+	}
 	if err != nil {
 		return result, err
 	}
@@ -309,9 +315,8 @@ func (u *sftpVolume) SaveFile(
 	if err := u.check(ctx); err != nil {
 		return result, err
 	}
-	createOnly := options.expectedVersion != nil && !options.force && *options.expectedVersion == webSftpAbsentVersion
 	if createOnly {
-		err = u.conn.AtomicCreate(tempPath, path)
+		fd.FTPLog, err = u.conn.AtomicCreate(tempPath, path)
 	} else {
 		err = u.conn.AtomicReplace(tempPath, path)
 	}

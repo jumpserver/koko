@@ -340,18 +340,19 @@ func (u *UserSftpConn) AtomicReplace(sourcePath, targetPath string) error {
 	return sourceAssetDir.AtomicReplace(sourceRestPath, targetRestPath)
 }
 
-func (u *UserSftpConn) AtomicCreate(sourcePath, targetPath string) error {
+func (u *UserSftpConn) AtomicCreate(sourcePath, targetPath string) (*model.FTPLog, error) {
 	if u.assetDir != nil {
 		return u.assetDir.AtomicCreate(sourcePath, targetPath)
 	}
+
 	sourceFi, sourceRestPath := u.ParsePath(sourcePath)
 	targetFi, targetRestPath := u.ParsePath(targetPath)
 	sourceAssetDir, ok := sourceFi.(*AssetDir)
 	if !ok {
-		return sftp.ErrSshFxPermissionDenied
+		return nil, sftp.ErrSshFxPermissionDenied
 	}
 	if targetAssetDir, targetOk := targetFi.(*AssetDir); !targetOk || targetAssetDir != sourceAssetDir {
-		return sftp.ErrSshFxOpUnsupported
+		return nil, sftp.ErrSshFxOpUnsupported
 	}
 	return sourceAssetDir.AtomicCreate(sourceRestPath, targetRestPath)
 }

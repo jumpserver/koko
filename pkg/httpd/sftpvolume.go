@@ -29,7 +29,7 @@ type sftpFileSystem interface {
 	OpenUploadTemp(string, bool) (*srvconn.SftpFile, error)
 	CommitUploadTemp(string, string, bool) (*model.FTPLog, error)
 	OpenForChecksum(string) (*srvconn.SftpFile, error)
-	AtomicCreate(string, string) error
+	AtomicCreate(string, string) (*model.FTPLog, error)
 	AtomicReplace(string, string) error
 	DiscardUploadTemp(string) error
 	ResolveAgentToolPath(string) (string, error)

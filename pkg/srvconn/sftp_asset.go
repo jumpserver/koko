@@ -575,22 +575,27 @@ func (ad *AssetDir) AtomicReplace(sourcePath, targetPath string) error {
 	return nil
 }
 
-func (ad *AssetDir) AtomicCreate(sourcePath, targetPath string) error {
+func (ad *AssetDir) AtomicCreate(sourcePath, targetPath string) (*model.FTPLog, error) {
 	_, sourceConn, sourceRealPath, err := ad.resolveUploadPath(sourcePath)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	_, targetConn, targetRealPath, err := ad.resolveUploadPath(targetPath)
+	su, targetConn, targetRealPath, err := ad.resolveUploadPath(targetPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if sourceConn != targetConn {
-		return sftp.ErrSshFxOpUnsupported
+		return nil, sftp.ErrSshFxOpUnsupported
 	}
 
 	sourceConn.IncreaseRef()
 	defer sourceConn.DecreaseRef()
-	return sourceConn.client.Rename(sourceRealPath, targetRealPath)
+	if _, err = sourceConn.client.Stat(targetRealPath); err == nil {
+		err = os.ErrExist
+	} else if os.IsNotExist(err) {
+		err = sourceConn.client.Rename(sourceRealPath, targetRealPath)
+	}
+	return ad.CreateFTPLog(su, "create", targetRealPath, err == nil), err
 }
 
 func (ad *AssetDir) DiscardUploadTemp(path string) error {
