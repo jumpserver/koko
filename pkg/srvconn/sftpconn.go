@@ -442,7 +442,7 @@ func (u *UserSftpConn) ParsePath(path string) (fi os.FileInfo, restPath string) 
 }
 
 func (u *UserSftpConn) generateSubFoldersFromRootTree() map[string]os.FileInfo {
-	nodeTrees, err := u.jmsService.GetNodeTreeByUserAndNodeKey(u.User.ID, "")
+	nodeTrees, err := u.getNodeTreeByUserAndNodeKey("")
 	if err != nil {
 		logger.Errorf("User sftp initial err: %s", err)
 		return map[string]os.FileInfo{}
@@ -452,13 +452,25 @@ func (u *UserSftpConn) generateSubFoldersFromRootTree() map[string]os.FileInfo {
 
 func (u *UserSftpConn) LoadNodeSubFoldersByKey(nodeKey string) SubFoldersLoadFunc {
 	return func() map[string]os.FileInfo {
-		nodeTrees, err := u.jmsService.GetNodeTreeByUserAndNodeKey(u.User.ID, nodeKey)
+		nodeTrees, err := u.getNodeTreeByUserAndNodeKey(nodeKey)
 		if err != nil {
 			logger.Error(err)
 			return nil
 		}
 		return u.generateSubFoldersFromNodeTree(nodeTrees, false)
 	}
+}
+
+func (u *UserSftpConn) getNodeTreeByUserAndNodeKey(nodeKey string) (
+	nodeTrees model.NodeTreeList, err error,
+) {
+	params := map[string]string{"include_assets": "true"}
+	if nodeKey != "" {
+		params["key"] = nodeKey
+	}
+	apiURL := fmt.Sprintf(service.UserPermsNodeTreeWithAssetURL, u.User.ID)
+	_, err = u.jmsService.Call("GET", apiURL, nil, &nodeTrees, params)
+	return
 }
 
 func (u *UserSftpConn) generateSubFoldersFromNodeTree(nodeTrees model.NodeTreeList, isRoot bool) map[string]os.FileInfo {
