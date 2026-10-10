@@ -489,6 +489,10 @@ type winRMEncryptedTransport struct {
 }
 
 func (t *winRMEncryptedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// HTTPS protects SOAP with TLS; only HTTP needs NTLM message sealing.
+	if req.URL.Scheme == "https" {
+		return t.http.Do(req)
+	}
 	defer func(body io.Closer) { _ = body.Close() }(req.Body)
 	plain, err := io.ReadAll(req.Body)
 	if err != nil {
@@ -609,6 +613,7 @@ type winRMBoundedTransport struct {
 }
 
 func (t *winRMBoundedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	messageEncryption := req.URL.Scheme != "https"
 	authenticated := t.authenticated()
 	probe := false
 	if exchange, ok := req.Context().Value(winRMExchangeKey{}).(*winRMExchange); ok {
@@ -620,13 +625,13 @@ func (t *winRMBoundedTransport) RoundTrip(req *http.Request) (*http.Response, er
 	}
 	if probe || !authenticated {
 		// Authentication probes must stay empty, including the final Type 3 POST.
-		// Never send SOAP commands in plaintext.
+		// Never send SOAP commands before authentication, even over TLS.
 		if req.Body != nil {
 			_ = req.Body.Close()
 		}
 		req = req.Clone(req.Context())
 		req.Body, req.ContentLength, req.GetBody = http.NoBody, 0, nil
-	} else if !strings.HasPrefix(req.Header.Get("Content-Type"), "multipart/encrypted") {
+	} else if messageEncryption && !strings.HasPrefix(req.Header.Get("Content-Type"), "multipart/encrypted") {
 		return nil, errors.New("WinRM requires encrypted authenticated requests")
 	}
 	response, err := t.Transport.RoundTrip(req)
@@ -637,10 +642,10 @@ func (t *winRMBoundedTransport) RoundTrip(req *http.Request) (*http.Response, er
 			exchange.body = response.Body
 		}
 		if response.StatusCode == http.StatusUnauthorized {
-			err = validateWinRMChallenge(response.Header)
+			err = validateWinRMChallenge(response.Header, messageEncryption)
 		} else if response.StatusCode < 300 || response.StatusCode == http.StatusInternalServerError {
-			if !t.authenticated() || (!probe && !strings.HasPrefix(response.Header.Get("Content-Type"), "multipart/encrypted")) {
-				err = errors.New("WinRM requires NTLM authentication and encrypted responses")
+			if !t.authenticated() || (!probe && messageEncryption && !strings.HasPrefix(response.Header.Get("Content-Type"), "multipart/encrypted")) {
+				err = errors.New("WinRM requires NTLM authentication and protected responses")
 			}
 		}
 		if err != nil {
@@ -651,7 +656,7 @@ func (t *winRMBoundedTransport) RoundTrip(req *http.Request) (*http.Response, er
 	return response, err
 }
 
-func validateWinRMChallenge(header http.Header) error {
+func validateWinRMChallenge(header http.Header, messageEncryption bool) error {
 	for _, value := range header.Values("WWW-Authenticate") {
 		if token, ok := strings.CutPrefix(value, "Negotiate "); ok {
 			data, err := base64.StdEncoding.DecodeString(token)
@@ -659,8 +664,8 @@ func validateWinRMChallenge(header http.Header) error {
 				return errors.New("invalid WinRM NTLM challenge")
 			}
 			// MS-NLMP 2.2.2.5: SIGN (0x10) and SEAL (0x20) are mandatory
-			// here. The authentication library otherwise permits plaintext fallback.
-			if binary.LittleEndian.Uint32(data[20:24])&0x30 != 0x30 {
+			// over HTTP. HTTPS already protects the messages with TLS.
+			if messageEncryption && binary.LittleEndian.Uint32(data[20:24])&0x30 != 0x30 {
 				return errors.New("WinRM server did not negotiate NTLM signing and encryption")
 			}
 		}

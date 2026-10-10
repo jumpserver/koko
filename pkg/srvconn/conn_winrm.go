@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode"
-	"unicode/utf8"
 
+	"github.com/charmbracelet/x/ansi"
 	"golang.org/x/term"
 )
 
@@ -34,8 +34,6 @@ type WinRMConnection struct {
 	terminalMu    sync.Mutex
 	prompt        string
 	width, height int
-	readBudget    int
-	inputOverflow bool
 	activeCancel  context.CancelFunc
 	interrupt     chan struct{}
 	once          sync.Once
@@ -72,9 +70,8 @@ func (c *WinRMConnection) Start(handle func(context.Context, string, string, io.
 		go func() {
 			defer close(c.done)
 			defer func() { _ = c.writer.Close() }()
+			c.terminal.SetBracketedPasteMode(true)
 			for c.ctx.Err() == nil {
-				c.readBudget = 64 * 1024
-				c.inputOverflow = false
 				command, err := c.terminal.ReadLine()
 				if err != nil && !errors.Is(err, term.ErrPasteIndicator) {
 					if c.ctx.Err() != nil {
@@ -87,14 +84,6 @@ func (c *WinRMConnection) Start(handle func(context.Context, string, string, io.
 						continue
 					}
 					return
-				}
-				// ponytail: x/term limits input to 4096 runes. Reject a full buffer
-				// rather than execute truncated text; use a script surface for larger scripts.
-				if c.inputOverflow || utf8.RuneCountInString(command) >= 4096 {
-					_, _ = io.WriteString(c.terminal, "Command exceeds the 4095-character terminal limit.\n")
-					c.resetTerminal()
-					c.pending = nil
-					continue
 				}
 				command = strings.TrimSpace(command)
 				if command == "" {
@@ -126,7 +115,6 @@ func (c *WinRMConnection) Confirm(ctx context.Context, prompt string) bool {
 		}
 	})
 	defer stop()
-	c.readBudget = 64 * 1024
 	c.terminal.SetPrompt(prompt + " [y/N] ")
 	defer func() { c.terminal.SetPrompt(c.Prompt()) }()
 	answer, err := c.terminal.ReadLine()
@@ -157,8 +145,8 @@ func (c *WinRMConnection) WriteOutput(ctx context.Context, data []byte) (int, er
 }
 
 func (c *WinRMConnection) WriteInput(data []byte, user string) (int, error) {
-	if len(data) > 64*1024 {
-		return 0, errors.New("WinRM terminal input exceeds 64 KiB")
+	if len(data) == 0 {
+		return 0, nil
 	}
 	if bytes.IndexByte(data, 3) >= 0 {
 		c.activeMu.Lock()
@@ -176,12 +164,17 @@ func (c *WinRMConnection) WriteInput(data []byte, user string) (int, error) {
 			return len(data), nil
 		}
 	}
-	select {
-	case c.input <- winRMInput{data: append([]byte(nil), data...), user: user}:
-		return len(data), nil
-	case <-c.ctx.Done():
-		return 0, io.ErrClosedPipe
+	written := 0
+	for written < len(data) {
+		n := min(1024, len(data)-written)
+		select {
+		case c.input <- winRMInput{data: append([]byte(nil), data[written:written+n]...), user: user}:
+			written += n
+		case <-c.ctx.Done():
+			return written, io.ErrClosedPipe
+		}
 	}
+	return written, nil
 }
 
 func (c *WinRMConnection) SetWinSize(width, height int) error {
@@ -200,13 +193,7 @@ func (c *WinRMConnection) resetTerminal() {
 	if c.prompt == "" {
 		c.prompt = "PS> "
 	}
-	c.terminal = term.NewTerminal(&winRMTerminalIO{c}, c.prompt)
-	c.terminal.AutoCompleteCallback = func(line string, pos int, key rune) (string, int, bool) {
-		if key >= 32 && utf8.RuneCountInString(line) >= 4096 {
-			c.inputOverflow = true
-		}
-		return "", 0, false
-	}
+	c.terminal = term.NewTerminal(&winRMTerminalIO{connection: c}, c.prompt)
 	if c.width > 0 && c.height > 0 {
 		_ = c.terminal.SetSize(c.width, c.height)
 	}
@@ -256,10 +243,64 @@ func (c *WinRMConnection) Close() error {
 
 var errWinRMInterrupt = errors.New("WinRM input interrupted")
 
-type winRMTerminalIO struct{ connection *WinRMConnection }
+type winRMTerminalIO struct {
+	connection *WinRMConnection
+	buffer     []byte
+	literal    bool
+	paste      bool
+	state      byte
+	sequence   [6]byte
+	sequenceN  int
+}
+
+// Use x/term's existing paste path for text, including clients that send plain
+// input. Its normal key path silently stops at 4096 runes. Keep editing keys and
+// escape sequences outside these markers, and preserve actual bracketed pastes.
+func (t *winRMTerminalIO) bufferInput(data []byte) {
+	endLiteral := func() {
+		if t.literal {
+			t.buffer = append(t.buffer, "\x1b[201~"...)
+			t.literal = false
+		}
+	}
+	for i, b := range data {
+		if t.state != ansi.NormalState || b == 27 {
+			endLiteral()
+			if t.state == ansi.NormalState {
+				t.sequenceN = 0
+			}
+			if t.sequenceN < len(t.sequence) {
+				t.sequence[t.sequenceN] = b
+			}
+			t.sequenceN = min(t.sequenceN+1, len(t.sequence)+1)
+			_, _, _, t.state = ansi.DecodeSequence(data[i:i+1], t.state, nil)
+			if t.state == ansi.NormalState && t.sequenceN == len(t.sequence) {
+				switch string(t.sequence[:]) {
+				case "\x1b[200~":
+					t.paste = true
+				case "\x1b[201~":
+					t.paste = false
+				}
+			}
+		} else if !t.paste {
+			if b < 32 || b == 127 {
+				endLiteral()
+			} else if !t.literal {
+				t.buffer = append(t.buffer, "\x1b[200~"...)
+				t.literal = true
+			}
+		}
+		t.buffer = append(t.buffer, b)
+	}
+}
 
 func (t *winRMTerminalIO) Write(data []byte) (int, error) { return t.connection.writer.Write(data) }
 func (t *winRMTerminalIO) Read(data []byte) (int, error) {
+	if len(t.buffer) > 0 {
+		n := copy(data, t.buffer)
+		t.buffer = t.buffer[n:]
+		return n, nil
+	}
 	c := t.connection
 	for len(c.pending) == 0 {
 		select {
@@ -280,14 +321,9 @@ func (t *winRMTerminalIO) Read(data []byte) (int, error) {
 	if index := bytes.IndexByte(pending, 3); index >= 0 {
 		pending = pending[:index]
 	}
-	// x/term does not bound bracketed paste. Limit all reads for one line,
-	// closing on overflow so that a truncated suffix can never become a command.
-	if c.readBudget <= 0 {
-		c.cancel()
-		return 0, errors.New("WinRM terminal input exceeds 64 KiB")
-	}
-	n := copy(data, pending[:min(len(pending), c.readBudget)])
-	c.readBudget -= n
-	c.pending = c.pending[n:]
+	t.bufferInput(pending)
+	c.pending = c.pending[len(pending):]
+	n := copy(data, t.buffer)
+	t.buffer = t.buffer[n:]
 	return n, nil
 }
