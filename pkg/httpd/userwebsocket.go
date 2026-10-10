@@ -376,6 +376,13 @@ func (userCon *UserWebsocket) readMessageLoop() error {
 			logger.Debugf("Ws[%s] receive %s message", userCon.Uuid, msg.Type)
 			continue
 		case TerminalK8STree:
+			if userCon.k8sClient == nil {
+				userCon.SendMessage(&Message{
+					Type: TerminalError, TerminalId: msg.TerminalId,
+					Err: "kubernetes client is unavailable",
+				})
+				continue
+			}
 			data, err := userCon.k8sClient.GetTreeData()
 			responseMsg := Message{
 				Id:           userCon.Uuid,
