@@ -45,7 +45,7 @@ func newTerminalToolController(
 	token := ws.ConnectToken
 	pty := client.Pty()
 	observer, err := sessiontools.NewTerminalObserver(
-		int(pty.Window.Width), int(pty.Window.Height),
+		int(pty.Window.Width), int(pty.Window.Height), token.Protocol,
 	)
 	if err != nil {
 		return nil, err
@@ -312,17 +312,17 @@ func (c *terminalToolController) executePTY(
 	if observer == nil {
 		return "", nil, fmt.Errorf("terminal observer is unavailable")
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	if !c.client.setInputLock(cancel) {
+		return "", nil, fmt.Errorf("terminal input is busy")
+	}
+	defer c.client.setInputLock(nil)
 	result, err := observer.Begin(command)
 	if err != nil {
 		return "", nil, err
 	}
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	if !c.client.setInputLock(cancel) {
-		observer.Cancel()
-		return "", nil, fmt.Errorf("another PTY tool call is active")
-	}
-	defer c.client.setInputLock(nil)
+	defer observer.Cancel()
 	if decision != nil {
 		value := proxy.CommandACLDecision{
 			Action: model.CommandAction(decision.Action),
@@ -333,22 +333,29 @@ func (c *terminalToolController) executePTY(
 		c.server.AuthorizeAgentToolCommand(command, &value)
 		defer c.server.RevokeAgentToolCommand(command)
 	}
-	if err = c.client.WriteAgentToolData([]byte(command + "\r")); err != nil {
-		observer.Cancel()
-		return "", nil, err
-	}
-	select {
-	case <-ctx.Done():
-		_ = c.client.WriteAgentToolData([]byte{3})
-		output := observer.Snapshot()
-		observer.Cancel()
-		return output, nil, ctx.Err()
-	case observed := <-result:
-		if observed.Command != command {
-			return observed.Output, nil, fmt.Errorf("terminal observer command mismatch")
+	if err = c.client.WriteAgentToolData(ctx, []byte(command+"\r")); err == nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		case observed := <-result:
+			if observed.Command != command {
+				return observed.Output, nil, fmt.Errorf("terminal observer command mismatch")
+			}
+			return observed.Output, nil, nil
 		}
-		return observed.Output, nil, nil
 	}
+	if ctx.Err() != nil {
+		// Interrupt partially submitted commands without indefinitely delaying unlock.
+		interruptCtx, interruptCancel := context.WithTimeout(c.client.Context(), time.Second)
+		defer interruptCancel()
+		if interruptErr := c.client.WriteAgentToolData(interruptCtx, []byte{3}); interruptErr != nil {
+			output := observer.Snapshot()
+			// A failed interrupt leaves the submitted input in an unknown state.
+			c.client.closeInput()
+			return output, nil, err
+		}
+	}
+	return observer.Snapshot(), nil, err
 }
 
 func (c *terminalToolController) executeWinRMPTY(

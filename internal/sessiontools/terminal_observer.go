@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/LeeEirc/terminalparser"
+	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
 const (
@@ -25,19 +26,22 @@ type TerminalCommandResult struct {
 // TerminalObserver keeps a bounded local terminal view. Feed never leaves the
 // Koko process; Snapshot is exposed only through the current session tool.
 type TerminalObserver struct {
-	mu        sync.Mutex
-	terminal  *terminalparser.TerminalVT
-	width     uint16
-	height    uint16
-	active    bool
-	command   string
-	prompt    string
-	output    bytes.Buffer
-	truncated bool
-	result    chan TerminalCommandResult
+	mu           sync.Mutex
+	terminal     *terminalparser.TerminalVT
+	width        uint16
+	height       uint16
+	active       bool
+	command      string
+	prompt       string
+	promptPrefix string
+	lineBreak    bool
+	echoed       bool
+	output       bytes.Buffer
+	truncated    bool
+	result       chan TerminalCommandResult
 }
 
-func NewTerminalObserver(width, height int) (*TerminalObserver, error) {
+func NewTerminalObserver(width, height int, protocol string) (*TerminalObserver, error) {
 	width, height = boundedTerminalSize(width, height)
 	terminal, err := terminalparser.New(
 		terminalparser.WithSize(uint16(width), uint16(height)),
@@ -46,9 +50,20 @@ func NewTerminalObserver(width, height int) (*TerminalObserver, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create terminal observer: %w", err)
 	}
+	promptPrefix := ""
+	switch protocol {
+	case srvconn.ProtocolMySQL, srvconn.ProtocolClickHouse, srvconn.ProtocolSQLServer,
+		srvconn.ProtocolOracle, srvconn.ProtocolDameng:
+		promptPrefix = protocol
+	case srvconn.ProtocolMariadb:
+		promptPrefix = "maria"
+	case srvconn.ProtocolPostgresql:
+		promptPrefix = "postgres"
+	}
 	return &TerminalObserver{
 		terminal: terminal, width: uint16(width), height: uint16(height),
-		result: make(chan TerminalCommandResult, 1),
+		promptPrefix: promptPrefix,
+		result:       make(chan TerminalCommandResult, 1),
 	}, nil
 }
 
@@ -62,9 +77,13 @@ func (o *TerminalObserver) Begin(command string) (<-chan TerminalCommandResult, 
 	if err != nil {
 		return nil, err
 	}
+	prompt = strings.TrimSpace(prompt)
+	if prompt == "" || (o.promptPrefix != "" && !o.isPrompt(prompt)) {
+		return nil, fmt.Errorf("terminal input is not ready; finish or clear the current input before PTY execution")
+	}
 	o.active = true
 	o.command = strings.TrimSpace(command)
-	o.prompt = strings.TrimSpace(prompt)
+	o.prompt = prompt
 	o.output.Reset()
 	o.truncated = false
 	for len(o.result) > 0 {
@@ -82,25 +101,44 @@ func (o *TerminalObserver) Feed(data []byte) {
 	if _, err := o.terminal.Write(data); err != nil || !o.active {
 		return
 	}
+	// Readline can redraw an idle prompt before echoing or submitting the command.
+	o.lineBreak = o.lineBreak || bytes.ContainsRune(data, '\n')
 	if remaining := maxTerminalObserverOutput - o.output.Len(); remaining > 0 {
 		if len(data) > remaining {
 			data = data[:remaining]
 			o.truncated = true
 		}
 		_, _ = o.output.Write(data)
+		// Preserve echo evidence when rendered terminal history is pruned.
+		if !o.echoed {
+			echoPrefix := o.command[:min(len(o.command), 32)]
+			o.echoed = bytes.Contains(o.output.Bytes(), []byte(echoPrefix))
+		}
 	} else {
 		o.truncated = true
 	}
 	row, err := o.terminal.CursorRow()
-	if err != nil || o.prompt == "" || strings.TrimSpace(row) != o.prompt {
+	if err != nil || !o.lineBreak || !o.isPrompt(strings.TrimSpace(row)) {
 		return
 	}
-	result := TerminalCommandResult{Command: o.command, Output: o.parseOutputLocked()}
+	output, echoed := o.parseOutputLocked()
+	o.echoed = o.echoed || echoed
+	if o.promptPrefix != "" && !o.echoed {
+		return
+	}
+	result := TerminalCommandResult{Command: o.command, Output: output}
 	o.resetLocked()
 	select {
 	case o.result <- result:
 	default:
 	}
+}
+
+func (o *TerminalObserver) isPrompt(row string) bool {
+	if o.promptPrefix != "" {
+		return row == o.promptPrefix+"=>" || row == o.promptPrefix+"=#"
+	}
+	return row == o.prompt
 }
 
 func (o *TerminalObserver) Snapshot() string {
@@ -136,7 +174,7 @@ func (o *TerminalObserver) Close() error {
 	return o.terminal.Close()
 }
 
-func (o *TerminalObserver) parseOutputLocked() string {
+func (o *TerminalObserver) parseOutputLocked() (string, bool) {
 	rows, err := terminalparser.Parse(
 		o.output.Bytes(),
 		terminalparser.WithSize(o.width, o.height),
@@ -144,11 +182,17 @@ func (o *TerminalObserver) parseOutputLocked() string {
 		terminalparser.WithUnwrap(true),
 	)
 	if err != nil {
-		return ""
+		return "", false
 	}
+	echoed := false
+	// Long readline echoes can exceed the bounded capture before submission.
+	echoPrefix := o.command[:min(len(o.command), 32)]
 	var result strings.Builder
 	for _, row := range rows {
 		row = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(row), o.prompt))
+		if strings.HasPrefix(row, echoPrefix) {
+			echoed = true
+		}
 		if row == "" || row == o.command {
 			continue
 		}
@@ -161,13 +205,15 @@ func (o *TerminalObserver) parseOutputLocked() string {
 	if o.truncated {
 		value = terminalObserverTruncatedMark + "\n" + value
 	}
-	return strings.TrimSpace(value)
+	return strings.TrimSpace(value), echoed
 }
 
 func (o *TerminalObserver) resetLocked() {
 	o.active = false
 	o.command = ""
 	o.prompt = ""
+	o.lineBreak = false
+	o.echoed = false
 	o.output.Reset()
 	o.truncated = false
 }
