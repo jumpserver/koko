@@ -137,7 +137,8 @@ func (o *TerminalObserver) Feed(data []byte) {
 
 func (o *TerminalObserver) isPrompt(row string) bool {
 	if o.promptPrefix != "" {
-		return row == o.promptPrefix+"=>" || row == o.promptPrefix+"=#"
+		return row == o.promptPrefix+"=>" || row == o.promptPrefix+"=#" ||
+			row == o.promptPrefix+"=~"
 	}
 	return row == o.prompt
 }
@@ -194,7 +195,7 @@ func (o *TerminalObserver) parseOutputLocked() (string, bool) {
 		if strings.HasPrefix(row, echoPrefix) {
 			echoed = true
 		}
-		if row == "" || row == o.command {
+		if row == "" || row == o.command || o.isPrompt(row) {
 			continue
 		}
 		if result.Len() > 0 {

@@ -8,6 +8,7 @@ import (
 func TestTerminalObserverRequiresReadySQLPrompt(t *testing.T) {
 	for _, tc := range []struct{ name, input string }{
 		{"empty", ""}, {"partial", "mysql=> SEL"}, {"continuation", "mysql-> "},
+		{"transaction_partial", "mysql=~ SEL"}, {"transaction_continuation", "mysql-~ "},
 		{"wrapped", "mysql=> " + strings.Repeat("x", 80)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -104,8 +105,11 @@ func TestTerminalObserverCompletesAfterEchoScrollsOut(t *testing.T) {
 }
 
 func TestTerminalObserverSQLPromptAliases(t *testing.T) {
-	for _, tc := range []struct{ protocol, prompt string }{
-		{"mariadb", "maria=> "}, {"postgresql", "postgres=# "}, {"ssh", "$ "},
+	for _, tc := range []struct{ protocol, prompt, finishedPrompt string }{
+		{"mariadb", "maria=> ", "maria=> "}, {"postgresql", "postgres=# ", "postgres=# "}, {"ssh", "$ ", "$ "},
+		{"postgresql", "postgres=~ ", "postgres=~ "},
+		{"postgresql", "postgres=> ", "postgres=~ "},
+		{"postgresql", "postgres=~ ", "postgres=> "},
 	} {
 		t.Run(tc.protocol, func(t *testing.T) {
 			observer, err := NewTerminalObserver(80, 24, tc.protocol)
@@ -118,9 +122,12 @@ func TestTerminalObserverSQLPromptAliases(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			observer.Feed([]byte("SELECT 1;\r\n1\r\n" + tc.prompt))
+			observer.Feed([]byte("SELECT 1;\r\n1\r\n" + tc.finishedPrompt))
 			select {
-			case <-result:
+			case got := <-result:
+				if got.Output != "1" {
+					t.Fatalf("unexpected SQL output: %q", got.Output)
+				}
 			default:
 				t.Fatal("the protocol prompt did not finish the call")
 			}
