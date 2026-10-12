@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
+	"net"
 	"sync"
 
 	"github.com/jumpserver/koko/pkg/srvconn"
@@ -343,7 +343,7 @@ func (h *tty) handleTerminalInit(
 		Width:  connectInfo.Cols,
 		Height: connectInfo.Rows,
 	}
-	userR, userW := io.Pipe()
+	userR, userW := net.Pipe()
 	ctx, cancel := context.WithCancel(h.ws.ctx.Request.Context())
 	client := &Client{
 		WinChan: make(chan ssh.Window, 100), Conn: h.ws,
