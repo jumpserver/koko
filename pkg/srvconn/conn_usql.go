@@ -48,7 +48,7 @@ type USQLConn struct {
 func (conn *USQLConn) KeepAlive() error { return nil }
 
 func (conn *USQLConn) Close() error {
-	_, _ = conn.Write(cleanLineExitCommand)
+	// Input may already be blocked; close the process without another PTY write.
 	return conn.LocalCommand.Close()
 }
 

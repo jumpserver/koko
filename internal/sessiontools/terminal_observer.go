@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/LeeEirc/terminalparser"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
@@ -112,7 +113,7 @@ func (o *TerminalObserver) Feed(data []byte) {
 		// Preserve echo evidence when rendered terminal history is pruned.
 		if !o.echoed {
 			echoPrefix := o.command[:min(len(o.command), 32)]
-			o.echoed = bytes.Contains(o.output.Bytes(), []byte(echoPrefix))
+			o.echoed = strings.Contains(ansi.Strip(o.output.String()), echoPrefix)
 		}
 	} else {
 		o.truncated = true
