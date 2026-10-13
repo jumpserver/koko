@@ -15,6 +15,9 @@ import (
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
+// ptyInterruptDeliveryTimeout bounds local input delivery, not remote command exit.
+const ptyInterruptDeliveryTimeout = 5 * time.Second
+
 type commandExecutorFactory func(context.Context) (sessiontools.CommandExecutor, error)
 
 type terminalToolController struct {
@@ -346,7 +349,7 @@ func (c *terminalToolController) executePTY(
 	}
 	if ctx.Err() != nil {
 		// Interrupt partially submitted commands without indefinitely delaying unlock.
-		interruptCtx, interruptCancel := context.WithTimeout(c.client.Context(), time.Second)
+		interruptCtx, interruptCancel := context.WithTimeout(c.client.Context(), ptyInterruptDeliveryTimeout)
 		defer interruptCancel()
 		if interruptErr := c.client.WriteAgentToolData(interruptCtx, []byte{3}); interruptErr != nil {
 			output := observer.Snapshot()
