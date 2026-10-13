@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -229,6 +230,9 @@ func (u *sftpVolume) UploadFile(path string, reader *bytes.Reader, totalSize int
 	if u.closed.Load() {
 		return os.ErrClosed
 	}
+	if err := u.conn.CheckUploadSize(path, totalSize); err != nil {
+		return err
+	}
 	file, err := u.conn.Create(path)
 	if err != nil {
 		return err
@@ -272,6 +276,9 @@ func (u *sftpVolume) SaveFile(
 	}
 	path = paths[0]
 
+	if err := u.conn.CheckUploadSize(path, totalSize); err != nil {
+		return result, err
+	}
 	if options.expectedVersion != nil && !options.force {
 		if err := u.verifyExpectedVersion(path, *options.expectedVersion, false); err != nil {
 			return result, err
@@ -392,8 +399,11 @@ func (u *sftpVolume) UploadChunk(cid int, path string, offset, dataSize int64, r
 	if u.closed.Load() {
 		return os.ErrClosed
 	}
-	if offset < 0 || dataSize < 0 {
+	if offset < 0 || dataSize < 0 || offset > math.MaxInt64-dataSize {
 		return fmt.Errorf("invalid file range")
+	}
+	if err := u.conn.CheckUploadSize(path, offset+dataSize); err != nil {
+		return err
 	}
 	upload, ok := u.uploads[cid]
 	if ok && upload.path != path {

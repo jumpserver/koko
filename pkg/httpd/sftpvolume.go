@@ -23,6 +23,7 @@ type sftpFileSystem interface {
 	Rename(string, string) error
 	Remove(string) error
 	RemoveDirectory(string) error
+	CheckUploadSize(string, int64) error
 	Create(string) (*srvconn.SftpFile, error)
 	CreateEditorTemp(string, string) (*srvconn.SftpFile, error)
 	Open(string) (*srvconn.SftpFile, error)

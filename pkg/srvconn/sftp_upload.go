@@ -10,6 +10,23 @@ import (
 	"github.com/pkg/sftp"
 )
 
+func (u *UserSftpConn) CheckUploadSize(path string, size int64) error {
+	assetDir, restPath := u.assetDir, path
+	if assetDir == nil {
+		fi, parsedPath := u.ParsePath(path)
+		assetDir, _ = fi.(*AssetDir)
+		restPath = parsedPath
+	}
+	if assetDir == nil {
+		return sftp.ErrSshFxPermissionDenied
+	}
+	_, con, _, err := assetDir.resolveUploadPath(restPath)
+	if err != nil {
+		return err
+	}
+	return con.checkFileSize(size, true)
+}
+
 // OpenUploadTemp accesses upload staging data under upload permission. Internal
 // reads and writes are audited once by CommitUploadTemp, against the final path.
 func (u *UserSftpConn) OpenUploadTemp(path string, create bool) (*SftpFile, error) {
@@ -35,11 +52,21 @@ func (ad *AssetDir) OpenUploadTemp(path string, create bool) (*SftpFile, error) 
 		flags |= os.O_CREATE | os.O_EXCL
 	}
 	file, err := con.client.OpenFile(realPath, flags)
+	if err == nil && !create && con.fileSizeLimit(true) > 0 {
+		var info os.FileInfo
+		info, err = file.Stat()
+		if err == nil {
+			err = con.checkFileSize(info.Size(), true)
+		}
+		if err != nil {
+			_ = file.Close()
+		}
+	}
 	if err != nil {
 		con.DecreaseRef()
 		return nil, err
 	}
-	return &SftpFile{File: file, cleanupFunc: con.DecreaseRef}, nil
+	return &SftpFile{File: file, cleanupFunc: con.DecreaseRef, uploadLimit: con.fileSizeLimit(true)}, nil
 }
 
 func (u *UserSftpConn) CommitUploadTemp(sourcePath, targetPath string, overwrite bool) (*model.FTPLog, error) {
@@ -73,6 +100,15 @@ func (ad *AssetDir) CommitUploadTemp(sourcePath, targetPath string, overwrite bo
 	}
 	sourceConn.IncreaseRef()
 	defer sourceConn.DecreaseRef()
+	if sourceConn.fileSizeLimit(true) > 0 {
+		info, statErr := sourceConn.client.Stat(sourceRealPath)
+		if statErr != nil {
+			return nil, statErr
+		}
+		if sizeErr := sourceConn.checkFileSize(info.Size(), true); sizeErr != nil {
+			return ad.CreateFTPLog(su, model.OperateUpload, targetRealPath, false), sizeErr
+		}
+	}
 	if overwrite {
 		err = sourceConn.client.PosixRename(sourceRealPath, targetRealPath)
 	} else {

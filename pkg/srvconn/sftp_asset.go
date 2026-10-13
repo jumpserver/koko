@@ -213,7 +213,7 @@ func (ad *AssetDir) create(path string, overwrite bool, auditPath string) (*Sftp
 		return nil, err
 	}
 	ftpLog := ad.CreateFTPLog(su, operate, auditFilename, true)
-	f := &SftpFile{File: sf, FTPLog: ftpLog, cleanupFunc: con.DecreaseRef}
+	f := &SftpFile{File: sf, FTPLog: ftpLog, cleanupFunc: con.DecreaseRef, uploadLimit: con.fileSizeLimit(true)}
 	return f, nil
 }
 
@@ -308,6 +308,16 @@ func (ad *AssetDir) openFile(path string, audit bool) (*SftpFile, error) {
 	}
 	con.IncreaseRef()
 	sf, err := con.client.Open(realPath)
+	if err == nil && audit && con.fileSizeLimit(false) > 0 {
+		var info os.FileInfo
+		info, err = sf.Stat()
+		if err == nil {
+			err = con.checkFileSize(info.Size(), false)
+		}
+		if err != nil {
+			_ = sf.Close()
+		}
+	}
 	if err != nil {
 		if audit {
 			ad.CreateFTPLog(su, model.OperateDownload, realPath, false)

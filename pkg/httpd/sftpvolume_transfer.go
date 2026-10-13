@@ -351,6 +351,9 @@ func (u *sftpVolume) prepareTransfer(transferID, targetPath string, totalSize in
 	if totalSize < 0 {
 		return sftpTransferResult{}, fmt.Errorf("invalid file transfer size")
 	}
+	if err := u.conn.CheckUploadSize(targetPath, totalSize); err != nil {
+		return sftpTransferResult{}, err
+	}
 	if conflictPolicy != "ask" && conflictPolicy != "overwrite" && conflictPolicy != "skip" && conflictPolicy != "keep_both" {
 		return sftpTransferResult{}, fmt.Errorf("invalid file transfer conflict policy")
 	}
@@ -483,6 +486,10 @@ func (u *sftpVolume) writeTransferChunk(transferID, targetPath string, totalSize
 	if u.closed.Load() {
 		u.lock.Unlock()
 		return sftpTransferResult{}, os.ErrClosed
+	}
+	if err := u.conn.CheckUploadSize(targetPath, totalSize); err != nil {
+		u.lock.Unlock()
+		return sftpTransferResult{}, err
 	}
 	file, committedBytes, cached, err := u.writeHandleLocked(transferID, stagePath, offset)
 	if err != nil {
@@ -651,6 +658,9 @@ func (u *sftpVolume) commitTransfer(transferID, targetPath string, totalSize, ch
 	}
 	if totalSize < 0 || (conflictPolicy != "ask" && conflictPolicy != "overwrite" && conflictPolicy != "skip" && conflictPolicy != "keep_both") {
 		return sftpTransferResult{}, fmt.Errorf("invalid file transfer commit")
+	}
+	if err := u.conn.CheckUploadSize(targetPath, totalSize); err != nil {
+		return sftpTransferResult{}, err
 	}
 	stagePath, err := transferStagePath(targetPath, transferID)
 	if err != nil {
