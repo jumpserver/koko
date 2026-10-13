@@ -112,7 +112,7 @@ func TestInputLockRejectsPendingUserWrite(t *testing.T) {
 	}
 }
 
-func TestPTYCancellationClosesInputAfterBlockedInterrupt(t *testing.T) {
+func TestPTYCancellationInterruptDelivery(t *testing.T) {
 	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte("{}"))
@@ -122,73 +122,101 @@ func TestPTYCancellationClosesInputAfterBlockedInterrupt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reader, writer := net.Pipe()
-	defer reader.Close()
-	defer writer.Close()
-	_ = reader.SetReadDeadline(time.Now().Add(time.Second))
-	requestContext, _ := gin.CreateTestContext(httptest.NewRecorder())
-	requestContext.Request = httptest.NewRequest("GET", "/", nil)
-	clientCtx, clientCancel := context.WithCancel(context.Background())
-	defer clientCancel()
-	client := &Client{UserRead: reader, UserWrite: writer, ctx: clientCtx, cancel: clientCancel, Conn: &UserWebsocket{
-		ctx: requestContext,
-	}}
-	server, err := proxy.NewServer(client, api, proxy.ConnectTokenAuthInfo(&model.ConnectToken{
-		Protocol: "ssh", Asset: model.Asset{Protocols: []model.Protocol{{Name: "ssh"}}},
-		Actions: model.Actions{{Value: model.ActionConnect}}, ExpireAt: model.ExpireInfo(time.Now().Add(time.Hour).Unix()),
-	}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	observer, err := sessiontools.NewTerminalObserver(80, 24, "ssh")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer observer.Close()
-	observer.Feed([]byte("$ "))
-	client.setTerminalObserver(observer)
-	controller := &terminalToolController{client: client, server: server}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	finished := make(chan error, 1)
-	go func() { _, _, err := controller.executePTY(ctx, "echo hello", nil); finished <- err }()
-	if _, err = io.ReadFull(reader, make([]byte, 1)); err != nil {
-		t.Fatal(err)
-	}
-	// Leave both the remaining command and the subsequent Ctrl-C without a reader.
-	cancel()
-	select {
-	case err = <-finished:
-		if !errors.Is(err, context.Canceled) {
-			t.Fatal(err)
+	for _, delayedRead := range []bool{false, true} {
+		name := "blocked_interrupt"
+		if delayedRead {
+			name = "delayed_delivery"
 		}
-	case <-time.After(3 * time.Second):
-		t.Fatal("blocked interrupt kept the PTY call active")
-	}
-	manual := make(chan struct{})
-	go func() { client.WriteData([]byte("x")); close(manual) }()
-	select {
-	case <-manual:
-	case <-time.After(time.Second):
-		t.Fatal("manual input blocked again after the interrupt failed")
-	}
-	if clientCtx.Err() == nil {
-		t.Fatal("failed interrupt left the unusable terminal session active")
-	}
-	_ = writer.SetWriteDeadline(time.Now().Add(time.Second))
-	if _, err = writer.Write([]byte("x")); !errors.Is(err, io.ErrClosedPipe) {
-		t.Fatalf("input pipe was not closed after the interrupt failed: %v", err)
-	}
-	// Close recreates the pipe; late messages must still return without a reader.
-	client.initPipe()
-	defer client.UserRead.Close()
-	defer client.UserWrite.Close()
-	manual = make(chan struct{})
-	go func() { client.WriteData([]byte("x")); close(manual) }()
-	select {
-	case <-manual:
-	case <-time.After(time.Second):
-		t.Fatal("input to the cancelled terminal blocked on a recreated pipe")
+		t.Run(name, func(t *testing.T) {
+			reader, writer := net.Pipe()
+			defer reader.Close()
+			defer writer.Close()
+			_ = reader.SetReadDeadline(time.Now().Add(time.Second))
+			requestContext, _ := gin.CreateTestContext(httptest.NewRecorder())
+			requestContext.Request = httptest.NewRequest("GET", "/", nil)
+			clientCtx, clientCancel := context.WithCancel(context.Background())
+			defer clientCancel()
+			client := &Client{UserRead: reader, UserWrite: writer, ctx: clientCtx, cancel: clientCancel, Conn: &UserWebsocket{
+				ctx: requestContext,
+			}}
+			server, err := proxy.NewServer(client, api, proxy.ConnectTokenAuthInfo(&model.ConnectToken{
+				Protocol: "ssh", Asset: model.Asset{Protocols: []model.Protocol{{Name: "ssh"}}},
+				Actions: model.Actions{{Value: model.ActionConnect}}, ExpireAt: model.ExpireInfo(time.Now().Add(time.Hour).Unix()),
+			}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			observer, err := sessiontools.NewTerminalObserver(80, 24, "ssh")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer observer.Close()
+			observer.Feed([]byte("$ "))
+			client.setTerminalObserver(observer)
+			controller := &terminalToolController{client: client, server: server}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			finished := make(chan error, 1)
+			go func() { _, _, err := controller.executePTY(ctx, "echo hello", nil); finished <- err }()
+			data := make([]byte, 1)
+			if _, err = io.ReadFull(reader, data); err != nil {
+				t.Fatal(err)
+			}
+			// Cancel while the rest of the command is still waiting for a reader.
+			cancel()
+			if delayedRead {
+				select {
+				case err = <-finished:
+					t.Fatalf("interrupt delivery stopped before the reader resumed: %v", err)
+				case <-time.After(2 * time.Second):
+				}
+				_ = reader.SetReadDeadline(time.Now().Add(time.Second))
+				if _, err = io.ReadFull(reader, data); err != nil || data[0] != 3 {
+					t.Fatalf("interrupt = %v, error = %v", data, err)
+				}
+			}
+			select {
+			case err = <-finished:
+				if !errors.Is(err, context.Canceled) {
+					t.Fatal(err)
+				}
+			case <-time.After(ptyInterruptDeliveryTimeout + 2*time.Second):
+				t.Fatal("blocked interrupt kept the PTY call active")
+			}
+			manual := make(chan struct{})
+			go func() { client.WriteData([]byte("x")); close(manual) }()
+			if delayedRead {
+				if _, err = io.ReadFull(reader, data); err != nil || string(data) != "x" {
+					t.Fatalf("manual input after interrupt = %q, error = %v", data, err)
+				}
+			}
+			select {
+			case <-manual:
+			case <-time.After(time.Second):
+				t.Fatal("manual input remained blocked after PTY cancellation")
+			}
+			if delayedRead {
+				return
+			}
+			if clientCtx.Err() == nil {
+				t.Fatal("failed interrupt left the unusable terminal session active")
+			}
+			_ = writer.SetWriteDeadline(time.Now().Add(time.Second))
+			if _, err = writer.Write([]byte("x")); !errors.Is(err, io.ErrClosedPipe) {
+				t.Fatalf("input pipe was not closed after the interrupt failed: %v", err)
+			}
+			// Close recreates the pipe; late messages must still return without a reader.
+			client.initPipe()
+			defer client.UserRead.Close()
+			defer client.UserWrite.Close()
+			manual = make(chan struct{})
+			go func() { client.WriteData([]byte("x")); close(manual) }()
+			select {
+			case <-manual:
+			case <-time.After(time.Second):
+				t.Fatal("input to the cancelled terminal blocked on a recreated pipe")
+			}
+		})
 	}
 }
 
