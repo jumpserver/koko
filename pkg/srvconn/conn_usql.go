@@ -144,5 +144,8 @@ func (o *sqlOption) USQLCommandArgs() ([]string, error) {
 	dsn := dsnURL.String()
 	prompt1 := "--variable=PROMPT1=" + o.Schema + "%R%#"
 
-	return []string{dsn, prompt1}, nil
+	// KoKo collects the account password before launching usql. Let a failed
+	// supplied password end this connection instead of usql recursively opening
+	// an unlimited independent password prompt.
+	return []string{dsn, prompt1, "--no-password"}, nil
 }

@@ -3,11 +3,23 @@ package srvconn
 import (
 	"bytes"
 	"io"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/localcommand"
 )
+
+func TestUSQLUsesOneSuppliedPasswordAttempt(t *testing.T) {
+	args, err := (&sqlOption{Schema: "dameng", Host: "127.0.0.1", Port: 5236,
+		Username: "test", Password: "wrong-password"}).USQLCommandArgs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(args, "--no-password") {
+		t.Fatal("usql may recursively prompt for passwords beyond the connection attempt limit")
+	}
+}
 
 func TestUSQLCloseUnblocksPTYWrite(t *testing.T) {
 	command, err := localcommand.New("/bin/sh", []string{
