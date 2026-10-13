@@ -267,6 +267,10 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	room := exchange.CreateRoom(s.ID, userInputMessageChan)
 	exchange.Register(room)
 	defer exchange.UnRegister(room)
+	// Monitors must render the stream with the source PTY's dimensions, even
+	// when they join before the user's first resize.
+	initialWindow, _ := json.Marshal(userConn.Pty().Window)
+	room.Broadcast(&exchange.RoomMessage{Event: exchange.WindowsEvent, Body: initialWindow})
 	conn := exchange.WrapperUserCon(userConn)
 	conn.Primary = true
 	room.Subscribe(conn)
