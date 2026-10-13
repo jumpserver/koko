@@ -2,6 +2,7 @@ package srvconn
 
 import (
 	"errors"
+	"math"
 	"os"
 	"strings"
 	"sync"
@@ -147,6 +148,14 @@ type SftpFile struct {
 	FTPLog *model.FTPLog
 
 	cleanupFunc func()
+	uploadLimit int64
+}
+
+func (s *SftpFile) WriteAt(p []byte, off int64) (int, error) {
+	if s.uploadLimit > 0 && (off < 0 || off > s.uploadLimit || int64(len(p)) > s.uploadLimit-off) {
+		return 0, sftp.ErrSshFxPermissionDenied
+	}
+	return s.File.WriteAt(p, off)
 }
 
 func (s *SftpFile) Close() error {
@@ -170,6 +179,31 @@ type SftpConn struct {
 	refs            atomic.Int32
 	lock            sync.Mutex
 	maxIdleTime     time.Duration
+}
+
+func (s *SftpConn) fileSizeLimit(upload bool) int64 {
+	if s.token == nil || s.token.ClipboardPolicy == nil {
+		return 0
+	}
+	item := s.token.ClipboardPolicy.Copy
+	if upload {
+		item = s.token.ClipboardPolicy.Paste
+	}
+	if item == nil || item.FileSizeLimit <= 0 {
+		return 0
+	}
+	const bytesPerMegabyte = 1024 * 1024
+	if int64(item.FileSizeLimit) > math.MaxInt64/bytesPerMegabyte {
+		return math.MaxInt64
+	}
+	return int64(item.FileSizeLimit) * bytesPerMegabyte
+}
+
+func (s *SftpConn) checkFileSize(size int64, upload bool) error {
+	if limit := s.fileSizeLimit(upload); limit > 0 && size > limit {
+		return sftp.ErrSshFxPermissionDenied
+	}
+	return nil
 }
 
 func (s *SftpConn) IsExpired() bool {
