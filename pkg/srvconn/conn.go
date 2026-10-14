@@ -233,6 +233,10 @@ func usqlSupportedChecker(protocol string) func() error {
 	}
 }
 
+func CheckUSQLDriver(driver string) error {
+	return usqlSupportedChecker(driver)()
+}
+
 func MatchLoginPrefix(prefix string, dbType string, lcmd *localcommand.LocalCommand) (*localcommand.LocalCommand, error) {
 	var (
 		nr  int
