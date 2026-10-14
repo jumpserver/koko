@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"unicode"
@@ -24,11 +26,49 @@ const (
 )
 
 type sqlMetadataTool struct {
-	db       *sql.DB
-	protocol string
-	database string
-	mu       sync.RWMutex
-	cache    map[string]SQLSchemaLookupResult
+	db              *sql.DB
+	protocol        string
+	database        string
+	positionalBinds bool
+	mu              sync.RWMutex
+	cache           map[string]SQLSchemaLookupResult
+}
+
+var oracleSQLBind = regexp.MustCompile(`:[1-9][0-9]*`)
+
+func newOceanBaseSQLMetadataTool(db *sql.DB, protocol, database string) *sqlMetadataTool {
+	tool := newSQLMetadataTool(db, protocol, database)
+	tool.positionalBinds = protocol == srvconn.ProtocolOracle
+	return tool
+}
+
+func (t *sqlMetadataTool) queryContext(ctx context.Context, statement string, args ...any) (*sql.Rows, error) {
+	if !t.positionalBinds {
+		return t.db.QueryContext(ctx, statement, args...)
+	}
+	statement, ordered, err := rewriteOracleSQLMetadataBinds(statement, args)
+	if err != nil {
+		return nil, err
+	}
+	return t.db.QueryContext(ctx, statement, ordered...)
+}
+
+func rewriteOracleSQLMetadataBinds(statement string, args []any) (string, []any, error) {
+	ordered := make([]any, 0, len(args))
+	var bindErr error
+	statement = oracleSQLBind.ReplaceAllStringFunc(statement, func(bind string) string {
+		index, err := strconv.Atoi(bind[1:])
+		if err != nil || index < 1 || index > len(args) {
+			bindErr = fmt.Errorf("invalid OceanBase Oracle metadata bind %s", bind)
+			return bind
+		}
+		ordered = append(ordered, args[index-1])
+		return "?"
+	})
+	if bindErr != nil {
+		return "", nil, bindErr
+	}
+	return statement, ordered, nil
 }
 
 type sqlTableRef struct {
@@ -241,7 +281,7 @@ ORDER BY if(lower(name) = lower(?), 0, if(startsWith(lower(name), lower(?)), 1, 
 	default:
 		return nil, fmt.Errorf("SQL metadata is unsupported for protocol %s", t.protocol)
 	}
-	rows, err := t.db.QueryContext(ctx, statement, args...)
+	rows, err := t.queryContext(ctx, statement, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +313,7 @@ func (t *sqlMetadataTool) describe(
 	if err != nil {
 		return nil, false, err
 	}
-	rows, err := t.db.QueryContext(ctx, statement, args...)
+	rows, err := t.queryContext(ctx, statement, args...)
 	if err != nil {
 		return nil, false, err
 	}

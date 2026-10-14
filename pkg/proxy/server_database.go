@@ -23,6 +23,8 @@ var errUnknownProtocol = errors.New("unknown protocol")
 
 type DatabaseConnectionInfo struct {
 	Protocol         string
+	PlatformType     string
+	TenantMode       string
 	Host             string
 	Port             int
 	ServerName       string
@@ -69,6 +71,7 @@ func (s *Server) notifyDatabaseConnection(localTunnelAddr *net.TCPAddr) {
 		clusterMode    bool
 		authSource     string
 		connectionOpts string
+		tenantMode     string
 	)
 	if platformProtocol, ok := s.connOpts.authInfo.Platform.GetProtocolSetting(protocol); ok {
 		setting := platformProtocol.GetSetting()
@@ -77,6 +80,9 @@ func (s *Server) notifyDatabaseConnection(localTunnelAddr *net.TCPAddr) {
 		clusterMode = setting.EnableClusterMode
 		authSource = setting.AuthSource
 		connectionOpts = setting.ConnectionOpts
+		if s.connOpts.authInfo.Platform.Type.Value == "oceanbase" {
+			tenantMode, _ = platformProtocol.Setting["tenant_mode"].(string)
+		}
 		if protocol == srvconn.ProtocolRedis {
 			if raw, exists := platformProtocol.Setting["enable_cluster_mode"]; exists {
 				clusterMode = parseBoolValue(raw)
@@ -88,6 +94,7 @@ func (s *Server) notifyDatabaseConnection(localTunnelAddr *net.TCPAddr) {
 	}
 	info := DatabaseConnectionInfo{
 		Protocol: protocol, Host: host, Port: port, ServerName: asset.Address,
+		PlatformType: s.connOpts.authInfo.Platform.Type.Value, TenantMode: tenantMode,
 		Username: username, Password: s.account.Secret,
 		Database: asset.SpecInfo.DBName,
 		UseSSL:   asset.SpecInfo.UseSSL, PGSSLMode: asset.SpecInfo.PgSSLMode,
@@ -133,6 +140,27 @@ func (s *Server) getUSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.USQ
 	if !ok {
 		return nil, errUnknownProtocol
 	}
+	if platform.Type.Value == "oceanbase" {
+		if protocol != srvconn.ProtocolMySQL {
+			return nil, fmt.Errorf("OceanBase requires the mysql wire protocol, got %s", protocol)
+		}
+		platformProtocol, found := platform.GetProtocolSetting(protocol)
+		if !found {
+			return nil, errors.New("OceanBase tenant mode is not configured")
+		}
+		mode, _ := platformProtocol.Setting["tenant_mode"].(string)
+		switch mode {
+		case "mysql":
+			schema = "oceanbase"
+		case "oracle":
+			schema = "oboracle"
+		default:
+			return nil, fmt.Errorf("unsupported OceanBase tenant mode %q", mode)
+		}
+		if err := srvconn.CheckUSQLDriver(schema); err != nil {
+			return nil, err
+		}
+	}
 	disableSQLServerEncrypt := false
 	if platformProtocol, ok1 := platform.GetProtocolSetting(protocol); ok1 {
 		protocolSetting := platformProtocol.GetSetting()
@@ -143,6 +171,7 @@ func (s *Server) getUSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.USQ
 	opts = append(opts, srvconn.SqlAssetName(asset.Name))
 	opts = append(opts, srvconn.SqlSchema(schema))
 	opts = append(opts, srvconn.SqlHost(host))
+	opts = append(opts, srvconn.SqlServerName(asset.Address))
 	opts = append(opts, srvconn.SqlPort(port))
 	opts = append(opts, srvconn.SqlUsername(s.account.Username))
 	opts = append(opts, srvconn.SqlPassword(s.account.Secret))

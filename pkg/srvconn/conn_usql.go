@@ -105,11 +105,15 @@ func (o *sqlOption) USQLCommandArgs() ([]string, error) {
 				params.Set("sslkey", clientCertKeyPath)
 			}
 
-		case "mysql", "maria", "mariadb":
+		case "mysql", "maria", "mariadb", "oceanbase", "oboracle":
 			params.Set("tls", "custom")
 			params.Set("ssl-ca", caCertPath)
 			params.Set("ssl-cert", clientCertPath)
 			params.Set("ssl-key", clientCertKeyPath)
+			if o.Schema == "oceanbase" || o.Schema == "oboracle" {
+				params.Set("ssl-server-name", o.ServerName)
+				params.Set("ssl-insecure", strconv.FormatBool(o.AllowInvalidCert))
+			}
 		}
 	}
 

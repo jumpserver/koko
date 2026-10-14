@@ -9,6 +9,8 @@ import (
 
 type DatabaseConfig struct {
 	Protocol         string
+	PlatformType     string
+	TenantMode       string
 	Host             string
 	Port             int
 	ServerName       string
