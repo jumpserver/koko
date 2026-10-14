@@ -32,6 +32,7 @@ require (
 	github.com/leonelquinteros/gotext v1.7.2
 	github.com/mattn/go-runewidth v0.0.28
 	github.com/microsoft/go-mssqldb v1.11.0
+	github.com/oceanbase/go-oceanbase-driver v1.7.0-oceanbase.1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pires/go-proxyproto v0.15.0
 	github.com/pkg/sftp v1.13.11
