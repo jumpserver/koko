@@ -448,6 +448,7 @@ func (s *Server) finishRecording(w http.ResponseWriter, r *http.Request, id stri
 
 	result, err := s.recordings.finish(r.Context(), id, request.DurationMS)
 	if err != nil {
+		logger.Errorf("Finish Web recording %s for session %s failed: %s", id, sessionID, err)
 		_, _ = s.coreService.SessionReplayFailed(sessionID, model.SessionReplayErrConvertFailed)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

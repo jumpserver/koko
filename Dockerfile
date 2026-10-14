@@ -29,6 +29,7 @@ USER root
 
 ARG DEPENDENCIES="                    \
         bash-completion               \
+        ffmpeg                        \
         less                          \
         openssl                       \
         redis-tools                   \
