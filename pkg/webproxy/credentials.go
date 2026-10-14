@@ -176,7 +176,8 @@ func (s *Server) createCredentialSession(w http.ResponseWriter, r *http.Request)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	apiSession := connectToken.CreateSession(remoteHost(r.RemoteAddr), model.LoginFromWeb, model.NORMALType)
+	// A distinct type keeps pause and monitoring disabled without affecting remote apps.
+	apiSession := connectToken.CreateSession(remoteHost(r.RemoteAddr), model.LoginFromWeb, "web_proxy")
 	apiSession.ID = common.UUID()
 	if _, err = s.credentials.tokenService.CreateSession(apiSession); err != nil {
 		http.Error(w, "unable to create Web session", http.StatusBadGateway)
