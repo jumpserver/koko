@@ -55,6 +55,10 @@ func OriginAllowed(request *http.Request) bool {
 	if origin == "" {
 		return true
 	}
+	// Luna's packaged Electron renderer uses this origin for HTTP file transfers.
+	if origin == "jms-app://app" {
+		return true
+	}
 	originURL, err := url.Parse(origin)
 	if err != nil || originURL.Host == "" {
 		return false

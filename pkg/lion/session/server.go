@@ -360,6 +360,10 @@ func (s *Server) Create(ctx *gin.Context, opts ...TunnelOption) (sess TunnelSess
 			defer opt.virtualAppAPIGateway.Stop()
 		}
 		if opt.appletOpt != nil {
+			// Ticket IDs identify login attempts; Tinker owns the local account lifecycle.
+			if isAppletLoginTicket(opt.appletOpt) {
+				return nil
+			}
 			return s.JmsService.ReleaseAppletAccount(opt.appletOpt.ID)
 		}
 		if opt.virtualAppOPt != nil {

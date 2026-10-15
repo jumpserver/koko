@@ -23,7 +23,6 @@ var (
 
 	fset        *token.FileSet
 	domainFiles map[string]*os.File
-	currentFile string
 	msgids      = map[string]int{}
 )
 
@@ -164,27 +163,7 @@ func ParseDir(dirName string) error {
 	return nil
 }
 
-func parseDir(dirName string) error {
-	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, dirName, nil, parser.AllErrors)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, pkg := range pkgs {
-		for fn := range pkg.Files {
-			fmt.Println(fn)
-			//parseFile(fn)
-		}
-	}
-
-	return nil
-}
-
 func parseFile(fileName string) error {
-	// Remember current file to write comments on .po file
-	currentFile = fileName
-
 	// Parse AST
 	fset = token.NewFileSet()
 	node, err := parser.ParseFile(fset, fileName, nil, parser.AllErrors)

@@ -2,6 +2,7 @@ package srvconn
 
 import (
 	"errors"
+	"math"
 	"os"
 	"strings"
 	"sync"
@@ -17,61 +18,7 @@ import (
 	"github.com/jumpserver/koko/pkg/config"
 )
 
-const (
-	SearchFolderName = "_Search"
-)
-
 var errNoAccountUser = errors.New("please select one of the account user")
-
-type SearchResultDir struct {
-	subDirs    map[string]os.FileInfo
-	folderName string
-	modeTime   time.Time
-}
-
-func (sd *SearchResultDir) Name() string {
-	return sd.folderName
-}
-
-func (sd *SearchResultDir) Size() int64 { return 0 }
-
-func (sd *SearchResultDir) Mode() os.FileMode {
-	return os.FileMode(0444) | os.ModeDir
-}
-
-func (sd *SearchResultDir) ModTime() time.Time { return sd.modeTime }
-
-func (sd *SearchResultDir) IsDir() bool { return true }
-
-func (sd *SearchResultDir) Sys() interface{} {
-	return &syscall.Stat_t{Uid: 0, Gid: 0}
-}
-
-func (sd *SearchResultDir) List() (res []os.FileInfo, err error) {
-	for _, item := range sd.subDirs {
-		res = append(res, item)
-	}
-	return
-}
-
-func (sd *SearchResultDir) SetSubDirs(subDirs map[string]os.FileInfo) {
-	if sd.subDirs != nil {
-		for _, dir := range sd.subDirs {
-			if assetDir, ok := dir.(*AssetDir); ok {
-				assetDir.close()
-			}
-		}
-	}
-	sd.subDirs = subDirs
-}
-
-func (sd *SearchResultDir) close() {
-	for _, dir := range sd.subDirs {
-		if assetDir, ok := dir.(*AssetDir); ok {
-			assetDir.close()
-		}
-	}
-}
 
 func NewNodeDir(builders ...FolderBuilderOption) NodeDir {
 	var dirConf folderOptions
@@ -201,6 +148,14 @@ type SftpFile struct {
 	FTPLog *model.FTPLog
 
 	cleanupFunc func()
+	uploadLimit int64
+}
+
+func (s *SftpFile) WriteAt(p []byte, off int64) (int, error) {
+	if s.uploadLimit > 0 && (off < 0 || off > s.uploadLimit || int64(len(p)) > s.uploadLimit-off) {
+		return 0, sftp.ErrSshFxPermissionDenied
+	}
+	return s.File.WriteAt(p, off)
 }
 
 func (s *SftpFile) Close() error {
@@ -224,6 +179,31 @@ type SftpConn struct {
 	refs            atomic.Int32
 	lock            sync.Mutex
 	maxIdleTime     time.Duration
+}
+
+func (s *SftpConn) fileSizeLimit(upload bool) int64 {
+	if s.token == nil || s.token.ClipboardPolicy == nil {
+		return 0
+	}
+	item := s.token.ClipboardPolicy.Copy
+	if upload {
+		item = s.token.ClipboardPolicy.Paste
+	}
+	if item == nil || item.FileSizeLimit <= 0 {
+		return 0
+	}
+	const bytesPerMegabyte = 1024 * 1024
+	if int64(item.FileSizeLimit) > math.MaxInt64/bytesPerMegabyte {
+		return math.MaxInt64
+	}
+	return int64(item.FileSizeLimit) * bytesPerMegabyte
+}
+
+func (s *SftpConn) checkFileSize(size int64, upload bool) error {
+	if limit := s.fileSizeLimit(upload); limit > 0 && size > limit {
+		return sftp.ErrSshFxPermissionDenied
+	}
+	return nil
 }
 
 func (s *SftpConn) IsExpired() bool {

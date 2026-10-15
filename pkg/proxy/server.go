@@ -75,7 +75,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	}
 	terminalConf, err := jmsService.GetTerminalConfig()
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
+		return nil, fmt.Errorf("%w: %w", ErrAPIFailed, err)
 	}
 	assetName := asset.String()
 	if connOpts.k8sContainer != nil {
@@ -145,13 +145,14 @@ type Server struct {
 	sessionInfo *model.Session
 	commandACLs model.CommandACLs
 
-	backgroundRecorderMu sync.Mutex
-	backgroundRecorder   *CommandRecorder
-	agentToolGrantMu     sync.Mutex
-	agentToolGrant       *agentToolCommandGrant
-	operationPaused      atomic.Bool
-	permissionInvalid    atomic.Bool
-	backgroundActiveAt   atomic.Int64
+	backgroundRecorderMu     sync.Mutex
+	backgroundRecorder       *CommandRecorder
+	backgroundRecorderClosed bool
+	agentToolGrantMu         sync.Mutex
+	agentToolGrant           *agentToolCommandGrant
+	operationPaused          atomic.Bool
+	permissionInvalid        atomic.Bool
+	backgroundActiveAt       atomic.Int64
 
 	cacheSSHConnection *srvconn.SSHConnection
 
@@ -164,8 +165,13 @@ type Server struct {
 	OnSessionInfo        func(info *SessionInfo)
 	OnSSHClient          func(client *srvconn.SSHClient)
 	OnDatabaseConnection func(info DatabaseConnectionInfo)
+	OnWinRMConnection    func(conn *srvconn.WinRMConnection)
 	// SessionEndReason is available after Proxy returns.
 	SessionEndReason model.SessionLifecycleReasonErr
+	// ConnectionError retains the cause when setup fails before a session starts.
+	ConnectionError error
+	// ConnectionErrorShown reports that Proxy already wrote the cause to the terminal.
+	ConnectionErrorShown bool
 
 	BroadcastEvent func(event *exchange.RoomMessage)
 }
@@ -331,6 +337,17 @@ func (s *Server) RecordBackgroundCommand(
 			riskLevel = model.ReviewAccept
 		default:
 			switch decision.Action {
+			case model.ActionReject:
+				riskLevel = model.RejectLevel
+				// The ACL snapshot retains the review origin after its decision becomes reject.
+				for _, rule := range s.commandACLs {
+					if rule.ID == decision.ACLID && rule.Action == model.ActionReview {
+						riskLevel = model.ReviewReject
+						break
+					}
+				}
+			case model.ActionReview:
+				riskLevel = model.ReviewCancel
 			case model.ActionWarning, model.ActionNotifyAndWarn:
 				riskLevel = model.WarningLevel
 			}
@@ -338,6 +355,9 @@ func (s *Server) RecordBackgroundCommand(
 	}
 	if exitCode != nil {
 		output = fmt.Sprintf("[exit %d]\n%s", *exitCode, output)
+	}
+	if len(output) > maxBufSize {
+		output = output[:maxBufSize]
 	}
 	now := time.Now()
 	record := &model.Command{
@@ -348,17 +368,27 @@ func (s *Server) RecordBackgroundCommand(
 		RiskLevel: riskLevel, CmdFilterAclId: aclID, CmdGroupId: itemID,
 		DateCreated: now.UTC(),
 	}
+	s.recordBackgroundCommand(record)
+}
+
+func (s *Server) recordBackgroundCommand(record *model.Command) {
 	s.backgroundRecorderMu.Lock()
+	defer s.backgroundRecorderMu.Unlock()
 	if s.backgroundRecorder == nil {
 		s.backgroundRecorder = s.GetCommandRecorder()
 	}
-	recorder := s.backgroundRecorder
-	s.backgroundRecorderMu.Unlock()
-	recorder.Record(record)
+	s.backgroundRecorder.Record(record)
+	// A cancelled AI call can finish after the terminal has disconnected.
+	// Flush its final audit rather than leave a new recorder running forever.
+	if s.backgroundRecorderClosed {
+		s.backgroundRecorder.End()
+		s.backgroundRecorder = nil
+	}
 }
 
 func (s *Server) CloseBackgroundRecorder() {
 	s.backgroundRecorderMu.Lock()
+	s.backgroundRecorderClosed = true
 	recorder := s.backgroundRecorder
 	s.backgroundRecorder = nil
 	s.backgroundRecorderMu.Unlock()
@@ -376,9 +406,9 @@ func (s *Server) SupportsBackgroundExecution() bool {
 		return false
 	}
 	switch s.connOpts.authInfo.Protocol {
-	case srvconn.ProtocolSSH, srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
+	case srvconn.ProtocolSSH, srvconn.ProtocolWinRM, srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 		srvconn.ProtocolPostgresql, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolOracle, srvconn.ProtocolClickHouse,
+		srvconn.ProtocolOracle, srvconn.ProtocolDameng, srvconn.ProtocolClickHouse,
 		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
 		return true
 	default:
@@ -596,12 +626,12 @@ func (s *Server) checkRequiredAuth() error {
 			utils.IgnoreErrWriteString(s.UserConn, msg)
 			return errors.New("no auth token")
 		}
-	case srvconn.ProtocolTELNET, srvconn.ProtocolClickHouse,
+	case srvconn.ProtocolTELNET, srvconn.ProtocolWinRM, srvconn.ProtocolClickHouse,
 		srvconn.ProtocolMongoDB,
 
 		srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 		srvconn.ProtocolSQLServer, srvconn.ProtocolPostgresql,
-		srvconn.ProtocolRedis, srvconn.ProtocolOracle:
+		srvconn.ProtocolRedis, srvconn.ProtocolOracle, srvconn.ProtocolDameng:
 		if err := s.getAuthPasswordIfNeed(); err != nil {
 			s.sendAuthPasswordError(err)
 			return fmt.Errorf("get auth password failed: %s", err)
@@ -1138,6 +1168,8 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		return s.getSSHConn()
 	case srvconn.ProtocolTELNET:
 		return s.getTelnetConn()
+	case srvconn.ProtocolWinRM:
+		return s.getWinRMConn(proxyAddr)
 	case srvconn.ProtocolK8s:
 		return s.getK8sConConn(proxyAddr)
 	case srvconn.ProtocolRedis:
@@ -1149,7 +1181,8 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		srvconn.ProtocolPostgresql,
 		srvconn.ProtocolSQLServer,
 		srvconn.ProtocolClickHouse,
-		srvconn.ProtocolOracle:
+		srvconn.ProtocolOracle,
+		srvconn.ProtocolDameng:
 		return s.getUSQLConn(proxyAddr)
 	default:
 		return nil, ErrUnMatchProtocol
@@ -1159,8 +1192,9 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 func (s *Server) sendConnectingMsg(done chan struct{}) {
 	delay := 0.0
 	maxDelay := 5 * 60.0 // 最多执行五分钟
-	msg := fmt.Sprintf("%s  %.1f", s.connOpts.ConnectMsg(), delay)
+	msg := fmt.Sprintf("%s  %.1fs", s.connOpts.ConnectMsg(), delay)
 	utils.IgnoreErrWriteString(s.UserConn, msg)
+	previousDelay := fmt.Sprintf("%.1fs", delay)
 	var activeFlag bool
 	for delay < maxDelay {
 		select {
@@ -1173,14 +1207,16 @@ func (s *Server) sendConnectingMsg(done chan struct{}) {
 			}
 			if activeFlag {
 				utils.IgnoreErrWriteString(s.UserConn, utils.CharClear)
-				msg = fmt.Sprintf("%s  %.1f", s.connOpts.ConnectMsg(), delay)
+				msg = fmt.Sprintf("%s  %.1fs", s.connOpts.ConnectMsg(), delay)
 				utils.IgnoreErrWriteString(s.UserConn, msg)
+				previousDelay = fmt.Sprintf("%.1fs", delay)
 				activeFlag = false
 				break
 			}
-			delayS := fmt.Sprintf("%.1f", delay)
-			data := strings.Repeat("\x08", len(delayS)) + delayS
+			delayS := fmt.Sprintf("%.1fs", delay)
+			data := strings.Repeat("\x08", len(previousDelay)) + delayS
 			utils.IgnoreErrWriteString(s.UserConn, data)
+			previousDelay = delayS
 		}
 		time.Sleep(100 * time.Millisecond)
 		delay += 0.1
@@ -1210,9 +1246,11 @@ func (s *Server) getCharset() string {
 }
 
 func (s *Server) Proxy() {
+	defer s.CloseBackgroundRecorder()
 	s.SessionEndReason = model.ReasonErrConnectFailed
 	defer s.connOpts.authInfo.ClearSSHCertificateCredential()
 	if err := s.checkRequiredAuth(); err != nil {
+		s.ConnectionError = err
 		logger.Errorf("Conn[%s]: check basic auth failed: %s", s.UserConn.ID(), err)
 		return
 	}
@@ -1237,9 +1275,11 @@ func (s *Server) Proxy() {
 		MaxSessionTime: maxSessionTime,
 	}
 	if err := s.CreateSessionCallback(); err != nil {
-		msg := lang.T("Connect with api server failed")
+		s.ConnectionError = err
+		msg := fmt.Sprintf("%s: %s", lang.T("Connect with api server failed"), err)
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(s.UserConn, msg)
+		s.ConnectionErrorShown = true
 		logger.Errorf("Conn[%s] submit session %s to core server err: %s %s",
 			s.UserConn.ID(), s.ID, msg, err)
 		return
@@ -1299,9 +1339,11 @@ func (s *Server) Proxy() {
 			dHTTP := s.createAvailableHTTPGateWay()
 			err := dHTTP.Start()
 			if err != nil {
+				s.ConnectionError = err
 				msg := lang.T("Start domain gateway failed %s")
 				msg = fmt.Sprintf(msg, err)
 				utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
+				s.ConnectionErrorShown = true
 				logger.Error(msg)
 				return
 			}
@@ -1310,17 +1352,21 @@ func (s *Server) Proxy() {
 		default:
 			dGateway, err := s.createAvailableGateWay()
 			if err != nil {
+				s.ConnectionError = err
 				msg := lang.T("Start domain gateway failed %s")
 				msg = fmt.Sprintf(msg, err)
 				utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
+				s.ConnectionErrorShown = true
 				logger.Error(msg)
 				return
 			}
 			err = dGateway.Start()
 			if err != nil {
+				s.ConnectionError = err
 				msg := lang.T("Start domain gateway failed %s")
 				msg = fmt.Sprintf(msg, err)
 				utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
+				s.ConnectionErrorShown = true
 				logger.Error(msg)
 				return
 			}
@@ -1330,6 +1376,7 @@ func (s *Server) Proxy() {
 	}
 	srvCon, err := s.getServerConn(proxyAddr)
 	if err != nil {
+		s.ConnectionError = err
 		logger.Error(err)
 		s.sendConnectErrorMsg(err)
 		if err2 := s.ConnectedFailedCallback(err); err2 != nil {
@@ -1378,11 +1425,14 @@ func (s *Server) Proxy() {
 }
 
 func (s *Server) sendConnectErrorMsg(err error) {
-	msg := fmt.Sprintf("%s error: %s", s.connOpts.ConnectMsg(),
-		s.ConvertErrorToReadableMsg(err))
+	readable := s.ConvertErrorToReadableMsg(err)
+	if detail := err.Error(); detail != readable {
+		readable += ": " + detail
+	}
+	msg := fmt.Sprintf("%s: %s", s.connOpts.getLang().T("Connection failed"), readable)
 
-	utils.IgnoreErrWriteString(s.UserConn, msg)
-	utils.IgnoreErrWriteString(s.UserConn, utils.CharNewLine)
+	utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
+	s.ConnectionErrorShown = true
 	logger.Error(msg)
 
 	protocol := s.connOpts.authInfo.Protocol

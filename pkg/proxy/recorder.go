@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -52,6 +53,15 @@ func (c *CommandRecorder) record() {
 	for {
 		select {
 		case <-c.closed:
+			// End may race with the worker receiving the final queued commands.
+			// Drain them before deciding that the recording is complete.
+			for len(c.queue) > 0 {
+				command := <-c.queue
+				cmdList = append(cmdList, command)
+				if command.RiskLevel >= model.WarningLevel && command.RiskLevel < model.ReviewAccept {
+					notificationList = append(notificationList, command)
+				}
+			}
 			if len(cmdList) == 0 {
 				return
 			}
@@ -159,7 +169,7 @@ func NewReplayRecord(sid string, jmsService *service.JMService,
 	options = append(options, asciinema.WithHeight(info.Height))
 	options = append(options, asciinema.WithWidth(info.Width))
 	options = append(options, asciinema.WithTimestamp(info.TimeStamp))
-	recorder.Writer = asciinema.NewWriter(recorder.file, options...)
+	recorder.Writer = asciinema.NewWriter(newReplayWriter(recorder.file, sid), options...)
 	return recorder, nil
 }
 
@@ -363,6 +373,10 @@ func (r *FTPFileRecorder) FinishFTPFile(id string) {
 	if info == nil {
 		return
 	}
+	if info.discarded {
+		r.removeFTPFile(id)
+		return
+	}
 	_ = info.Close()
 	go r.UploadFile(3, id)
 }
@@ -403,8 +417,21 @@ func (r *FTPFileRecorder) ChunkedRecord(ftpLog *model.FTPLog, readerAt io.Reader
 		return
 	}
 	info := r.getFTPFile(ftpLog.ID)
-	if info == nil && totalSize >= r.MaxFileSize {
+	if info != nil && info.discarded {
+		return nil
+	}
+	if offset < 0 || totalSize < 0 {
+		return fmt.Errorf("invalid FTP file recording range: offset=%d, size=%d", offset, totalSize)
+	}
+	limit := r.MaxFileSize
+	if info != nil {
+		limit = min(limit, info.maxWrittenSize)
+	}
+	if limit <= 0 || (totalSize > 0 && (offset >= limit || totalSize >= limit-offset)) {
 		logger.Errorf("FTP file %s is exceeds the max limit and discard it", ftpLog.ID)
+		r.DiscardFTPFile(ftpLog.ID)
+		// Retain rejection until Finish so later chunks cannot recreate a partial recording.
+		r.setFTPFile(ftpLog.ID, &FTPFileInfo{ftpLog: ftpLog, discarded: true})
 		return nil
 	}
 	if info == nil {
@@ -496,6 +523,7 @@ type FTPFileInfo struct {
 
 	maxWrittenSize int64
 	writtenBytes   int64
+	discarded      bool
 }
 
 func (f *FTPFileInfo) WriteFromReader(r io.Reader) error {

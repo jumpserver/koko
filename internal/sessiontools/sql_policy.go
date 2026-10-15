@@ -42,25 +42,6 @@ func (a sqlAnalysis) BackgroundEligible() bool {
 	return !a.multi && !a.incomplete && (a.kind == sqlRead || a.kind == sqlWrite)
 }
 
-func (a sqlAnalysis) RequiresApproval() bool {
-	if a.kind == sqlWrite || a.kind == sqlUnknown {
-		return true
-	}
-	if a.kind != sqlRead || a.keyword != "EXPLAIN" ||
-		!containsSQLWord(a.words, "ANALYZE") {
-		return false
-	}
-	for _, keyword := range []string{
-		"INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "ALTER",
-		"DROP", "TRUNCATE", "GRANT", "REVOKE",
-	} {
-		if containsSQLWord(a.words, keyword) {
-			return true
-		}
-	}
-	return false
-}
-
 func (a sqlAnalysis) PTYReason() string {
 	switch {
 	case a.multi:
@@ -326,70 +307,6 @@ func rootSQLKeyword(words []string, depths []int) string {
 		}
 	}
 	return ""
-}
-
-func classifySQLRisk(analysis sqlAnalysis, level int, reason string) (int, string) {
-	level, reason = normalizeRisk(level, reason)
-	raise := func(minimum int, cause string) {
-		if level < minimum {
-			level, reason = minimum, cause
-		}
-	}
-	switch analysis.kind {
-	case sqlRead:
-		if containsSQLWord(analysis.words, "LOAD_FILE") {
-			raise(4, "backend rule detected SQL reading a server-side file")
-		} else if level < 1 {
-			level = 1
-		}
-	case sqlSession:
-		switch {
-		case containsSQLWord(analysis.words, "PASSWORD"):
-			raise(4, "backend rule detected security-sensitive password SQL")
-		case containsSQLWord(analysis.words, "GLOBAL"),
-			containsSQLWord(analysis.words, "PERSIST"),
-			containsSQLWord(analysis.words, "PERSIST_ONLY"):
-			raise(3, "backend rule detected global database configuration SQL")
-		case containsSQLWord(analysis.words, "LOCK"),
-			containsSQLWord(analysis.words, "REPLICA"),
-			containsSQLWord(analysis.words, "SLAVE"):
-			raise(3, "backend rule detected locking or replication SQL")
-		default:
-			raise(2, "backend rule detected session-dependent SQL")
-		}
-	case sqlUnknown:
-		raise(2, "backend could not safely classify the SQL statement")
-	case sqlWrite:
-		switch analysis.keyword {
-		case "DROP", "TRUNCATE", "GRANT", "REVOKE", "KILL", "SHUTDOWN",
-			"RESET", "PURGE":
-			raise(4, "backend rule detected destructive or security-sensitive SQL")
-		case "SELECT":
-			raise(4, "backend rule detected SQL writing query results to a server file")
-		case "UPDATE", "DELETE":
-			if !containsTopLevelSQLWord(analysis.words, analysis.depths, "WHERE") {
-				raise(4, "backend rule detected UPDATE or DELETE without a WHERE clause")
-			} else {
-				raise(2, "backend rule detected data-changing SQL")
-			}
-		case "CREATE", "ALTER", "RENAME":
-			if containsSQLWord(analysis.words, "USER") ||
-				containsSQLWord(analysis.words, "ROLE") ||
-				(containsSQLWord(analysis.words, "FUNCTION") &&
-					containsSQLWord(analysis.words, "SONAME")) {
-				raise(4, "backend rule detected security-sensitive SQL")
-			} else {
-				raise(3, "backend rule detected schema-changing SQL")
-			}
-		case "INSTALL", "UNINSTALL":
-			raise(4, "backend rule detected security-sensitive plugin SQL")
-		case "LOAD", "FLUSH":
-			raise(3, "backend rule detected administrative or material-impact SQL")
-		default:
-			raise(2, "backend rule detected data-changing SQL")
-		}
-	}
-	return level, reason
 }
 
 func containsSQLWord(words []string, target string) bool {

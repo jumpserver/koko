@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 	"unicode"
+
+	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
 const (
@@ -128,12 +130,14 @@ func (t *mcpCommandTool) Definition() MCPToolDefinition {
 	executionDescription := "Select how to execute the command; auto chooses the safest available mode"
 	if isSQLProtocol(t.protocol) {
 		executionDescription = "Use auto for SQL; PTY is only for a recognized session-dependent SQL statement"
+	} else if t.protocol == srvconn.ProtocolWinRM {
+		executionDescription = "Auto prefers PTY to show the command and output in the current terminal; background runs without terminal output. Both use the active PowerShell runspace."
 	}
 	meta := map[string]any{
 		MCPExecutionModesMetaKey: executionModes,
 		MCPToolKindMetaKey:       "command",
 	}
-	if name == MCPToolExecuteShell || name == MCPToolExecuteCommand {
+	if (name == MCPToolExecuteShell || name == MCPToolExecuteCommand) && t.protocol != srvconn.ProtocolWinRM {
 		meta[MCPCommandPolicyMetaKey] = MCPShellReadOnlyPolicy
 	}
 	return MCPToolDefinition{
@@ -181,7 +185,7 @@ func (t *mcpCommandTool) executionModes() []string {
 func (t *mcpCommandTool) Call(
 	ctx context.Context,
 	arguments json.RawMessage,
-) (any, error) {
+) (result any, err error) {
 	var args mcpCommandArguments
 	decoder := json.NewDecoder(bytes.NewReader(arguments))
 	decoder.DisallowUnknownFields()
@@ -215,12 +219,19 @@ func (t *mcpCommandTool) Call(
 			return nil, fmt.Errorf("command exceeds %d bytes after PTY normalization", maximumMCPCommandSize)
 		}
 	}
+	var decision *CommandACLDecision
+	audited := false
+	defer func() {
+		if t.protocol == srvconn.ProtocolWinRM && !audited && err != nil && t.hooks.BackgroundRecord != nil {
+			t.hooks.BackgroundRecord(command, err.Error(), nil, decision)
+		}
+	}()
 	if t.hooks.ExecutionGuard != nil {
 		if err = t.hooks.ExecutionGuard(); err != nil {
 			return nil, err
 		}
 	}
-	decision, err := t.authorize(ctx, command)
+	decision, err = t.authorize(ctx, command)
 	if err != nil {
 		return nil, err
 	}
@@ -293,12 +304,13 @@ func (t *mcpCommandTool) Call(
 			executeErr = guardErr
 		}
 	}
-	if execution == MCPExecutionBackground && t.hooks.BackgroundRecord != nil {
+	if (execution == MCPExecutionBackground || t.protocol == srvconn.ProtocolWinRM) && t.hooks.BackgroundRecord != nil {
 		recordedOutput := output
 		if executeErr != nil {
 			recordedOutput = strings.TrimSpace(recordedOutput + "\n" + executeErr.Error())
 		}
 		t.hooks.BackgroundRecord(command, recordedOutput, exitCode, decision)
+		audited = true
 	}
 	if executeErr != nil {
 		return nil, executeErr
@@ -331,6 +343,9 @@ func (t *mcpCommandTool) selectExecution(
 		t.hooks.BackgroundAvailable()
 	switch requested {
 	case MCPExecutionAuto:
+		if t.protocol == srvconn.ProtocolWinRM && t.hooks.PTYExecute != nil {
+			return MCPExecutionPTY, nil
+		}
 		if constraints.BackgroundEligible && backgroundAvailable {
 			return MCPExecutionBackground, nil
 		}
@@ -370,10 +385,17 @@ func (t *mcpCommandTool) authorize(
 	decision := t.hooks.CommandACLCheck(command)
 	switch decision.Action {
 	case "reject":
-		return nil, fmt.Errorf("command rejected by ACL %q", decision.Name)
+		return &decision, fmt.Errorf("command rejected by ACL %q", decision.Name)
+	case "notify_and_warn":
+		if t.protocol == srvconn.ProtocolWinRM {
+			// ponytail: AI has no user-bound ACL warning confirmation channel.
+			// Refuse until that handshake exists; the terminal supports y/N.
+			return &decision, errors.New("command requires risk confirmation in the terminal; command was not executed")
+		}
+		return &decision, nil
 	case "review":
 		if t.hooks.CommandACLReview == nil {
-			return nil, errors.New("command ACL review is unavailable")
+			return &decision, errors.New("command ACL review is unavailable")
 		}
 		reviewCtx, cancel := context.WithTimeout(ctx, maximumMCPReviewTime)
 		defer cancel()
@@ -384,15 +406,15 @@ func (t *mcpCommandTool) authorize(
 		})
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
-				return nil, fmt.Errorf("command review wait expired; command was not executed: %w", err)
+				return &decision, fmt.Errorf("command review wait expired; command was not executed: %w", err)
 			}
-			return nil, err
+			return &decision, err
 		}
 		if err = reviewCtx.Err(); err != nil {
-			return nil, err
+			return &decision, err
 		}
 		if reviewed.Action != "accept" {
-			return nil, errors.New("command review was rejected or closed; command was not executed")
+			return &reviewed, errors.New("command review was rejected or closed; command was not executed")
 		}
 		return &reviewed, nil
 	case "", "Unknown":

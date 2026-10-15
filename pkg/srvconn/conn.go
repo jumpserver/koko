@@ -35,6 +35,7 @@ const (
 	ProtocolSSH    = "ssh"
 	ProtocolSFTP   = "sftp"
 	ProtocolTELNET = "telnet"
+	ProtocolWinRM  = "winrm"
 	ProtocolK8s    = "k8s"
 
 	ProtocolRedis      = "redis"
@@ -46,6 +47,7 @@ const (
 	ProtocolSQLServer  = "sqlserver"
 	ProtocolPostgresql = "postgresql"
 	ProtocolOracle     = "oracle"
+	ProtocolDameng     = "dameng"
 )
 
 func SupportedDBProtocols() []string {
@@ -56,6 +58,7 @@ func SupportedDBProtocols() []string {
 		ProtocolMySQL,
 		ProtocolMariadb,
 		ProtocolOracle,
+		ProtocolDameng,
 		ProtocolSQLServer,
 		ProtocolPostgresql,
 		ProtocolClickHouse,
@@ -66,6 +69,7 @@ func SupportedHostProtocols() []string {
 	return []string{
 		ProtocolSSH,
 		ProtocolTELNET,
+		ProtocolWinRM,
 	}
 }
 
@@ -75,11 +79,13 @@ func SupportedProtocols() []string {
 	for _, protocol := range []string{
 		ProtocolSSH,
 		ProtocolTELNET,
+		ProtocolWinRM,
 		ProtocolK8s,
 		ProtocolMySQL,
 		ProtocolPostgresql,
 		ProtocolSQLServer,
 		ProtocolOracle,
+		ProtocolDameng,
 		ProtocolRedis,
 		ProtocolMongoDB,
 		ProtocolMariadb,
@@ -131,6 +137,7 @@ type supportedChecker func() error
 var supportedMap = map[string]supportedChecker{
 	ProtocolSSH:    builtinSupported,
 	ProtocolTELNET: builtinSupported,
+	ProtocolWinRM:  builtinSupported,
 	ProtocolK8s:    kubectlSupported,
 
 	ProtocolRedis:   redisSupported,
@@ -142,6 +149,7 @@ var supportedMap = map[string]supportedChecker{
 	ProtocolPostgresql: usqlSupportedChecker(ProtocolPostgresql),
 	ProtocolClickHouse: usqlSupportedChecker(ProtocolClickHouse),
 	ProtocolOracle:     usqlSupportedChecker(ProtocolOracle),
+	ProtocolDameng:     usqlSupportedChecker(ProtocolDameng),
 }
 
 func IsSupportedProtocol(p string) error {
@@ -204,13 +212,14 @@ var once sync.Once
 
 func ensureUSQLSupported() {
 	once.Do(func() {
-		checkLine := "usql -c '\\drivers'"
-		cmd := exec.Command("bash", "-c", checkLine)
-		out, err := cmd.CombinedOutput()
-		if err != nil && len(out) == 0 {
-			return
+		for _, args := range [][]string{{"--drivers"}, {"-c", `\drivers`}} {
+			cmd := exec.Command("usql", args...)
+			out, err := cmd.CombinedOutput()
+			if err == nil {
+				usqlSupportedProtocols = string(bytes.TrimSpace(out))
+				return
+			}
 		}
-		usqlSupportedProtocols = string(bytes.TrimSpace(out))
 	})
 }
 

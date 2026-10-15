@@ -11,6 +11,7 @@ import (
 	"unicode"
 
 	"github.com/LeeEirc/terminalparser"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 var terminalDebug = false
@@ -72,7 +73,9 @@ func (s *TerminalParser) GetCursorRow() string {
 }
 
 func (s *TerminalParser) feed(p []byte) {
-	s.Terminal.Write(p)
+	if _, err := s.Terminal.Write(p); err != nil {
+		logger.Warnf("Terminal parser feed failed: %s", err)
+	}
 	if terminalDebug {
 		fmt.Println("---------Feed-------------")
 		fmt.Println(hex.Dump(p))
@@ -429,19 +432,4 @@ func IsPasswordPrompt(ps1 string) bool {
 	return false
 }
 
-// 合并的正则表达式，匹配以下四种模式：
-// 1. 隐藏光标: ESC[?25l
-// 2. ANSI颜色转义序列: ESC[数字m
-// 3. ANSI位置转义序列: ESC[数字;数字H
-// 4. 数字开头的状态栏格式: [数字] 空格 内容 空格 内容...
-// 0D 0A \r \n
-var (
-	tmuxBarRegx = regexp.MustCompile(`\x1b\[\?(\d+)l\x1b\[(\d+)m\x1b\[(\d+)m\x1b\[(\d+);(\d+)H\[(\d+)]\s+\d+:.+\s+.+\s+.+\s+.+\x1b\(B.*\x1b\[\?(\d+)l\x1b\[\?(\d+)h`)
-	// \[(\d+)]\s+\d+:.+\s+.+\s+.+\s+.+
-
-	// 可能包含 \r\n
-	//tmuxBar1Regx = regexp.MustCompile(`\r\n\[(\d+)]\s+\d+:.+\s+.+\s+.+\s+.+\x1b\(B`)
-
-	// 不包含 \r\n
-	tmuxBar2Regx = regexp.MustCompile(`\[(\d+)]\s+\d+:.+\s+.+\s+.+\s+.+\x1b\(B`)
-)
+var tmuxBar2Regx = regexp.MustCompile(`\[(\d+)]\s+\d+:.+\s+.+\s+.+\s+.+\x1b\(B`)

@@ -26,8 +26,7 @@ type UserSftpConn struct {
 
 	modeTime time.Time
 
-	closed    chan struct{}
-	searchDir *SearchResultDir
+	closed chan struct{}
 
 	jmsService *service.JMService
 
@@ -52,11 +51,6 @@ func (u *UserSftpConn) GetCurrentPath() string {
 		return u.assetDir.CurrentPath
 	}
 	return ""
-}
-
-func (u *UserSftpConn) ValidateAgentToolPath(path string) error {
-	_, err := u.ResolveAgentToolPath(path)
-	return err
 }
 
 func (u *UserSftpConn) ValidateAgentToolConfinement() error {
@@ -162,18 +156,7 @@ func (u *UserSftpConn) ReadLink(path string) (name string, err error) {
 }
 
 func (u *UserSftpConn) Rename(oldNamePath, newNamePath string) (err error) {
-	return u.rename(oldNamePath, newNamePath, false)
-}
-
-func (u *UserSftpConn) PosixRename(oldNamePath, newNamePath string) (err error) {
-	return u.rename(oldNamePath, newNamePath, true)
-}
-
-func (u *UserSftpConn) rename(oldNamePath, newNamePath string, overwrite bool) (err error) {
 	if u.assetDir != nil {
-		if overwrite {
-			return u.assetDir.PosixRename(oldNamePath, newNamePath)
-		}
 		return u.assetDir.Rename(oldNamePath, newNamePath)
 	}
 	oldFi, oldRestPath := u.ParsePath(oldNamePath)
@@ -181,9 +164,6 @@ func (u *UserSftpConn) rename(oldNamePath, newNamePath string, overwrite bool) (
 	if oldAssetDir, ok := oldFi.(*AssetDir); ok {
 		if newAssetDir, newOk := newFi.(*AssetDir); newOk {
 			if oldAssetDir == newAssetDir {
-				if overwrite {
-					return oldAssetDir.PosixRename(oldRestPath, newRestPath)
-				}
 				return oldAssetDir.Rename(oldRestPath, newRestPath)
 			}
 		}
@@ -297,26 +277,6 @@ func (u *UserSftpConn) Create(path string) (*SftpFile, error) {
 	return nil, errNoSelectAsset
 }
 
-func (u *UserSftpConn) CreateOverwrite(path string) (*SftpFile, error) {
-	if u.assetDir != nil {
-		return u.assetDir.CreateOverwrite(path)
-	}
-
-	fi, restPath := u.ParsePath(path)
-	if _, ok := fi.(*UserSftpConn); ok {
-		return nil, sftp.ErrSshFxPermissionDenied
-	}
-
-	if _, ok := fi.(*NodeDir); ok {
-		return nil, errNoSelectAsset
-	}
-	if assetDir, ok := fi.(*AssetDir); ok {
-		return assetDir.CreateOverwrite(restPath)
-	}
-
-	return nil, errNoSelectAsset
-}
-
 func (u *UserSftpConn) CreateEditorTemp(path, auditPath string) (*SftpFile, error) {
 	if u.assetDir != nil {
 		return u.assetDir.CreateEditorTemp(path, auditPath)
@@ -353,26 +313,6 @@ func (u *UserSftpConn) Open(path string) (*SftpFile, error) {
 	return nil, errNoSelectAsset
 }
 
-// OpenForWrite opens an existing file without truncating it.
-func (u *UserSftpConn) OpenForWrite(path string) (*SftpFile, error) {
-	if u.assetDir != nil {
-		return u.assetDir.OpenForWrite(path)
-	}
-	fi, restPath := u.ParsePath(path)
-	if _, ok := fi.(*UserSftpConn); ok {
-		return nil, sftp.ErrSshFxPermissionDenied
-	}
-
-	if _, ok := fi.(*NodeDir); ok {
-		return nil, errNoSelectAsset
-	}
-	if assetDir, ok := fi.(*AssetDir); ok {
-		return assetDir.OpenForWrite(restPath)
-	}
-
-	return nil, errNoSelectAsset
-}
-
 func (u *UserSftpConn) OpenForChecksum(path string) (*SftpFile, error) {
 	if u.assetDir != nil {
 		return u.assetDir.OpenForChecksum(path)
@@ -400,18 +340,19 @@ func (u *UserSftpConn) AtomicReplace(sourcePath, targetPath string) error {
 	return sourceAssetDir.AtomicReplace(sourceRestPath, targetRestPath)
 }
 
-func (u *UserSftpConn) AtomicCreate(sourcePath, targetPath string) error {
+func (u *UserSftpConn) AtomicCreate(sourcePath, targetPath string) (*model.FTPLog, error) {
 	if u.assetDir != nil {
 		return u.assetDir.AtomicCreate(sourcePath, targetPath)
 	}
+
 	sourceFi, sourceRestPath := u.ParsePath(sourcePath)
 	targetFi, targetRestPath := u.ParsePath(targetPath)
 	sourceAssetDir, ok := sourceFi.(*AssetDir)
 	if !ok {
-		return sftp.ErrSshFxPermissionDenied
+		return nil, sftp.ErrSshFxPermissionDenied
 	}
 	if targetAssetDir, targetOk := targetFi.(*AssetDir); !targetOk || targetAssetDir != sourceAssetDir {
-		return sftp.ErrSshFxOpUnsupported
+		return nil, sftp.ErrSshFxOpUnsupported
 	}
 	return sourceAssetDir.AtomicCreate(sourceRestPath, targetRestPath)
 }
@@ -437,9 +378,6 @@ func (u *UserSftpConn) Close() {
 			assetDir.close()
 			continue
 		}
-	}
-	if u.searchDir != nil {
-		u.searchDir.close()
 	}
 	close(u.closed)
 }
@@ -482,15 +420,8 @@ func (u *UserSftpConn) ParsePath(path string) (fi os.FileInfo, restPath string) 
 		fi = u
 		return
 	}
-	var dirs map[string]os.FileInfo
+	dirs := u.Dirs
 	var ok bool
-
-	if data[0] == SearchFolderName {
-		dirs = u.searchDir.subDirs
-		data = data[1:]
-	} else {
-		dirs = u.Dirs
-	}
 	for i := 0; i < len(data); i++ {
 		fi, ok = dirs[data[i]]
 		if !ok {
@@ -512,27 +443,35 @@ func (u *UserSftpConn) ParsePath(path string) (fi os.FileInfo, restPath string) 
 }
 
 func (u *UserSftpConn) generateSubFoldersFromRootTree() map[string]os.FileInfo {
-	nodeTrees, err := u.jmsService.GetNodeTreeByUserAndNodeKey(u.User.ID, "")
+	nodeTrees, err := u.getNodeTreeByUserAndNodeKey("")
 	if err != nil {
 		logger.Errorf("User sftp initial err: %s", err)
 		return map[string]os.FileInfo{}
 	}
-	u.searchDir = &SearchResultDir{
-		folderName: SearchFolderName,
-		modeTime:   time.Now().UTC(),
-		subDirs:    map[string]os.FileInfo{}}
 	return u.generateSubFoldersFromNodeTree(nodeTrees, true)
 }
 
 func (u *UserSftpConn) LoadNodeSubFoldersByKey(nodeKey string) SubFoldersLoadFunc {
 	return func() map[string]os.FileInfo {
-		nodeTrees, err := u.jmsService.GetNodeTreeByUserAndNodeKey(u.User.ID, nodeKey)
+		nodeTrees, err := u.getNodeTreeByUserAndNodeKey(nodeKey)
 		if err != nil {
 			logger.Error(err)
 			return nil
 		}
 		return u.generateSubFoldersFromNodeTree(nodeTrees, false)
 	}
+}
+
+func (u *UserSftpConn) getNodeTreeByUserAndNodeKey(nodeKey string) (
+	nodeTrees model.NodeTreeList, err error,
+) {
+	params := map[string]string{"include_assets": "true"}
+	if nodeKey != "" {
+		params["key"] = nodeKey
+	}
+	apiURL := fmt.Sprintf(service.UserPermsNodeTreeWithAssetURL, u.User.ID)
+	_, err = u.jmsService.Call("GET", apiURL, nil, &nodeTrees, params)
+	return
 }
 
 func (u *UserSftpConn) generateSubFoldersFromNodeTree(nodeTrees model.NodeTreeList, isRoot bool) map[string]os.FileInfo {
@@ -635,21 +574,6 @@ func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.PermAsset) ma
 		dirs[folderName] = assetDir
 	}
 	return dirs
-}
-
-func (u *UserSftpConn) Search(key string) (res []os.FileInfo, err error) {
-	if u.searchDir == nil {
-		logger.Error("not found search folder")
-		return nil, errors.New("not found")
-	}
-	assets, err := u.jmsService.SearchPermAsset(u.User.ID, key)
-	if err != nil {
-		logger.Errorf("search asset err: %s", err)
-		return nil, err
-	}
-	dirs := u.generateSubFoldersFromAssets(assets)
-	u.searchDir.SetSubDirs(dirs)
-	return u.searchDir.List()
 }
 
 type userSftpOption struct {

@@ -145,10 +145,6 @@ func (ad *AssetDir) Create(path string) (*SftpFile, error) {
 	return ad.create(path, false, path)
 }
 
-func (ad *AssetDir) CreateOverwrite(path string) (*SftpFile, error) {
-	return ad.create(path, true, path)
-}
-
 func (ad *AssetDir) CreateEditorTemp(path, auditPath string) (*SftpFile, error) {
 	return ad.create(path, true, auditPath)
 }
@@ -217,7 +213,7 @@ func (ad *AssetDir) create(path string, overwrite bool, auditPath string) (*Sftp
 		return nil, err
 	}
 	ftpLog := ad.CreateFTPLog(su, operate, auditFilename, true)
-	f := &SftpFile{File: sf, FTPLog: ftpLog, cleanupFunc: con.DecreaseRef}
+	f := &SftpFile{File: sf, FTPLog: ftpLog, cleanupFunc: con.DecreaseRef, uploadLimit: con.fileSizeLimit(true)}
 	return f, nil
 }
 
@@ -282,19 +278,14 @@ func (ad *AssetDir) mkdir(path string, exact bool) (err error) {
 }
 
 func (ad *AssetDir) Open(path string) (*SftpFile, error) {
-	return ad.openFile(path, false, true)
-}
-
-// OpenForWrite opens an existing remote file without truncating it.
-func (ad *AssetDir) OpenForWrite(path string) (*SftpFile, error) {
-	return ad.openFile(path, true, true)
+	return ad.openFile(path, true)
 }
 
 func (ad *AssetDir) OpenForChecksum(path string) (*SftpFile, error) {
-	return ad.openFile(path, false, false)
+	return ad.openFile(path, false)
 }
 
-func (ad *AssetDir) openFile(path string, write, audit bool) (*SftpFile, error) {
+func (ad *AssetDir) openFile(path string, audit bool) (*SftpFile, error) {
 	pathData := ad.parsePath(path)
 	folderName, ok := ad.IsUniqueSu()
 	if !ok {
@@ -308,10 +299,7 @@ func (ad *AssetDir) openFile(path string, write, audit bool) (*SftpFile, error) 
 	if !ok {
 		return nil, errNoAccountUser
 	}
-	if write && !su.Actions.EnableUpload() {
-		return nil, sftp.ErrSshFxPermissionDenied
-	}
-	if !write && !su.Actions.EnableDownload() {
+	if !su.Actions.EnableDownload() {
 		return nil, sftp.ErrSshFxPermissionDenied
 	}
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
@@ -319,27 +307,27 @@ func (ad *AssetDir) openFile(path string, write, audit bool) (*SftpFile, error) 
 		return nil, sftp.ErrSshFxConnectionLost
 	}
 	con.IncreaseRef()
-	var (
-		sf      *sftp.File
-		err     error
-		operate = model.OperateDownload
-	)
-	if write {
-		sf, err = con.client.OpenFile(realPath, os.O_RDWR)
-		operate = model.OperateUpload
-	} else {
-		sf, err = con.client.Open(realPath)
+	sf, err := con.client.Open(realPath)
+	if err == nil && audit && con.fileSizeLimit(false) > 0 {
+		var info os.FileInfo
+		info, err = sf.Stat()
+		if err == nil {
+			err = con.checkFileSize(info.Size(), false)
+		}
+		if err != nil {
+			_ = sf.Close()
+		}
 	}
 	if err != nil {
 		if audit {
-			ad.CreateFTPLog(su, operate, realPath, false)
+			ad.CreateFTPLog(su, model.OperateDownload, realPath, false)
 		}
 		con.DecreaseRef()
 		return nil, err
 	}
 	var ftpLog *model.FTPLog
 	if audit {
-		ftpLog = ad.CreateFTPLog(su, operate, realPath, true)
+		ftpLog = ad.CreateFTPLog(su, model.OperateDownload, realPath, true)
 	}
 	f := &SftpFile{File: sf, FTPLog: ftpLog, cleanupFunc: con.DecreaseRef}
 	return f, nil
@@ -476,14 +464,6 @@ func (ad *AssetDir) RemoveDirectory(path string) (err error) {
 }
 
 func (ad *AssetDir) Rename(oldNamePath, newNamePath string) (err error) {
-	return ad.rename(oldNamePath, newNamePath, false)
-}
-
-func (ad *AssetDir) PosixRename(oldNamePath, newNamePath string) (err error) {
-	return ad.rename(oldNamePath, newNamePath, true)
-}
-
-func (ad *AssetDir) rename(oldNamePath, newNamePath string, overwrite bool) (err error) {
 	oldPathData := ad.parsePath(oldNamePath)
 	newPathData := ad.parsePath(newNamePath)
 
@@ -515,17 +495,11 @@ func (ad *AssetDir) rename(oldNamePath, newNamePath string, overwrite bool) (err
 	defer conn1.DecreaseRef()
 	filename := fmt.Sprintf("%s=>%s", oldRealPath, newRealPath)
 	operate := model.OperateRename
-	if !overwrite {
-		if _, statErr := conn1.client.Stat(newRealPath); statErr == nil {
-			ad.CreateFTPLog(su, operate, filename, false)
-			return fmt.Errorf("file already exists")
-		}
+	if _, statErr := conn1.client.Stat(newRealPath); statErr == nil {
+		ad.CreateFTPLog(su, operate, filename, false)
+		return fmt.Errorf("file already exists")
 	}
-	if overwrite {
-		err = conn1.client.PosixRename(oldRealPath, newRealPath)
-	} else {
-		err = conn1.client.Rename(oldRealPath, newRealPath)
-	}
+	err = conn1.client.Rename(oldRealPath, newRealPath)
 	if err != nil {
 		ad.CreateFTPLog(su, operate, filename, false)
 		return err
@@ -611,22 +585,27 @@ func (ad *AssetDir) AtomicReplace(sourcePath, targetPath string) error {
 	return nil
 }
 
-func (ad *AssetDir) AtomicCreate(sourcePath, targetPath string) error {
+func (ad *AssetDir) AtomicCreate(sourcePath, targetPath string) (*model.FTPLog, error) {
 	_, sourceConn, sourceRealPath, err := ad.resolveUploadPath(sourcePath)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	_, targetConn, targetRealPath, err := ad.resolveUploadPath(targetPath)
+	su, targetConn, targetRealPath, err := ad.resolveUploadPath(targetPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if sourceConn != targetConn {
-		return sftp.ErrSshFxOpUnsupported
+		return nil, sftp.ErrSshFxOpUnsupported
 	}
 
 	sourceConn.IncreaseRef()
 	defer sourceConn.DecreaseRef()
-	return sourceConn.client.Rename(sourceRealPath, targetRealPath)
+	if _, err = sourceConn.client.Stat(targetRealPath); err == nil {
+		err = os.ErrExist
+	} else if os.IsNotExist(err) {
+		err = sourceConn.client.Rename(sourceRealPath, targetRealPath)
+	}
+	return ad.CreateFTPLog(su, "create", targetRealPath, err == nil), err
 }
 
 func (ad *AssetDir) DiscardUploadTemp(path string) error {
@@ -905,11 +884,6 @@ func canonicalAgentToolPathWithinRoot(
 		missing = append(missing, filepath.Base(probe))
 		probe = parent
 	}
-}
-
-func (ad *AssetDir) ValidateAgentToolPath(path string) error {
-	_, err := ad.ResolveAgentToolPath(path)
-	return err
 }
 
 // ValidateAgentToolConfinement verifies that Koko's virtual root maps to the
@@ -1255,12 +1229,22 @@ func (ad *AssetDir) parsePath(path string) []string {
 }
 
 func (ad *AssetDir) close() {
+	// Session creation uses the same mutex. Mark the asset closed before taking
+	// the snapshot so an empty or concurrently initialized asset cannot reopen.
+	ad.mu.Lock()
+	ad.terminated = true
+	var sessions []*SftpSession
 	ad.sftpSessions.Range(func(key, value interface{}) bool {
 		if conn, ok := value.(*SftpSession); ok {
-			conn.Close()
+			sessions = append(sessions, conn)
 		}
 		return true
 	})
+	ad.mu.Unlock()
+	// Session close callbacks acquire ad.mu.
+	for _, conn := range sessions {
+		conn.Close()
+	}
 }
 
 func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string, isSuccess bool) *model.FTPLog {

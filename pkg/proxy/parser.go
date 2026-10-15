@@ -76,7 +76,6 @@ type Parser struct {
 	isEditMode   bool
 
 	inVimState bool
-	once       sync.Once
 	modeLock   sync.RWMutex
 	outputLock sync.Mutex
 
@@ -201,11 +200,22 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 		zmodemTicker := time.NewTicker(time.Second)
 		defer zmodemTicker.Stop()
 		lastActiveTime := time.Now()
+		var pendingInput []byte
 		for {
+			input := userInChan
+			var output chan<- []byte
+			if pendingInput != nil {
+				// Keep draining remote echo while the connection writer is busy.
+				input = nil
+				output = p.userOutputChan
+			}
 			select {
+			case output <- pendingInput:
+				pendingInput = nil
+				continue
 			case <-p.closed:
 				return
-			case msg, ok := <-userInChan:
+			case msg, ok := <-input:
 				if !ok {
 					return
 				}
@@ -218,10 +228,8 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 				if len(b) > 0 {
 					b = p.ParseUserInput(b)
 				}
-				select {
-				case <-p.closed:
-					return
-				case p.userOutputChan <- b:
+				if len(b) > 0 {
+					pendingInput = b
 				}
 
 			case b, ok := <-srvInChan:
@@ -317,6 +325,7 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 		srvconn.ProtocolPostgresql,
 		srvconn.ProtocolClickHouse,
 		srvconn.ProtocolOracle,
+		srvconn.ProtocolDameng,
 		srvconn.ProtocolSQLServer:
 		// terminal 右键粘贴时，没有 \r 只有 \n
 		if bytes.ContainsRune(b, '\n') && bytes.ContainsRune(b, ';') {
@@ -786,17 +795,6 @@ func (p *Parser) scheduleZmodemPromptRedraw() {
 	select {
 	case p.zmodemPromptRedraw <- struct{}{}:
 	default:
-	}
-}
-
-func (p *Parser) supportMultiCmd() bool {
-	switch p.protocolType {
-	case model.ProtocolSSH,
-		model.ProtocolTelnet,
-		model.ProtocolK8S:
-		return true
-	default:
-		return false
 	}
 }
 
@@ -1332,11 +1330,10 @@ func matchMark(p []byte, marks [][]byte) bool {
 */
 
 const (
-	h3c     = "h3c"
-	huawei  = "huawei"
-	cisco   = "cisco"
-	linux   = "linux"
-	windows = "windows"
+	h3c    = "h3c"
+	huawei = "huawei"
+	cisco  = "cisco"
+	linux  = "linux"
 
 	mfaAuth = "mfa"
 )
@@ -1355,10 +1352,6 @@ func isCisco(p *model.Platform) bool {
 
 func isLinux(p *model.Platform) bool {
 	return isPlatform(p, linux)
-}
-
-func isWindows(p *model.Platform) bool {
-	return isPlatform(p, windows)
 }
 
 func isPlatform(p *model.Platform, platform string) bool {

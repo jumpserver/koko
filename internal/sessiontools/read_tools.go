@@ -11,7 +11,6 @@ import (
 )
 
 const (
-	MCPToolTerminalContext  = "terminal_context"
 	MCPToolTerminalSnapshot = "terminal_snapshot"
 	MCPToolDatabaseSchema   = "database_schema"
 )
@@ -22,10 +21,6 @@ type SQLMetadataProvider interface {
 	InvalidateSQLMetadata()
 }
 
-type terminalContextTool struct {
-	context func() any
-}
-
 type terminalSnapshotTool struct {
 	snapshot func() (any, error)
 }
@@ -33,13 +28,6 @@ type terminalSnapshotTool struct {
 type databaseSchemaTool struct {
 	provider SQLMetadataProvider
 	guard    func() error
-}
-
-func NewTerminalContextTool(provider func() any) (MCPToolHandler, error) {
-	if provider == nil {
-		return nil, errors.New("terminal context provider is required")
-	}
-	return &terminalContextTool{context: provider}, nil
 }
 
 func NewTerminalSnapshotTool(provider func() (any, error)) (MCPToolHandler, error) {
@@ -57,26 +45,6 @@ func NewDatabaseSchemaTool(
 		return nil, errors.New("database schema provider is required")
 	}
 	return &databaseSchemaTool{provider: provider, guard: guard}, nil
-}
-
-func (t *terminalContextTool) Definition() MCPToolDefinition {
-	return MCPToolDefinition{
-		Name:         MCPToolTerminalContext,
-		Description:  "Read credential-free context for the active terminal resource",
-		InputSchema:  emptyObjectSchema(),
-		OutputSchema: terminalContextOutputSchema(),
-		Annotations:  map[string]any{"readOnlyHint": true},
-	}
-}
-
-func (t *terminalContextTool) Call(
-	_ context.Context,
-	arguments json.RawMessage,
-) (any, error) {
-	if err := requireEmptyArguments(arguments); err != nil {
-		return nil, err
-	}
-	return t.context(), nil
 }
 
 func (t *terminalSnapshotTool) Definition() MCPToolDefinition {

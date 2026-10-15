@@ -15,6 +15,9 @@ import (
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
+// ptyInterruptDeliveryTimeout bounds local input delivery, not remote command exit.
+const ptyInterruptDeliveryTimeout = 5 * time.Second
+
 type commandExecutorFactory func(context.Context) (sessiontools.CommandExecutor, error)
 
 type terminalToolController struct {
@@ -31,6 +34,7 @@ type terminalToolController struct {
 	starting          bool
 	resourceSessionID string
 	factory           commandExecutorFactory
+	winRM             *srvconn.WinRMConnection
 }
 
 func newTerminalToolController(
@@ -44,7 +48,7 @@ func newTerminalToolController(
 	token := ws.ConnectToken
 	pty := client.Pty()
 	observer, err := sessiontools.NewTerminalObserver(
-		int(pty.Window.Width), int(pty.Window.Height),
+		int(pty.Window.Width), int(pty.Window.Height), token.Protocol,
 	)
 	if err != nil {
 		return nil, err
@@ -70,7 +74,7 @@ func newTerminalToolController(
 }
 
 func terminalBackgroundExecutorExpected(protocol string, backgroundEnabled bool) bool {
-	if protocol == srvconn.ProtocolSSH {
+	if protocol == srvconn.ProtocolSSH || protocol == srvconn.ProtocolWinRM {
 		return true
 	}
 	return backgroundEnabled && sessiontools.ProtocolSupportsBackgroundExecutor(protocol)
@@ -95,6 +99,18 @@ func (c *terminalToolController) attachSSH(client *srvconn.SSHClient) {
 	c.attach(func(context.Context) (sessiontools.CommandExecutor, error) {
 		return sessiontools.NewSSHExecutor(client), nil
 	})
+}
+
+func (c *terminalToolController) attachWinRM(conn *srvconn.WinRMConnection) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.closed && c.factory == nil && conn != nil {
+		c.winRM = conn
+		c.factory = func(context.Context) (sessiontools.CommandExecutor, error) {
+			return sessiontools.NewWinRMExecutor(conn.Client), nil
+		}
+		c.startLocked()
+	}
 }
 
 func (c *terminalToolController) attachDatabase(info proxy.DatabaseConnectionInfo) {
@@ -151,6 +167,12 @@ func (c *terminalToolController) initialize(
 		)
 		executor = nil
 	}
+	ptyExecute := c.executePTY
+	if c.protocol == srvconn.ProtocolWinRM {
+		ptyExecute = func(ctx context.Context, command string, decision *sessiontools.CommandACLDecision) (string, *int, error) {
+			return c.executeWinRMPTY(ctx, command, decision, executor)
+		}
+	}
 	commandTool, err := sessiontools.NewCommandTool(sessiontools.MCPCommandToolOptions{
 		Executor: executor, Protocol: c.protocol,
 		Validate: sessiontools.ProtocolCommandValidator(c.protocol),
@@ -165,7 +187,7 @@ func (c *terminalToolController) initialize(
 			BackgroundAvailable: func() bool {
 				return executor != nil && c.server.SupportsBackgroundExecution()
 			},
-			PTYExecute: c.executePTY,
+			PTYExecute: ptyExecute,
 		},
 	})
 	if err != nil {
@@ -293,14 +315,17 @@ func (c *terminalToolController) executePTY(
 	if observer == nil {
 		return "", nil, fmt.Errorf("terminal observer is unavailable")
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	if !c.client.setInputLock(cancel) {
+		return "", nil, fmt.Errorf("terminal input is busy")
+	}
+	defer c.client.setInputLock(nil)
 	result, err := observer.Begin(command)
 	if err != nil {
 		return "", nil, err
 	}
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	c.client.setInputLock(cancel)
-	defer c.client.setInputLock(nil)
+	defer observer.Cancel()
 	if decision != nil {
 		value := proxy.CommandACLDecision{
 			Action: model.CommandAction(decision.Action),
@@ -311,22 +336,71 @@ func (c *terminalToolController) executePTY(
 		c.server.AuthorizeAgentToolCommand(command, &value)
 		defer c.server.RevokeAgentToolCommand(command)
 	}
-	if err = c.client.WriteAgentToolData([]byte(command + "\r")); err != nil {
-		observer.Cancel()
+	if err = c.client.WriteAgentToolData(ctx, []byte(command+"\r")); err == nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		case observed := <-result:
+			if observed.Command != command {
+				return observed.Output, nil, fmt.Errorf("terminal observer command mismatch")
+			}
+			return observed.Output, nil, nil
+		}
+	}
+	if ctx.Err() != nil {
+		// Interrupt partially submitted commands without indefinitely delaying unlock.
+		interruptCtx, interruptCancel := context.WithTimeout(c.client.Context(), ptyInterruptDeliveryTimeout)
+		defer interruptCancel()
+		if interruptErr := c.client.WriteAgentToolData(interruptCtx, []byte{3}); interruptErr != nil {
+			output := observer.Snapshot()
+			// A failed interrupt leaves the submitted input in an unknown state.
+			c.client.closeInput()
+			return output, nil, err
+		}
+	}
+	return observer.Snapshot(), nil, err
+}
+
+func (c *terminalToolController) executeWinRMPTY(
+	ctx context.Context, command string, decision *sessiontools.CommandACLDecision,
+	executor sessiontools.CommandExecutor,
+) (string, *int, error) {
+	if c.winRM == nil || executor == nil {
+		return "", nil, fmt.Errorf("WinRM terminal executor is unavailable")
+	}
+	if err := c.server.CheckAgentToolExecution(); err != nil {
 		return "", nil, err
 	}
-	select {
-	case <-ctx.Done():
-		_ = c.client.WriteAgentToolData([]byte{3})
-		output := observer.Snapshot()
-		observer.Cancel()
-		return output, nil, ctx.Err()
-	case observed := <-result:
-		if observed.Command != command {
-			return observed.Output, nil, fmt.Errorf("terminal observer command mismatch")
-		}
-		return observed.Output, nil, nil
+	if err := c.recheckPTYACL(command, decision); err != nil {
+		return "", nil, err
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	if !c.client.setInputLock(cancel) {
+		return "", nil, fmt.Errorf("another PTY tool call is active")
+	}
+	defer c.client.setInputLock(nil)
+	if _, err := c.winRM.WriteOutput(ctx, []byte(c.winRM.Prompt()+command+"\n")); err != nil {
+		return "", nil, err
+	}
+	var writeErr error
+	// Execute in the existing PSRP runspace and mirror output into the terminal.
+	// Completion comes from PSRP, so output containing a prompt cannot end the call early.
+	output, exitCode, err := executor.Execute(ctx, command, func(chunk string) {
+		if writeErr == nil {
+			_, writeErr = c.winRM.WriteOutput(ctx, []byte(chunk))
+			if writeErr != nil {
+				cancel()
+			}
+		}
+	})
+	if writeErr != nil {
+		err = writeErr
+	}
+	if err != nil {
+		_, _ = c.winRM.WriteOutput(ctx, []byte(err.Error()+"\n\n"))
+	}
+	return output, exitCode, err
 }
 
 func (c *terminalToolController) recheckPTYACL(
@@ -356,27 +430,6 @@ func (c *terminalToolController) recheckPTYACL(
 		return fmt.Errorf("command ACL changed before PTY execution")
 	}
 	return nil
-}
-
-func (c *terminalToolController) handle(message *Message) {
-	if message.Version != sessiontools.MCPProtocolVersion {
-		sendMCPFrameError(c.ws, message, fmt.Errorf("unsupported MCP frame version"))
-		return
-	}
-	dispatcher := c.client.getMCP()
-	if dispatcher == nil || message.ResourceSessionID != c.resourceSessionID {
-		sendMCPFrameError(c.ws, message, fmt.Errorf("MCP resource is unavailable"))
-		return
-	}
-	var err error
-	if message.Type == MCPRequest {
-		err = dispatcher.HandleRequest([]byte(message.Data))
-	} else {
-		err = dispatcher.HandleCancel([]byte(message.Data))
-	}
-	if err != nil {
-		sendMCPFrameError(c.ws, message, err)
-	}
 }
 
 func (c *terminalToolController) Close() {

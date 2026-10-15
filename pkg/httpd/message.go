@@ -80,8 +80,9 @@ const (
 	TerminalK8SResize = "TERMINAL_K8S_RESIZE"
 	K8SClose          = "K8S_CLOSE"
 
-	SFTPData   = "SFTP_DATA"
-	SFTPBinary = "SFTP_BINARY"
+	SFTPData           = "SFTP_DATA"
+	SFTPBinary         = "SFTP_BINARY"
+	SFTPTransferBinary = "SFTP_TRANSFER_BINARY"
 
 	TerminalCreate = "TERMINAL_CREATE"
 
@@ -141,11 +142,6 @@ const (
 const (
 	maxReadTimeout  = 5 * time.Minute
 	maxWriteTimeOut = 5 * time.Minute
-)
-
-const (
-	TTYName       = "terminal"
-	WebFolderName = "web_folder"
 )
 
 type WsRequestParams struct {

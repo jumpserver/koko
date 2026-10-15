@@ -65,6 +65,7 @@ func (r *Room) run() {
 	pending := make(map[string]*roomSubscriber)
 	ready := make(chan struct{}, 1)
 	var pendingMessage *RoomMessage
+	var latestWindow *RoomMessage
 	currentOnlineUsers := make(map[string]MetaMessage)
 	var ZMODEMStatus bool
 	for {
@@ -102,6 +103,9 @@ func (r *Room) run() {
 					Body:  []byte(ZmodemStartEvent),
 				})
 			}
+			if latestWindow != nil {
+				subscriber.send(latestWindow)
+			}
 			r.recentMessages.Do(func(value interface{}) {
 				if msg, ok := value.(*RoomMessage); ok {
 					switch msg.Event {
@@ -125,6 +129,8 @@ func (r *Room) run() {
 			logger.Debugf("Room %s current connections count: %d", r.Id, len(connMaps))
 		case msg := <-broadcast:
 			switch msg.Event {
+			case WindowsEvent:
+				latestWindow = msg
 			case DataEvent:
 				r.recentMessages.Value = msg
 				r.recentMessages = r.recentMessages.Next()

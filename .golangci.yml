@@ -7,7 +7,20 @@ linters:
   enable:
     - govet
     - staticcheck
+  settings:
+    staticcheck:
+      # Keep correctness checks; omit style and simplification suggestions.
+      checks:
+        - SA*
   exclusions:
+    presets:
+      - std-error-handling
+    rules:
+      # The existing S3 backend still uses AWS SDK v1.
+      - linters:
+          - staticcheck
+        path: pkg/proxy/recorderstorage/s3\.go
+        text: 'SA1019:.*github\.com/aws/aws-sdk-go'
     paths:
       - cmd/demo
       - cmd/i18ntool

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net"
 	"sync"
 	"time"
 
@@ -21,7 +22,7 @@ const sessionReadyIdle = 500 * time.Millisecond
 type Client struct {
 	WinChan   chan ssh.Window
 	UserRead  io.ReadCloser
-	UserWrite io.WriteCloser
+	UserWrite net.Conn
 	Conn      *UserWebsocket
 	pty       ssh.Pty
 	ctx       context.Context
@@ -52,6 +53,8 @@ type Client struct {
 	mcpClosed    bool
 	inputMu      sync.Mutex
 	inputCancel  context.CancelFunc
+	userWriteMu  sync.Mutex
+	inputWriting bool
 	metrics      clientMetrics
 	observerMu   sync.RWMutex
 	observer     *sessiontools.TerminalObserver
@@ -162,11 +165,10 @@ func (c *Client) Write(p []byte) (n int, err error) {
 	if category == "database" {
 		c.bufferMutex.Lock()
 		c.buffer.Write(p)
-		c.bufferMutex.Unlock()
-
 		if c.timer == nil {
 			c.timer = time.AfterFunc(time.Millisecond, c.flushBuffer)
 		}
+		c.bufferMutex.Unlock()
 		return len(p), nil
 
 	}
@@ -196,7 +198,7 @@ func (c *Client) flushBuffer() {
 		msg := Message{
 			Id:         c.Conn.Uuid,
 			Type:       TerminalBinary,
-			Raw:        c.buffer.Bytes(),
+			Raw:        bytes.Clone(c.buffer.Bytes()),
 			TerminalId: c.TerminalId,
 		}
 		c.Conn.SendMessage(&msg)
@@ -231,7 +233,9 @@ func (c *Client) Close() (err error) {
 func (c *Client) initPipe() {
 	c.Lock()
 	defer c.Unlock()
-	c.UserRead, c.UserWrite = io.Pipe()
+	c.inputMu.Lock()
+	defer c.inputMu.Unlock()
+	c.UserRead, c.UserWrite = net.Pipe()
 }
 
 func (c *Client) SetWinSize(size ssh.Window) {
@@ -289,28 +293,73 @@ func (c *Client) ID() string {
 }
 
 func (c *Client) WriteData(p []byte) {
+	c.userWriteMu.Lock()
+	defer c.userWriteMu.Unlock()
 	c.inputMu.Lock()
-	defer c.inputMu.Unlock()
+	if c.ctx != nil && c.ctx.Err() != nil {
+		c.inputMu.Unlock()
+		return
+	}
 	if c.inputCancel != nil {
+		cancel := c.inputCancel
+		c.inputMu.Unlock()
 		if len(p) == 1 && p[0] == 3 {
-			c.inputCancel()
+			cancel()
 		}
 		return
 	}
-	_, _ = c.UserWrite.Write(p)
+	c.inputWriting = true
+	writer := c.UserWrite
+	c.inputMu.Unlock()
+	defer func() {
+		c.inputMu.Lock()
+		c.inputWriting = false
+		c.inputMu.Unlock()
+	}()
+	_, _ = writer.Write(p)
 }
 
-func (c *Client) WriteAgentToolData(p []byte) error {
+func (c *Client) WriteAgentToolData(ctx context.Context, p []byte) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	c.inputMu.Lock()
-	defer c.inputMu.Unlock()
-	_, err := c.UserWrite.Write(p)
+	writer := c.UserWrite
+	c.inputMu.Unlock()
+	done := make(chan struct{})
+	stop := context.AfterFunc(ctx, func() {
+		_ = writer.SetWriteDeadline(time.Now())
+		close(done)
+	})
+	defer func() {
+		if !stop() {
+			<-done
+		}
+		_ = writer.SetWriteDeadline(time.Time{})
+	}()
+	_, err := writer.Write(p)
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	return err
 }
 
-func (c *Client) setInputLock(cancel context.CancelFunc) {
+func (c *Client) closeInput() {
 	c.inputMu.Lock()
-	c.inputCancel = cancel
+	writer := c.UserWrite
 	c.inputMu.Unlock()
+	c.cancel()
+	_ = writer.Close()
+}
+
+func (c *Client) setInputLock(cancel context.CancelFunc) bool {
+	c.inputMu.Lock()
+	defer c.inputMu.Unlock()
+	if cancel != nil && (c.inputCancel != nil || c.inputWriting) {
+		return false
+	}
+	c.inputCancel = cancel
+	return true
 }
 
 func (c *Client) setTerminalObserver(observer *sessiontools.TerminalObserver) bool {

@@ -109,6 +109,7 @@ func (opts *ConnectionOptions) ConnectMsg() string {
 	msg := ""
 	switch protocol {
 	case srvconn.ProtocolTELNET,
+		srvconn.ProtocolWinRM,
 		srvconn.ProtocolSSH:
 		accountName := account.String()
 		switch account.Name {

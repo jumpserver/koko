@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
+	"net"
 	"sync"
 
 	"github.com/jumpserver/koko/pkg/srvconn"
@@ -41,10 +41,6 @@ type tty struct {
 
 type metricsSubscribeParams struct {
 	IntervalSeconds int `json:"intervalSeconds"`
-}
-
-func (h *tty) Name() string {
-	return TTYName
 }
 
 func (h *tty) CleanUp() {
@@ -347,7 +343,7 @@ func (h *tty) handleTerminalInit(
 		Width:  connectInfo.Cols,
 		Height: connectInfo.Rows,
 	}
-	userR, userW := io.Pipe()
+	userR, userW := net.Pipe()
 	ctx, cancel := context.WithCancel(h.ws.ctx.Request.Context())
 	client := &Client{
 		WinChan: make(chan ssh.Window, 100), Conn: h.ws,
@@ -687,6 +683,11 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 		srv.OnDatabaseConnection = func(info proxy.DatabaseConnectionInfo) {
 			if toolController != nil {
 				toolController.attachDatabase(info)
+			}
+		}
+		srv.OnWinRMConnection = func(conn *srvconn.WinRMConnection) {
+			if toolController != nil {
+				toolController.attachWinRM(conn)
 			}
 		}
 		srv.Proxy()

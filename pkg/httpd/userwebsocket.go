@@ -24,7 +24,6 @@ import (
 )
 
 type Handler interface {
-	Name() string
 	CheckValidation() error
 	HandleMessage(*Message)
 	CleanUp()
@@ -219,6 +218,12 @@ func (userCon *UserWebsocket) writeMessageLoop(ctx context.Context) error {
 			err = userCon.conn.WriteBinary(payload, maxWriteTimeOut)
 		case msg.Type == TerminalBinary:
 			err = userCon.conn.WriteBinary(msg.Raw, maxWriteTimeOut)
+		case msg.Type == SFTPTransferBinary:
+			var payload []byte
+			payload, err = encodeSftpBinaryFrame(msg)
+			if err == nil {
+				err = userCon.conn.WriteBinary(payload, maxWriteTimeOut)
+			}
 		default:
 			p, _ := json.Marshal(msg)
 			err = userCon.conn.WriteText(p, maxWriteTimeOut)
@@ -371,6 +376,13 @@ func (userCon *UserWebsocket) readMessageLoop() error {
 			logger.Debugf("Ws[%s] receive %s message", userCon.Uuid, msg.Type)
 			continue
 		case TerminalK8STree:
+			if userCon.k8sClient == nil {
+				userCon.SendMessage(&Message{
+					Type: TerminalError, TerminalId: msg.TerminalId,
+					Err: "kubernetes client is unavailable",
+				})
+				continue
+			}
 			data, err := userCon.k8sClient.GetTreeData()
 			responseMsg := Message{
 				Id:           userCon.Uuid,
@@ -388,10 +400,6 @@ func (userCon *UserWebsocket) readMessageLoop() error {
 			userCon.handler.HandleMessage(&msg)
 		}
 	}
-}
-
-func (userCon *UserWebsocket) GetHandler() Handler {
-	return userCon.handler
 }
 
 func (userCon *UserWebsocket) ClientIP() string {

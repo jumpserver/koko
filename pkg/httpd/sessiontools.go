@@ -20,11 +20,13 @@ func agentContextSnapshot(
 	commandLanguage := protocol
 	dialect := ""
 	switch protocol {
+	case srvconn.ProtocolWinRM:
+		commandLanguage = "powershell"
 	case srvconn.ProtocolSSH, srvconn.ProtocolTELNET, srvconn.ProtocolK8s:
 		commandLanguage = "shell"
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 		srvconn.ProtocolPostgresql, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolOracle, srvconn.ProtocolClickHouse:
+		srvconn.ProtocolOracle, srvconn.ProtocolDameng, srvconn.ProtocolClickHouse:
 		commandLanguage = "sql"
 		dialect = protocol
 	case srvconn.ProtocolSFTP:

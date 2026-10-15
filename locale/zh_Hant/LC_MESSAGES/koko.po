@@ -7,14 +7,167 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: JumpServer i18n migration\n"
 
-msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
-msgstr "%d) 輸入 {{.GreenBoldColor}}%s{{.ColorEnd}} 進行%s.%s"
+msgid "End session"
+msgstr "結束會話"
+
+msgid "Koko session ended."
+msgstr "Koko 會話已結束。"
+
+msgid "Connection failed"
+msgstr "連線失敗"
+
+msgid "⊘ Cannot connect"
+msgstr "⊘ 無法連線"
+
+msgid "No assets in this node"
+msgstr "此節點暫無資產"
+
+msgid "[number] Select"
+msgstr "[序號] 選擇資產"
+
+msgid "No permitted connection protocol is available for asset %s. Check its protocols and authorization rules."
+msgstr "目前使用者沒有資產 %s 可用的授權連線協定，請檢查資產協定與授權規則。"
+
+msgid "Asset %s has no available login account."
+msgstr "資產 %s 沒有可用的登入帳號。"
+
+msgid "Cannot connect to this asset."
+msgstr "無法連線至此資產。"
+
+msgid "Cannot connect: asset disabled."
+msgstr "資產已停用，無法連線。"
+
+msgid "Cannot connect: unsupported protocol (%s)."
+msgstr "協定（%s）不受支援，無法連線。"
+
+msgid "Cannot connect: no supported protocol."
+msgstr "沒有支援的協定，無法連線。"
+
+msgid "Authorization tree unavailable. Type r to retry."
+msgstr "授權樹載入失敗，輸入 r 重試。"
+
+msgid "Assets unavailable. Return and retry."
+msgstr "資產載入失敗。返回後重試。"
+
+msgid "Invalid number"
+msgstr "序號無效"
+
+msgid "No nodes"
+msgstr "暫無節點"
+
+msgid "View all assets"
+msgstr "查看全部資產"
+
+msgid "View authorization tree"
+msgstr "查看授權樹"
+
+msgid "View type tree"
+msgstr "查看類型樹"
+
+msgid "View favorites tree"
+msgstr "查看收藏樹"
+
+msgid "Back to assets"
+msgstr "返回資產列表"
+
+msgid "Back to protocols"
+msgstr "返回協定列表"
+
+msgid "Back to account list"
+msgstr "返回帳號列表"
+
+msgid "Back to language selection"
+msgstr "返回語言切換頁"
+
+msgid "Back to help"
+msgstr "返回說明頁"
+
+msgid "Back to authorization tree"
+msgstr "返回授權樹"
+
+msgid "Back to type tree"
+msgstr "返回類型樹"
+
+msgid "Back to favorites tree"
+msgstr "返回收藏樹"
+
+msgid "Invalid input."
+msgstr "輸入無效。"
+
+msgid "Choose a number on this page."
+msgstr "請選擇目前頁面顯示的序號。"
+
+msgid "Select 1-%d"
+msgstr "輸入 1-%d 選擇"
+
+msgid "[number] View assets"
+msgstr "[序號] 查看資產"
+
+msgid "Enter a search term"
+msgstr "請輸入搜尋詞。"
+
+msgid "Search condition already included: %s"
+msgstr "已包含搜尋條件：%s"
+
+msgid "Failed to load type tree. Try again."
+msgstr "類型樹載入失敗，請重試。"
+
+msgid "Enter {key} to view all assets"
+msgstr "輸入 {key} 查看全部資產"
+
+msgid "Enter {key} to view the authorization tree"
+msgstr "輸入 {key} 查看授權樹"
+
+msgid "Enter {key} to view the type tree"
+msgstr "輸入 {key} 查看類型樹"
+
+msgid "Enter {key} to view the favorites tree"
+msgstr "輸入 {key} 查看收藏樹"
+
+msgid "Enter {key} to change the interface language"
+msgstr "輸入 {key} 切換介面語言"
+
+msgid "Enter {key} to view help"
+msgstr "輸入 {key} 查看說明"
+
+msgid "Enter {key} to end this session"
+msgstr "輸入 {key} 結束目前連線"
+
+msgid "[number] Select an asset"
+msgstr "[序號] 選擇資產"
+
+msgid "[number] View assets in this node"
+msgstr "[序號] 查看節點資產"
+
+msgid "Refresh authorization tree"
+msgstr "重新整理授權樹"
+
+msgid "[number] Switch language"
+msgstr "[序號] 切換語言"
+
+msgid "[number] Select an account"
+msgstr "[序號] 選擇帳號"
+
+msgid "[number] Select a protocol"
+msgstr "[序號] 選擇協定"
+
+msgid "Previous page"
+msgstr "上一頁"
+
+msgid "Next page"
+msgstr "下一頁"
+
+msgid "View help"
+msgstr "查看說明"
+
+msgid "Failed to load favorites tree. Try again."
+msgstr "收藏樹載入失敗，請重試。"
+
+msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
+msgstr "%d) 輸入 {{.GreenBoldColor}}%s{{.ColorEnd}} %s%s"
 
 msgid "%s approved"
 msgstr "%s 審核通過"
-
-msgid "%s node has no assets"
-msgstr "%s節點沒有資產"
 
 msgid "%s protocol client not installed."
 msgstr "%s 協議的客戶端未安裝"
@@ -46,14 +199,8 @@ msgstr "認證失敗（用戶名或密碼錯誤）"
 msgid "AvailableShortcutKey"
 msgstr "可用快捷鍵"
 
-msgid "Back"
-msgstr "返回"
-
 msgid "Back: B/b"
 msgstr "返回：B/b"
-
-msgid "Cancel"
-msgstr "取消"
 
 msgid "Cancel confirm"
 msgstr "取消登錄復核"
@@ -82,17 +229,11 @@ msgstr "命令 `%s` 是被禁止的 ..."
 msgid "Comment"
 msgstr "備註"
 
-msgid "Confirm"
-msgstr "確認"
-
 msgid "ConfirmBtn"
 msgstr "確定"
 
 msgid "ConfirmDelete"
 msgstr "您確定要刪除該文件嗎？"
-
-msgid "Connect"
-msgstr "連接"
 
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "空閒時間超過%d分鐘，斷開連接"
@@ -101,7 +242,7 @@ msgid "Connect with api server failed"
 msgstr "連接API服務失敗"
 
 msgid "Connecting to %s@%s"
-msgstr "開始連接到 %s@%s"
+msgstr "正在連線至 %s@%s…"
 
 msgid "Connecting to Database %s"
 msgstr "開始連接數據庫 %s"
@@ -173,7 +314,7 @@ msgid "EndFileTransfer"
 msgstr "文件傳輸結束"
 
 msgid "Enter ID number directly login, multiple search use // + field, such as: //16"
-msgstr "提示：輸入資產ID直接登錄，二級搜索使用 // + 欄位，如：//192"
+msgstr "提示：輸入資產序號直接登錄，二級搜尋使用 // + 欄位，如：//192"
 
 msgid "ExceedTransferSize"
 msgstr "超過最大傳輸大小"
@@ -243,6 +384,87 @@ msgstr "快速鍵"
 
 msgid "ID"
 msgstr "ID"
+
+msgid "Number"
+msgstr "序號"
+
+msgid "Sequence"
+msgstr "序號"
+
+msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
+msgstr "二級搜尋：// + IP、主機名稱或備註，例如 //192"
+
+msgid "Connect asset: enter number and press Enter"
+msgstr "連線資產：輸入序號並按 Enter"
+
+msgid "Show help: enter ? and press Enter"
+msgstr "顯示說明：輸入 ? 並按 Enter"
+
+msgid "Asset range: %s  [b] Previous page  [n/Enter] Next page"
+msgstr "資產範圍：%s  [b] 上一頁  [n/Enter] 下一頁"
+
+msgid "Node path: %s"
+msgstr "節點路徑：%s"
+
+msgid "Asset type: %s"
+msgstr "資產類型：%s"
+
+msgid "Favorite path: %s"
+msgstr "收藏路徑：%s"
+
+msgid "Search guide: //keyword (refine) · /keyword (new global search) · IP/hostname/comment"
+msgstr "搜尋指南：//關鍵字（繼續篩選） · /關鍵字（重新全域搜尋） · IP/主機名稱/備註"
+
+msgid "Current search: %s"
+msgstr "目前搜尋：%s"
+
+msgid "Current asset: %s"
+msgstr "目前資產：%s"
+
+msgid "Select account: enter number and press Enter"
+msgstr "選擇帳號：輸入序號並按 Enter"
+
+msgid "Back: [b] + Enter"
+msgstr "返回：[b] + Enter"
+
+msgid "Select language: enter number and press Enter; the choice is saved"
+msgstr "選擇語言：輸入序號並按 Enter，選擇會儲存"
+
+msgid "Select protocol: enter number and press Enter"
+msgstr "選擇協議：輸入序號並按 Enter"
+
+msgid "Tree progress: %d/%d"
+msgstr "樹進度：%d/%d"
+
+msgid "Browse tree: [enter] next line · [space] next page"
+msgstr "瀏覽樹：[enter] 下一行 · [space] 下一頁"
+
+msgid "View assets: [%c + number] + Enter"
+msgstr "查看資產：[%c + 序號] + Enter"
+
+msgid "Refresh authorization tree: [r] + Enter"
+msgstr "重新整理授權樹：[r] + Enter"
+
+msgid "// + IP, Hostname, Comment"
+msgstr "// + IP、主機名稱、備註"
+
+msgid "search within the current tree scope"
+msgstr "在目前樹狀範圍內搜尋"
+
+msgid "authorization tree"
+msgstr "查看授權樹"
+
+msgid "type tree"
+msgstr "查看類型樹"
+
+msgid "favorite tree"
+msgstr "查看收藏樹"
+
+msgid "Type: [ Number.Name(Asset amount) ]"
+msgstr "類型：[ 序號.名稱(資產數量) ]"
+
+msgid "Favorite: [ Number.Name(Asset amount) ]"
+msgstr "收藏：[ 序號.名稱(資產數量) ]"
 
 msgid "InputVerifyCode"
 msgstr "請輸入驗證碼"
@@ -349,8 +571,8 @@ msgstr "無地址"
 msgid "NoRunningTerminalFound"
 msgstr "未找到正在運行的終端"
 
-msgid "Node: [ ID.Name(Asset amount) ]"
-msgstr "節點：[ ID.名稱(資產數量) ]"
+msgid "Node: [ Number.Name(Asset amount) ]"
+msgstr "節點：[ 序號.名稱(資產數量) ]"
 
 msgid "OnlineUser"
 msgstr "在線用戶"
@@ -412,9 +634,6 @@ msgstr "只讀"
 msgid "Reconnect"
 msgstr "重新連線"
 
-msgid "Refresh"
-msgstr "刷新"
-
 msgid "Refresh done"
 msgstr "刷新完成"
 
@@ -439,11 +658,11 @@ msgstr "複用SSH連接（%s@%s）[連接數量: %d]"
 msgid "RightArrow"
 msgstr "前進箭頭"
 
-msgid "Search"
-msgstr "搜尋"
-
 msgid "Search: %s"
-msgstr "搜索：%s"
+msgstr "搜尋：%s"
+
+msgid "Search tip: %s"
+msgstr "搜尋指南：%s"
 
 msgid "Select account exceed max retry times."
 msgstr "選擇賬號超過最大重試次數"
@@ -523,9 +742,6 @@ msgstr "您執行的命令存在風險，告警通知將發送給管理員。是
 msgid "TheCurrentTerminalInstanceWasNotFound"
 msgstr "當前終端實例未找到"
 
-msgid "Theme"
-msgstr "主題"
-
 msgid "ThemeColors"
 msgstr "主題顏色"
 
@@ -537,9 +753,6 @@ msgstr "工單審核人：%s"
 
 msgid "Tips: Enter asset[%s] account ID"
 msgstr "提示：輸入資產[%s]的帳號ID"
-
-msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
-msgstr "提示：輸入 g+節點ID 顯示節點下主機，如： g1"
 
 msgid "Tips: Enter protocol ID"
 msgstr "提示：輸入協議ID"
@@ -626,7 +839,7 @@ msgid "You get auth token failed"
 msgstr "您獲取認證令牌失敗"
 
 msgid "display the assets you have permission"
-msgstr "顯示您有權限的資產"
+msgstr "查看授權的資產"
 
 msgid "display the databases that you have permission"
 msgstr "顯示您有權限的數據庫"
@@ -644,7 +857,7 @@ msgid "exit"
 msgstr "退出"
 
 msgid "get connect token err"
-msgstr "獲取連接令牌錯誤"
+msgstr "取得連線權杖失敗"
 
 msgid "have no permission to download file"
 msgstr "無權限下載文件"
@@ -656,7 +869,7 @@ msgid "i/o timeout"
 msgstr "網絡不通（連接超時）"
 
 msgid "language switch"
-msgstr "語言切換"
+msgstr "切換語言"
 
 msgid "network is unreachable"
 msgstr "網絡不通（網絡不可達）"
@@ -682,8 +895,8 @@ msgstr "選擇其中一個資產登錄"
 msgid "to search login if unique"
 msgstr "搜索登錄（如果唯一）"
 
-msgid "to search, such as: /192.168"
-msgstr "搜尋，如：/192.168"
+msgid "Enter {key} to search, such as: /192.168"
+msgstr "輸入 {key} 搜尋，如：/192.168"
 
 #. lang.T
 #: pkg/handler/banner.go:33
@@ -716,245 +929,68 @@ msgstr "部署權限不足"
 msgid "File exceeds maximum transfer size: %s"
 msgstr "檔案超過最大傳輸大小：%s"
 
-#. Koko TUI
-msgid "Account"
-msgstr "帳號名稱"
-
-#. Koko TUI
-msgid "All assets"
-msgstr "全部資產"
-
-#. Koko TUI
 msgid "All favorites"
 msgstr "全部收藏"
 
-#. Koko TUI
-msgid "Asset"
-msgstr "資產名稱"
-
-#. Koko TUI
-msgid "Asset groups"
-msgstr "資產分組"
-
-#. Koko TUI
-msgid "Assets"
-msgstr "資產"
-
-#. Koko TUI
-msgid "Assets / New connection"
-msgstr "返回資產 / 新建連線"
-
-#. Koko TUI
-msgid "Authorization"
-msgstr "授權樹"
-
-#. Koko TUI
-msgid "Clear search"
-msgstr "清空搜尋"
-
-#. Koko TUI
-msgid "Close"
-msgstr "關閉"
-
-#. Koko TUI
-msgid "Close menu/dialog, go back"
-msgstr "關閉選單/視窗，返回"
-
-#. Koko TUI
-msgid "Close tab"
-msgstr "關閉此分頁"
-
-#. Koko TUI
-msgid "Collapse/expand"
-msgstr "摺疊/展開"
-
-#. Koko TUI
-msgid "Collapse/expand loaded nodes"
-msgstr "摺疊/展開已載入節點"
-
-#. Koko TUI
-msgid "Collapse/expand node, scroll table horizontally"
-msgstr "摺疊/展開節點，水平捲動表格"
-
-#. Koko TUI
-msgid "Confirm and connect"
-msgstr "確認並連線"
-
-#. Koko TUI
-msgid "Connected terminal"
-msgstr "連線中的終端"
-
-#. Koko TUI
-msgid "Disconnect and quit"
-msgstr "中斷並退出"
-
-#. Koko TUI
-msgid "Disconnect session"
-msgstr "中斷此工作階段"
-
-#. Koko TUI
-msgid "Favorites"
-msgstr "收藏樹"
-
-#. Koko TUI
-msgid "First/last item"
-msgstr "首項/末項"
-
-#. Koko TUI
-msgid "Focus"
-msgstr "切換控制項"
-
-#. Koko TUI
-msgid "Full text"
-msgstr "完整內容"
-
-#. Koko TUI
-msgid "Full text · scrollable"
-msgstr "完整內容 · 可捲動"
-
-#. Koko TUI
-msgid "Help"
-msgstr "說明"
-
-#. Koko TUI
-msgid "Keys go to the remote; press Ctrl+] for window controls."
-msgstr "一般按鍵傳送至遠端；視窗操作請先按 Ctrl+]。"
-
-#. Koko TUI
-msgid "Language"
-msgstr "語言"
-
-#. Koko TUI
-msgid "Language · this session"
-msgstr "語言 · 目前工作階段"
-
-#. Koko TUI
-msgid "Load failed; press R to retry"
-msgstr "載入失敗，按 R 重試"
-
-#. Koko TUI
-msgid "Load more…"
-msgstr "載入更多…"
-
-#. Koko TUI
-msgid "Loading assets…"
-msgstr "載入資產…"
-
-#. Koko TUI
-msgid "Loading organizations…"
-msgstr "載入組織…"
-
-#. Koko TUI
-msgid "Loading permitted accounts…"
-msgstr "載入授權帳號…"
-
-#. Koko TUI
-msgid "Loading workspace…"
-msgstr "正在載入工作區…"
-
-#. Koko TUI
-msgid "Maximum 8 sessions; close one first"
-msgstr "最多保留 8 個工作階段，請先關閉一個"
-
-#. Koko TUI
-msgid "Move and scroll"
-msgstr "移動和捲動"
-
-#. Koko TUI
-msgid "Name, address, comment"
-msgstr "名稱、位址、備註"
-
-#. Koko TUI
-msgid "Next"
-msgstr "下頁"
-
-#. Koko TUI
-msgid "Next/previous window"
-msgstr "下一個/上一個視窗"
-
-#. Koko TUI
 msgid "No matching assets"
 msgstr "沒有符合的資產"
 
-#. Koko TUI
-msgid "No organization memberships"
-msgstr "未加入任何組織"
+msgid "Account"
+msgstr "帳號"
 
-#. Koko TUI
-msgid "No permitted accounts or terminal protocols"
-msgstr "沒有可用的授權帳號或終端協定"
+msgid "Cancel"
+msgstr "取消"
 
-#. Koko TUI
-msgid "Previous"
-msgstr "上頁"
+msgid "Clear"
+msgstr "清除"
 
-#. Koko TUI
+msgid "Connect"
+msgstr "連線"
+
+msgid "Confirm"
+msgstr "確認"
+
+msgid "Double-click"
+msgstr "雙擊"
+
+msgid "Language"
+msgstr "語言"
+
+msgid "Page"
+msgstr "翻頁"
+
 msgid "Quit"
-msgstr "退出"
+msgstr "結束"
 
-#. Koko TUI
-msgid "Quitting will disconnect all asset sessions."
-msgstr "退出將中斷所有資產連線。"
+msgid "Search"
+msgstr "搜尋"
 
-#. Koko TUI
-msgid "Resize terminal to at least 72 × 20"
-msgstr "請將終端放大至至少 72 × 20"
-
-#. Koko TUI
-msgid "Resize tree, or drag the divider"
-msgstr "調整樹寬度，或拖曳分隔線"
-
-#. Koko TUI
-msgid "Searching…"
-msgstr "搜尋中…"
-
-#. Koko TUI
 msgid "Select"
 msgstr "選擇"
 
-#. Koko TUI
-msgid "Select account"
-msgstr "選擇帳號"
+msgid "Text mode"
+msgstr "純文字模式"
 
-#. Koko TUI
-msgid "Send literal Ctrl+]"
-msgstr "傳送原始 Ctrl+]"
+msgid "Interface control (mouse)"
+msgstr "介面操作(滑鼠)"
 
-#. Koko TUI
-msgid "Session ended"
-msgstr "連線已結束"
+msgid "Text selection (mouse)"
+msgstr "文字選取(滑鼠)"
 
-#. Koko TUI
-msgid "Sessions"
-msgstr "工作階段"
+msgid "Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions"
+msgstr "切換到介面操作，由 Koko 接管滑鼠，可點擊、捲動和操作介面"
 
-#. Koko TUI
-msgid "Show/hide navigation"
-msgstr "顯示/隱藏樹區域"
+msgid "Switch to text selection; the local terminal handles dragging and copying text"
+msgstr "切換到文字選取，由本機終端接管滑鼠，可拖曳選取和複製文字"
 
-#. Koko TUI
-msgid "Terminal"
-msgstr "終端"
+msgid "Asset tree"
+msgstr "資產樹"
 
-#. Koko TUI
-msgid "Tree limit reached; refresh this view"
-msgstr "節點過多，請重新整理此檢視"
+msgid "Clear node"
+msgstr "清除節點"
 
-#. Koko TUI
-msgid "Tree view"
-msgstr "樹類型"
-
-#. Koko TUI
-msgid "Types"
-msgstr "類型樹"
-
-#. Koko TUI
-msgid "Width"
-msgstr "寬度"
-
-#. Koko TUI
-msgid "Window bar"
-msgstr "視窗列"
+msgid "Clear search"
+msgstr "清除搜尋"
 
 msgid "Authorization tree"
 msgstr "授權樹"
@@ -962,182 +998,251 @@ msgstr "授權樹"
 msgid "Type tree"
 msgstr "類型樹"
 
-msgid "Favorites tree"
+msgid "Favorite tree"
 msgstr "收藏樹"
 
-msgid "Load failed"
-msgstr "載入失敗"
+msgid "Refresh"
+msgstr "重新整理"
 
-msgid "Global organization"
-msgstr "全域組織"
+msgid "Switch tree"
+msgstr "切換樹"
 
-msgid "Asset panel"
-msgstr "資產面板"
+msgid "Switch language"
+msgstr "切換語言"
 
-msgid "Mode"
-msgstr "模式"
+msgid "Search assets in the current scope"
+msgstr "在目前範圍內搜尋資產"
 
-msgid "Accent color"
-msgstr "強調色"
+msgid "Clear the current asset search"
+msgstr "清除目前的資產搜尋"
 
-msgid "Dark theme"
-msgstr "深色主題"
+msgid "Move the selection up or down"
+msgstr "向上或向下移動選取項目"
 
-msgid "Light theme"
-msgstr "淺色主題"
-
-msgid "Teal"
-msgstr "青綠"
-
-msgid "Blue"
-msgstr "藍色"
-
-msgid "Green"
-msgstr "綠色"
-
-msgid "Purple"
-msgstr "紫色"
-
-msgid "Rose"
-msgstr "玫瑰"
-
-msgid "Amber"
-msgstr "琥珀"
-
-msgid "Orange"
-msgstr "橙色"
-
-msgid "Pink"
-msgstr "粉色"
-
-msgid "Cyan"
-msgstr "青藍"
-
-msgid "Gray"
-msgstr "灰色"
-
-msgid "Red"
-msgstr "紅色"
-
-msgid "Lime"
-msgstr "青檸"
-
-msgid "Duplicate"
-msgstr "複製"
-
-msgid "Disconnect"
-msgstr "中斷"
-
-msgid "Duplicate session"
-msgstr "複製工作階段"
-
-msgid "More sessions"
-msgstr "更多工作階段"
-
-msgid "Fullscreen"
-msgstr "全螢幕"
-
-msgid "Exit fullscreen"
-msgstr "結束全螢幕"
-
-msgid "Reset accent"
-msgstr "還原主題色"
-
-msgid "Quit this Koko SSH session?"
-msgstr "確定結束本次 Koko SSH 工作階段？"
-
-msgid "This asset's protocols (%s) are unsupported, so it cannot be connected"
-msgstr "目前資產的協定（%s）不受支援，無法連線"
-
-msgid "Focus the organization selector"
-msgstr "聚焦組織選擇框"
-
-msgid "Focus the asset tree type selector"
-msgstr "聚焦資產樹類型選擇框"
-
-msgid "Focus asset tree nodes"
-msgstr "聚焦資產樹節點"
-
-msgid "Focus the asset list"
-msgstr "聚焦資產列表"
-
-msgid "Show or hide the asset tree pane"
-msgstr "顯示或隱藏資產樹區域"
-
-msgid "Focus the asset search field"
-msgstr "聚焦資產搜尋框"
-
-msgid "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
-msgstr "逐級收合資產樹；完全收合時展開第一層節點"
-
-msgid "Reload the current asset tree and top-level asset list, resetting the selected node"
-msgstr "重新載入目前資產樹及頂層資產列表，並重設選取的節點"
-
-msgid "Reload organizations, asset tree, and asset list"
-msgstr "重新載入組織、資產樹及資產列表"
-
-msgid "Narrow the asset tree pane by 4 columns"
-msgstr "將資產樹區域縮窄 4 欄"
-
-msgid "Widen the asset tree pane by 4 columns"
-msgstr "將資產樹區域加寬 4 欄"
-
-msgid "Previous page of the asset list"
-msgstr "資產列表上一頁"
-
-msgid "Next page of the asset list"
-msgstr "資產列表下一頁"
-
-msgid "Refresh the current node's asset list, keeping search and page"
-msgstr "重新整理目前節點的資產列表，保留搜尋條件及頁碼"
-
-msgid "Scroll the asset list horizontally"
-msgstr "水平捲動資產列表"
-
-msgid "Collapse or expand the current tree node"
-msgstr "收合或展開目前樹節點"
-
-msgid "Collapse the current node or move to its parent / expand the current node"
-msgstr "收合目前節點或移至父節點 / 展開目前節點"
-
-msgid "Move to a child / parent node"
-msgstr "移至子節點 / 父節點"
-
-msgid "Move through visible tree nodes"
-msgstr "在可見的樹節點之間移動"
-
-msgid "Move one screen up or down in the asset tree"
-msgstr "在資產樹中向上或向下移動一個畫面"
-
-msgid "Jump to the first or last asset tree node"
-msgstr "定位到資產樹的第一個或最後一個節點"
-
-msgid "Move between asset list rows"
-msgstr "在資產列表的資料列之間移動"
-
-msgid "Move one screen up or down within the current asset page"
-msgstr "在目前資產頁面內向上或向下移動一個畫面"
-
-msgid "Jump to the first or last asset list row"
-msgstr "定位到資產列表的第一列或最後一列"
-
-msgid "Show assets in the current tree node"
-msgstr "顯示目前樹節點的資產"
-
-msgid "Search assets immediately"
-msgstr "立即搜尋資產"
+msgid "Go to the previous or next page"
+msgstr "前往上一頁或下一頁"
 
 msgid "Connect to the selected asset"
 msgstr "連線至選取的資產"
 
-msgid "Focused area controls"
-msgstr "目前區域操作"
+msgid "Open the asset tree"
+msgstr "開啟資產樹"
 
-msgid "Session \"%s\" has ended. Close this tab?"
-msgstr "工作階段「%s」已結束，是否關閉此分頁？"
+msgid "Clear the selected tree node"
+msgstr "清除選取的樹節點"
 
-msgid "Keep tab"
-msgstr "保留分頁"
+msgid "Switch the interface language"
+msgstr "切換介面語言"
 
-msgid "Terminal supports only these protocols: %s."
-msgstr "終端僅支援 %s 等協定。"
+msgid "Switch to text mode"
+msgstr "切換至純文字模式"
+
+msgid "Exit the asset list"
+msgstr "離開資產列表"
+
+msgid "Open shortcut help"
+msgstr "開啟快捷鍵說明"
+
+msgid "Close shortcut help"
+msgstr "關閉快捷鍵說明"
+
+msgid "View complete information for the selected item"
+msgstr "查看所選項目的完整資訊"
+
+msgid "Protocols supported by the current terminal"
+msgstr "目前終端支援的協議"
+
+msgid "Collapse or expand the selected node"
+msgstr "收合或展開選取的節點"
+
+msgid "Use the selected node to filter assets"
+msgstr "使用選取的節點篩選資產"
+
+msgid "Switch the asset tree type"
+msgstr "切換資產樹類型"
+
+msgid "Reload the current asset tree"
+msgstr "重新載入目前的資產樹"
+
+msgid "Apply the selected language"
+msgstr "套用選取的語言"
+
+msgid "Select an authorized account"
+msgstr "選擇授權帳號"
+
+msgid "Select a connection protocol"
+msgstr "選擇連線協定"
+
+msgid "Search authorized accounts"
+msgstr "搜尋授權帳號"
+
+msgid "Connect using the selected account and protocol"
+msgstr "使用選取的帳號和協定連線"
+
+msgid "Path"
+msgstr "路徑"
+
+msgid "Asset count"
+msgstr "資產數量"
+
+msgid "Category"
+msgstr "類別"
+
+msgid "Active"
+msgstr "啟用"
+
+msgid "Actions"
+msgstr "動作"
+
+msgid "Key"
+msgstr "鍵"
+
+msgid "Details"
+msgstr "詳情"
+
+msgid "Refresh the current asset list and keep search and tree filters"
+msgstr "刷新目前資產清單，並保留搜尋和資產樹篩選條件"
+
+msgid "Yes"
+msgstr "是"
+
+msgid "No"
+msgstr "否"
+
+msgid "My Assets"
+msgstr "我的資產"
+
+msgid "Direct connect"
+msgstr "原生連線"
+
+msgid "Multi-session"
+msgstr "多會話"
+
+msgid "Sessions"
+msgstr "會話視窗"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "在原生單會話中連線至選取的資產"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "在多會話視窗中開啟選取的資產"
+
+msgid "Return to the multi-session workspace"
+msgstr "返回多會話視窗"
+
+msgid "Asset list"
+msgstr "資產列表"
+
+msgid "Switch session"
+msgstr "切換會話"
+
+msgid "Close session"
+msgstr "關閉會話"
+
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "多會話模式最多支援同時開啟 %d 個會話視窗"
+
+msgid "Failed to open multi-session"
+msgstr "無法開啟多會話"
+
+msgid "Multi-session workspace closed"
+msgstr "多會話管理頁已關閉"
+
+msgid "Activate shortcuts"
+msgstr "啟用快捷鍵"
+
+msgid "Next session"
+msgstr "下一個會話"
+
+msgid "Duplicate session"
+msgstr "複製會話"
+
+msgid "Reconnect session"
+msgstr "重新連線會話"
+
+msgid "Move to the next session"
+msgstr "切換到下一個會話"
+
+msgid "Move to the previous session"
+msgstr "切換到上一個會話"
+
+msgid "Switch directly to session 1-9"
+msgstr "按編號切換到對應會話"
+
+msgid "Close the current session"
+msgstr "關閉目前會話"
+
+msgid "Duplicate the current session"
+msgstr "複製目前會話"
+
+msgid "Reconnect the current session"
+msgstr "重新連線目前會話"
+
+msgid "Return to the asset list"
+msgstr "返回資產列表"
+
+msgid "Send ctrl+b to the current session"
+msgstr "向目前會話傳送 ctrl+b"
+
+msgid "Scroll content"
+msgstr "捲動內容"
+
+msgid "Scroll the current session down or up"
+msgstr "向下或向上捲動目前會話內容"
+
+msgid "Enter session"
+msgstr "進入會話"
+
+msgid "Move to the previous or next session"
+msgstr "切換到左側或右側會話"
+
+msgid "Enter the current session"
+msgstr "進入目前會話"
+
+msgid "Close all sessions"
+msgstr "關閉所有會話"
+
+msgid "Close all sessions and return to the asset list"
+msgstr "關閉所有會話並返回資產列表"
+
+msgid "Session list"
+msgstr "會話列表"
+
+msgid "Open the session list"
+msgstr "開啟會話列表"
+
+msgid "Close"
+msgstr "關閉"
+
+msgid "Immersive mode"
+msgstr "沉浸模式"
+
+msgid "Enter immersive mode"
+msgstr "進入沉浸模式"
+
+msgid "Exit immersive mode"
+msgstr "退出沉浸模式"
+
+msgid "Close the current session?"
+msgstr "確定關閉目前會話？"
+
+msgid "Close all sessions and return to the asset list?"
+msgstr "確定關閉所有會話並返回資產列表？"
+
+msgid "Quit Koko"
+msgstr "退出 Koko"
+
+msgid "Quit this SSH session?"
+msgstr "確定退出本次 SSH 工作階段嗎？"
+
+msgid "%d multi-sessions are still active; quitting will end them."
+msgstr "仍有 %d 個多會話尚未結束，退出後將一併結束。"
+
+msgid "Session ended"
+msgstr "會話已結束"
+
+msgid "The current session has ended. Close this tab?"
+msgstr "目前會話已結束，是否關閉此標籤？"
+
+msgid "Keep"
+msgstr "保留"

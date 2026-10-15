@@ -3,9 +3,9 @@
 
 **简体中文** · [English](./README.md)
 
-Koko 是 JumpServer 连接字符协议的终端组件，支持 SSH、TELNET、MySQL、Redis 等协议。
+Koko 是 JumpServer 连接字符协议的终端组件，支持 SSH、TELNET、WinRM、MySQL、Redis 等协议。
 
-Koko 使用 Golang 和 Vue 来实现，名字来自 Dota 英雄 [Kunkka](https://www.dota2.com.cn/hero/kunkka)。
+Koko 使用 Golang 来实现，名字来自 Dota 英雄 [Kunkka](https://www.dota2.com.cn/hero/kunkka)。
 
 ## 主要功能
 
@@ -15,55 +15,30 @@ Koko 使用 Golang 和 Vue 来实现，名字来自 Dota 英雄 [Kunkka](https:/
 - web terminal
 - web文件管理
 
+## 通过 WinRM 连接 Windows PowerShell
 
-## 安装
+Windows 资产中已授权且公开的 `winrm` 协议可通过 Koko Web CLI 连接，支持 Luna 网页和桌面客户端。需要同步更新 JumpServer Core、Koko 和 Luna，并执行 `assets.0031_winrm_terminal_access` 迁移，使已有平台的 WinRM 协议可供用户连接。
 
-1.下载项目
+Koko 使用 PSRP over WinRM 打开持久 PowerShell 会话，通过账号密码进行 NTLM 认证。配置资产的 WinRM 监听端口（HTTP 通常为 5985，HTTPS 通常为 5986）及平台的 `use_ssl` 设置。两种传输均要求 NTLM 消息加密。HTTPS 默认校验目标证书；可配置可信 CA，或在需要时明确启用平台的 `allow_invalid_cert`。Windows 账号需要具有 PowerShell 远程管理端点的访问权限。
 
-```shell
-git clone https://github.com/jumpserver/koko.git
-```
+终端支持完整的单行 PowerShell 命令或脚本、行编辑、历史记录、Ctrl-C 取消及 Ctrl-D 断开。变量与当前目录和 AI 命令执行器共享。AI 的 Auto 和 PTY 模式会在当前终端显示命令、流式输出并进入会话录像；Background 模式仅向 AI 返回输出。所有模式都通过 PSRP 执行并保留命令审计。不支持交互式宿主输入提示及全屏控制台程序。终端每条命令限制 4095 个字符，AI 命令限制 64 KiB、最长十分钟。PSRP 返回管道状态，因此 AI 结果不会虚构操作系统退出码。
 
-2.编译应用
-
-在 koko 项目下构建应用.
-```shell
-make
-```
-> 如果构建成功，会在项目下自动生成 build 文件夹，里面包含当前分支各种架构版本的压缩包。
-默认构建的 VERSION 为 [branch name]-[commit]。
-因为使用go mod进行依赖管理，可以设置环境变量 GOPROXY=https://goproxy.io 代理下载部分依赖包。
-
-## 使用 (以 Linux amd64 服务器为例)
-
-1.拷贝压缩包文件到对应的服务器
-
-```
-通过 make 构建默认的压缩包，文件名如下: 
-koko-[branch name]-[commit]-linux-amd64.tar.gz
-```
-
-2.解压编译的压缩包
-```shell
-tar xzvf koko-[branch name]-[commit]-linux-amd64.tar.gz
-```
-
-3.创建配置文件config.yml，配置参数请参考[config_example.yml](https://github.com/jumpserver/koko/blob/master/config_example.yml)文件
-```shell
-touch config.yml
-```
-
-4.运行koko
-```shell
-cd koko-[branch name]-[commit]-linux-amd64
-
-./koko
-```
+提交的命令和有界输出接入现有命令审计、命令 ACL 审批及告警通知。AI 命令命中“通知并告警”ACL 时会停止执行，需要用户在手动终端执行并确认；AI 任务批准不能替代该风险确认。终端活动沿用会话录像和权限生命周期。传输失败后不会自动重发已经认证的 WinRM 请求；响应丢失时，命令的执行结果可能无法确认。
 
 
 ## 开发环境
 
-1. 运行 server 后端
+1. 下载项目
+
+```shell
+git clone https://github.com/jumpserver/koko.git
+cd koko
+```
+
+2. 运行 server 后端
+
+`make run` 需要 Docker Compose，用于启动 guacd，并在退出时停止它。
+使用 `make dev` 运行 Koko 时不会启动或停止 guacd，无需 Docker Compose。
 
 ```shell
 
@@ -72,23 +47,12 @@ $ vim config.yml  # 2. 修改配置文件, 编辑其中的地址 和 bootstrap k
 CORE_HOST: http://127.0.0.1:8080
 BOOTSTRAP_TOKEN: PleaseChangeMe<改成和core一样的>
 
-$ make run # 3. 运行，首次运行会自动下载预编译的 libghostty-vt
+$ make run # 3. 运行，首次运行会自动下载预编译的 libghostty-vt 和 usql
 ```
 
-
-2. 运行 ui 前端
-
-```shell
-$ cd ui 
-$ yarn install
-$ npm run serve
-```
-
-3. 测试
-在 luna 访问 linux 资产，复制 iframe 地址，端口修改为 9530 即可，也可以修改 nginx 将 /koko 映射到这里
 
 ## 构建docker镜像
-依赖 docker buildx 构建多平台镜像，需要安装 docker 19.03+ 版本，并开启 docker buildx 插件。
+使用 Docker Buildx 构建镜像并加载到本地 Docker：
 
 ```shell
 make docker

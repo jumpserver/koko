@@ -48,7 +48,7 @@ type USQLConn struct {
 func (conn *USQLConn) KeepAlive() error { return nil }
 
 func (conn *USQLConn) Close() error {
-	_, _ = conn.Write(cleanLineExitCommand)
+	// Input may already be blocked; close the process without another PTY write.
 	return conn.LocalCommand.Close()
 }
 
@@ -105,7 +105,7 @@ func (o *sqlOption) USQLCommandArgs() ([]string, error) {
 				params.Set("sslkey", clientCertKeyPath)
 			}
 
-		case "mysql":
+		case "mysql", "maria", "mariadb":
 			params.Set("tls", "custom")
 			params.Set("ssl-ca", caCertPath)
 			params.Set("ssl-cert", clientCertPath)
@@ -144,5 +144,8 @@ func (o *sqlOption) USQLCommandArgs() ([]string, error) {
 	dsn := dsnURL.String()
 	prompt1 := "--variable=PROMPT1=" + o.Schema + "%R%#"
 
-	return []string{dsn, prompt1}, nil
+	// KoKo collects the account password before launching usql. Let a failed
+	// supplied password end this connection instead of usql recursively opening
+	// an unlimited independent password prompt.
+	return []string{dsn, prompt1, "--no-password"}, nil
 }

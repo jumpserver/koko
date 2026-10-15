@@ -78,15 +78,9 @@ func (l *LoginReviewHandler) WaitTicketReview(ctx context.Context, srv *auth.Log
 	lang := i18n.NewLang(l.i18nLang)
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
-	var stream io.ReadWriter = l.readWriter
-	reader, cancellable := l.readWriter.(reviewContextReader)
-	if cancellable {
-		stream = reviewStream{Writer: l.readWriter, reader: reader, ctx: ctx}
-	}
-	vt := term.NewTerminal(stream, " ")
-	readDone, progressDone := make(chan struct{}), make(chan struct{})
+	vt := term.NewTerminal(l.readWriter, " ")
+	progressDone := make(chan struct{})
 	go func() {
-		defer close(readDone)
 		defer cancelFunc()
 		for ctx.Err() == nil {
 			line, err := vt.ReadLine()
@@ -135,13 +129,7 @@ func (l *LoginReviewHandler) WaitTicketReview(ctx context.Context, srv *auth.Log
 
 	status := srv.WaitLoginConfirm(ctx)
 	cancelFunc()
-	if !cancellable {
-		// Direct SSH connections close and replace only their read pipe.
-		_ = l.readWriter.Close()
-	} else {
-		// Join the TUI reader before handing its input queue to the proxy.
-		<-readDone
-	}
+	_ = l.readWriter.Close()
 	<-progressDone
 	processor := srv.GetProcessor()
 	var success bool
@@ -166,15 +154,3 @@ func (l *LoginReviewHandler) WaitTicketReview(ctx context.Context, srv *auth.Log
 	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
 	return success, nil
 }
-
-type reviewContextReader interface {
-	ReadContext(context.Context, []byte) (int, error)
-}
-
-type reviewStream struct {
-	io.Writer
-	reader reviewContextReader
-	ctx    context.Context
-}
-
-func (s reviewStream) Read(p []byte) (int, error) { return s.reader.ReadContext(s.ctx, p) }

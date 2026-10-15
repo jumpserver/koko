@@ -3,9 +3,9 @@
 
 **English** · [简体中文](./README_zh-CN.md)
 
-KoKo is a connector of JumpServer for secure connections using character protocols, supporting SSH, Telnet, Kubernetes, SFTP and database protocols
+KoKo is a connector of JumpServer for secure connections using character protocols, supporting SSH, Telnet, WinRM, Kubernetes, SFTP and database protocols
 
-Koko is implemented using Golang and Vue, and the name comes from a Dota hero [Kunkka](https://www.dota2.com.cn/hero/kunkka)。
+Koko is implemented using Golang, and the name comes from a Dota hero [Kunkka](https://www.dota2.com.cn/hero/kunkka)。
 
 ## Features
 
@@ -15,53 +15,30 @@ Koko is implemented using Golang and Vue, and the name comes from a Dota hero [K
 - Web Terminal
 - Web File Management
 
+## Windows PowerShell over WinRM
 
-## Installation
+Windows assets with an authorized, public `winrm` protocol can use Koko's Web CLI in Luna's web and desktop clients. Update JumpServer Core and Luna alongside Koko and apply the `assets.0031_winrm_terminal_access` migration to expose existing WinRM platform protocols.
+
+Koko opens a persistent PowerShell runspace using PSRP over WinRM and password-based NTLM authentication. Configure the asset's WinRM listener port (usually 5985 for HTTP or 5986 for HTTPS) and the platform's `use_ssl` setting. NTLM message encryption is required on both transports. HTTPS verifies the target certificate by default; configure a trusted CA or explicitly enable `allow_invalid_cert` on the platform when needed. The account must have permission to use the Windows PowerShell remoting endpoint.
+
+The terminal supports complete PowerShell commands or scripts on one line, line editing, command history, Ctrl-C cancellation and Ctrl-D disconnect. Variables and the working directory are shared with the AI command executor. AI Auto and PTY modes display commands and streamed output in the current terminal and session recording; Background mode returns output only to AI. All modes execute through PSRP and retain command auditing. Interactive host prompts and full-screen console programs are unsupported. Terminal commands are limited to 4095 characters; AI commands to 64 KiB and ten minutes. PSRP reports pipeline state, so AI results do not invent an OS exit code.
+
+Submitted commands and bounded output use JumpServer's command auditing, ACL review and warning notification paths. AI commands matching a notify-and-warn ACL are refused. Execute and confirm such commands manually in the terminal; AI task approval does not replace that risk confirmation. Terminal activity uses the existing session recording and permission lifecycle. Authenticated WinRM requests are never automatically replayed after a transport failure; a lost response can leave the command outcome unknown.
+
+
+## Setup development environment
 
 1. Clone the project
 
 ```shell
 git clone https://github.com/jumpserver/koko.git
+cd koko
 ```
 
-2. Build the application
+2. Run the backend server
 
-Build the application in the koko project.
-```shell
-make
-```
-> If the build is successful, the build folder will be automatically generated under the project, which contains compressed packages of various architectures of the current branch.
-
-## Usage (for Linux amd64 server)
-
-1. Copy the compressed package file to the corresponding server
-
-```
-Build the default compressed package through make, the file name is as follows:
-koko-[branch name]-[commit]-linux-amd64.tar.gz
-```
-
-2. Unzip the compiled compressed package
-```shell
-tar xzvf koko-[branch name]-[commit]-linux-amd64.tar.gz
-```
-
-3. Create the file `config.yml`, refer to [config_example.yml](https://github.com/jumpserver/koko/blob/master/config_example.yml)
-```shell
-touch config.yml
-```
-
-4. run koko
-```shell
-cd koko-[branch name]-[commit]-linux-amd64
-
-./koko
-```
-
-
-## Setup development environment
-
-1. Run the backend server
+`make run` requires Docker Compose to start guacd and stops it on exit.
+Use `make dev` to run Koko without starting or stopping guacd; Docker Compose is not required.
 
 ```shell
 
@@ -70,20 +47,12 @@ $ vim config.yml  # 2. Modify the configuration file, edit the address and boots
 CORE_HOST: http://127.0.0.1:8080
 BOOTSTRAP_TOKEN: PleaseChangeMe <change to the same as core>
 
-$ make run # 3. Run; the prebuilt libghostty-vt is downloaded on first use
+$ make run # 3. Run; prebuilt libghostty-vt and usql are downloaded on first use
 ```
 
-
-2. Run the ui frontend
-
-```shell
-$ cd ui 
-$ yarn install
-$ npm run serve
-```
 
 ## Docker
-To build multi-platform images using Docker Buildx, you need to install Docker version 19.03 or higher and enable the Docker Buildx plugin.
+Use Docker Buildx to build the image and load it into the local Docker image store:
 
 ```shell
 make docker
