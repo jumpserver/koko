@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-release_tag=v0.1.13
+release_tag=v0.2.6
 release_url=https://github.com/jumpserver-dev/usql/releases/download/${release_tag}
 
 script_dir=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
