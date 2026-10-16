@@ -105,7 +105,7 @@ func (o *sqlOption) USQLCommandArgs() ([]string, error) {
 				params.Set("sslkey", clientCertKeyPath)
 			}
 
-		case "mysql", "oceanbase", "oboracle":
+		case "mysql", "maria", "mariadb", "oceanbase", "oboracle":
 			params.Set("tls", "custom")
 			params.Set("ssl-ca", caCertPath)
 			params.Set("ssl-cert", clientCertPath)
