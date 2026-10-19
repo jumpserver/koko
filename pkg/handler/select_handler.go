@@ -158,7 +158,7 @@ func (u *UserSelectHandler) search(key string, autoConnect bool) {
 	}
 	pageSize := u.resultPageSize()
 	u.currentResult = u.Retrieve(pageSize, 0, u.searchKeys...)
-	if autoConnect && u.canAutoConnectSearchResult() && u.proxy(u.currentResult[0], true) {
+	if autoConnect && u.canAutoConnectSearchResult() && u.proxy(u.currentResult[0], false) {
 		return
 	}
 	u.DisplayCurrentResult()
