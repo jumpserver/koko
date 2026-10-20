@@ -476,6 +476,8 @@ func (r *FTPFileRecorder) UploadFile(maxRetry int, ftpLogId string) {
 		logger.Errorf("FTP file %s not found", ftpLogId)
 		return
 	}
+	// Release metadata after retries and fallback; retain failed files for recovery.
+	defer r.removeFTPFile(ftpLogId)
 	if !common.FileExists(info.absFilePath) {
 		logger.Infof("FTP file not found: %s", info.absFilePath)
 		return
@@ -484,7 +486,6 @@ func (r *FTPFileRecorder) UploadFile(maxRetry int, ftpLogId string) {
 		logger.Info("FTP file is exceeds the upper limit for saving files, removed: ",
 			info.absFilePath)
 		_ = os.Remove(info.absFilePath)
-		r.removeFTPFile(info.ftpLog.ID)
 		return
 	}
 	logger.Infof("FTPLog %s: FTP File recorder is uploading", info.ftpLog.ID)
@@ -497,7 +498,6 @@ func (r *FTPFileRecorder) UploadFile(maxRetry int, ftpLogId string) {
 			if err := r.jmsService.FinishFTPFile(info.ftpLog.ID); err != nil {
 				logger.Errorf("FTP file %s upload failed: %s", info.ftpLog.ID, err)
 			}
-			r.removeFTPFile(info.ftpLog.ID)
 			break
 		}
 		logger.Errorf("Upload FTP file err: %s", err)

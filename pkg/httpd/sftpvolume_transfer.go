@@ -9,13 +9,16 @@ import (
 	"io"
 	"os"
 	"path"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/pkg/sftp"
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
 const transferChunkMaxSize = 2 * 1024 * 1024
@@ -147,6 +150,7 @@ func (u *sftpVolume) closeTransferReadLocked() {
 		return
 	}
 	_ = u.transferRead.file.Close()
+	u.transferRead.readRecord.discard()
 	u.transferRead = nil
 }
 
@@ -397,7 +401,7 @@ func (u *sftpVolume) prepareTransfer(transferID, targetPath string, totalSize in
 	return sftpTransferResult{TransferID: transferID, TotalBytes: totalSize, State: "ready"}, nil
 }
 
-func (u *sftpVolume) readTransferChunk(transferID, sourcePath string, offset, length int64) ([]byte, sftpTransferChunk, error) {
+func (u *sftpVolume) readTransferChunk(transferID, sourcePath string, offset, length int64) (data []byte, chunk sftpTransferChunk, err error) {
 	if offset < 0 || length <= 0 || length > transferChunkMaxSize {
 		return nil, sftpTransferChunk{}, fmt.Errorf("invalid file transfer range")
 	}
@@ -406,7 +410,7 @@ func (u *sftpVolume) readTransferChunk(transferID, sourcePath string, offset, le
 		u.lock.Unlock()
 		return nil, sftpTransferChunk{}, os.ErrClosed
 	}
-	file, cached, err := u.readHandleLocked(transferID, sourcePath)
+	file, cached, recording, err := u.readHandleLocked(transferID, sourcePath)
 	if err != nil {
 		u.lock.Unlock()
 		return nil, sftpTransferChunk{}, err
@@ -414,37 +418,40 @@ func (u *sftpVolume) readTransferChunk(transferID, sourcePath string, offset, le
 	if cached {
 		u.retainReadLocked()
 	}
+	if recording != nil {
+		recording.inUse.Add(1)
+	}
 	u.lock.Unlock()
 
-	closeUncached := !cached
+	var size int64
 	defer func() {
-		if closeUncached {
+		// Record before releasing the file; uncached handles cannot retain state.
+		recording.record(offset, data, size, chunk.EOF || !cached, err)
+		u.finishRead(cached, err != nil || chunk.EOF)
+		if !cached {
 			_ = file.Close()
 		}
 	}()
 
 	info, err := file.Stat()
 	if err != nil {
-		u.finishRead(cached, true)
 		return nil, sftpTransferChunk{}, err
 	}
+	size = info.Size()
 	if offset >= info.Size() {
-		u.finishRead(cached, true)
 		return nil, sftpTransferChunk{Offset: offset, SHA256: sha256Hex(nil), EOF: true}, nil
 	}
 	remaining := info.Size() - offset
 	if length > remaining {
 		length = remaining
 	}
-	data := make([]byte, length)
+	data = make([]byte, length)
 	n, readErr := file.ReadAt(data, offset)
 	if readErr != nil && readErr != io.EOF {
-		u.finishRead(cached, true)
 		return nil, sftpTransferChunk{}, readErr
 	}
 	data = data[:n]
 	eof := offset+int64(n) == info.Size()
-	u.finishRead(cached, eof)
 	return data, sftpTransferChunk{
 		Offset: offset,
 		SHA256: sha256Hex(data),
@@ -452,9 +459,9 @@ func (u *sftpVolume) readTransferChunk(transferID, sourcePath string, offset, le
 	}, nil
 }
 
-func (u *sftpVolume) readHandleLocked(transferID, path string) (file transferIO, cached bool, err error) {
+func (u *sftpVolume) readHandleLocked(transferID, path string) (file transferIO, cached bool, recording *transferReadRecord, err error) {
 	if transferID != "" && u.transferRead != nil && u.transferRead.id == transferID && u.transferRead.path == path {
-		return u.transferRead.file, true, nil
+		return u.transferRead.file, true, u.transferRead.readRecord, nil
 	}
 	for u.transferRead != nil && u.transferRead.inUse > 0 {
 		u.writeIdle.Wait()
@@ -462,13 +469,141 @@ func (u *sftpVolume) readHandleLocked(transferID, path string) (file transferIO,
 	u.closeTransferReadLocked()
 	file, err = u.openTransferRead(path)
 	if err != nil {
-		return nil, false, err
+		return nil, false, nil, err
+	}
+	if sf, ok := file.(*srvconn.SftpFile); ok && sf.FTPLog != nil && u.recorder != nil && u.recorder.MaxFileSize > 0 {
+		recording = &transferReadRecord{volume: u, file: sf, size: -1}
 	}
 	if transferID == "" {
-		return file, false, nil
+		return file, false, recording, nil
 	}
-	u.transferRead = &cachedTransferFile{id: transferID, path: path, file: file}
-	return file, true, nil
+	u.transferRead = &cachedTransferFile{id: transferID, path: path, file: file, readRecord: recording}
+	return file, true, recording, nil
+}
+
+type transferReadRange struct{ start, end int64 }
+
+// Only recording for the same file is serialized; remote reads and other
+// operations on the volume do not wait for this lock.
+type transferReadRecord struct {
+	lock   sync.Mutex
+	inUse  atomic.Int64
+	volume *sftpVolume
+	file   *srvconn.SftpFile
+	size   int64
+	ranges []transferReadRange
+	eof    bool
+	done   bool
+}
+
+func (r *transferReadRecord) record(offset int64, data []byte, size int64, eof bool, readErr error) {
+	if r == nil {
+		return
+	}
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	defer r.releaseLocked()
+	if r.done {
+		return
+	}
+	if readErr != nil || size < 0 || size >= r.volume.recorder.MaxFileSize || (r.size >= 0 && r.size != size) {
+		r.discardLocked()
+		return
+	}
+	r.size = size
+	r.eof = r.eof || eof
+	if len(data) == 0 {
+		return
+	}
+	start, end := offset, offset+int64(len(data))
+	i := 0
+	for i < len(r.ranges) && r.ranges[i].end < start {
+		i++
+	}
+	j := i
+	for j < len(r.ranges) && r.ranges[j].start <= end {
+		start, end = min(start, r.ranges[j].start), max(end, r.ranges[j].end)
+		j++
+	}
+	// Bound memory for unusually fragmented requests without failing downloads.
+	if i == j && len(r.ranges) >= 1024 {
+		logger.Errorf("Download audit %s has too many disjoint ranges", r.file.FTPLog.ID)
+		r.discardLocked()
+		return
+	}
+	if r.write(bytes.NewReader(data), offset, int64(len(data))) {
+		r.ranges = slices.Replace(r.ranges, i, j, transferReadRange{start, end})
+	}
+}
+
+func (r *transferReadRecord) write(reader io.ReaderAt, offset, size int64) bool {
+	if err := r.volume.recorder.ChunkedRecord(r.file.FTPLog, reader, offset, size); err != nil {
+		logger.Errorf("Record download file err: %s", err)
+		r.discardLocked()
+		return false
+	}
+	return true
+}
+
+func (r *transferReadRecord) releaseLocked() {
+	if r.inUse.Add(-1) != 0 || r.done || !r.eof {
+		return
+	}
+	// Wait for all requested chunks before backfilling only the gaps left by
+	// a resumed download. Ordinary downloads never reread the remote file.
+	cursor := int64(0)
+	for _, span := range r.ranges {
+		if !r.fillGap(cursor, span.start) {
+			return
+		}
+		cursor = span.end
+	}
+	if !r.fillGap(cursor, r.size) {
+		return
+	}
+	if r.size == 0 && !r.write(bytes.NewReader(nil), 0, 0) {
+		return
+	}
+	r.done = true
+	r.ranges = nil
+	r.volume.finishFileRecord(r.file)
+}
+
+func (r *transferReadRecord) fillGap(start, end int64) bool {
+	for start < end {
+		size := min(int64(transferChunkMaxSize), end-start)
+		reader := io.NewSectionReader(r, start, size)
+		if !r.write(reader, start, size) {
+			return false
+		}
+		start += size
+	}
+	return true
+}
+
+// Gap reads run under the recording lock and must not accept short reads.
+func (r *transferReadRecord) ReadAt(p []byte, offset int64) (int, error) {
+	if err := readFullAt(r.file, p, offset); err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+func (r *transferReadRecord) discard() {
+	if r == nil {
+		return
+	}
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.discardLocked()
+}
+
+func (r *transferReadRecord) discardLocked() {
+	if !r.done {
+		r.done = true
+		r.ranges = nil
+		r.volume.discardFileRecord(r.file)
+	}
 }
 
 func (u *sftpVolume) writeTransferChunk(transferID, targetPath string, totalSize, offset int64, expectedSHA256 string, data []byte) (result sftpTransferResult, err error) {
