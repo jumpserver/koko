@@ -25,7 +25,7 @@ interface Event {
     onError: () => void;
     onProgress: (e: { percent: number }) => void;
   };
-  'download-file': { path: string; is_dir: boolean; size: string };
+  'download-file': { path: string; is_dir: boolean; size: string; path_base64?: string };
   'stop-upload': { fileInfo: UploadFileInfo };
   'upload-stopped': { fileId: string };
   'terminal-search': { keyword: string; type?: string };

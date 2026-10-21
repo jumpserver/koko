@@ -247,6 +247,7 @@ const handleSelect = (key: string) => {
     case 'download': {
       mittBus.emit('download-file', {
         path: `${fileManageStore.currentPath}/${currentRowData?.value?.name as string}`,
+        path_base64: currentRowData.value.path_base64,
         is_dir: currentRowData.value.is_dir!,
         size: currentRowData.value.size!,
       });
@@ -390,6 +391,7 @@ const modalPositiveClick = () => {
       mittBus.emit('file-manage', {
         type: ManageTypes.RENAME,
         path: `${fileManageStore.currentPath}/${currentRowData?.value?.name}`,
+        path_base64: currentRowData.value.path_base64,
         new_name: newFileName.value,
       });
 
