@@ -105,6 +105,7 @@ export interface FileManageConnectData {
 
 export interface FileManageSftpFileItem {
   name: string;
+  path_base64?: string;
   size: string;
   perm: string;
   mod_time: string;

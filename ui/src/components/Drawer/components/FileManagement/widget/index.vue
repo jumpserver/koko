@@ -405,6 +405,7 @@ const modalPositiveClick = () => {
     mittBus.emit('file-manage', {
       type: ManageTypes.REMOVE,
       path: `${fileManageStore.currentPath}/${currentRowData?.value?.name}`,
+      path_base64: currentRowData.value.path_base64,
     });
 
     nextTick(() => {

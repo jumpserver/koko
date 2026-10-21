@@ -532,12 +532,12 @@ function handleFileRename(socket: WebSocket, path: string, newName: string) {
  * @param socket
  * @param path
  */
-function handleFileRemove(socket: WebSocket, path: string) {
+function handleFileRemove(socket: WebSocket, path: string, pathBase64?: string) {
   const sendBody = {
     id: uuid(),
     type: 'SFTP_DATA',
     cmd: 'rm',
-    data: JSON.stringify({ path }),
+    data: JSON.stringify({ path, path_base64: pathBase64 }),
   };
 
   socket.send(JSON.stringify(sendBody));
@@ -815,7 +815,7 @@ export function useFileManage(token: string, t: any) {
       handleFileDownload(<WebSocket>socket, path, is_dir, size, t);
     });
 
-    mittBus.on('file-manage', ({ path, type, new_name }: { path: string; type: ManageTypes; new_name?: string }) => {
+    mittBus.on('file-manage', ({ path, type, new_name, path_base64 }) => {
       switch (type) {
         case ManageTypes.CREATE: {
           handleFileCreate(<WebSocket>socket, path);
@@ -834,7 +834,7 @@ export function useFileManage(token: string, t: any) {
           break;
         }
         case ManageTypes.REMOVE: {
-          handleFileRemove(<WebSocket>socket, path);
+          handleFileRemove(<WebSocket>socket, path, path_base64);
           break;
         }
       }

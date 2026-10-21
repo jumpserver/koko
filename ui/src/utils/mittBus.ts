@@ -18,7 +18,7 @@ interface Event {
   'set-Terminal-theme': string;
   'connect-terminal': customTreeOption;
   'set-theme': { themeName: string };
-  'file-manage': { path: string; type: ManageTypes; new_name?: string };
+  'file-manage': { path: string; type: ManageTypes; new_name?: string; path_base64?: string };
   'file-upload': {
     fileInfo: UploadFileInfo;
     onFinish: () => void;

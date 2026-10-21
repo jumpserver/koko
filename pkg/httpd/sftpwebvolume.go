@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -25,6 +26,24 @@ type FileInfo struct {
 	ModTime string `json:"mod_time"`
 	Type    string `json:"type"`
 	IsDir   bool   `json:"is_dir"`
+
+	PathBase64 []byte `json:"path_base64,omitempty"`
+}
+
+func newWebSftpFileInfo(dir string, info os.FileInfo) FileInfo {
+	fileInfo := FileInfo{
+		Name:    info.Name(),
+		Size:    fmt.Sprintf("%d", info.Size()),
+		Perm:    info.Mode().String(),
+		ModTime: strconv.FormatInt(info.ModTime().Unix(), 10),
+		IsDir:   info.IsDir(),
+	}
+	path := filepath.Join(dir, info.Name())
+	if !utf8.ValidString(path) {
+		// JSON replaces invalid UTF-8 in strings; []byte preserves the path as Base64.
+		fileInfo.PathBase64 = []byte(path)
+	}
+	return fileInfo
 }
 
 type FileData struct {
@@ -54,19 +73,12 @@ func (u *UserWebVolume) List(path string) []FileInfo {
 		return files
 	}
 
+	currentPath := path
+	if currentPath == "" {
+		currentPath = u.UserSftp.GetCurrentPath()
+	}
 	for _, info := range originFiles {
-		size := fmt.Sprintf("%d", info.Size())
-		modTime := strconv.FormatInt(info.ModTime().Unix(), 10)
-
-		fileInfo := FileInfo{
-			Name:    info.Name(),
-			Size:    size,
-			Perm:    info.Mode().String(),
-			ModTime: modTime,
-			IsDir:   info.IsDir(),
-		}
-
-		files = append(files, fileInfo)
+		files = append(files, newWebSftpFileInfo(currentPath, info))
 	}
 	return files
 }

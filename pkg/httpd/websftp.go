@@ -57,6 +57,19 @@ type webSftpRequest struct {
 	OffSet  int64  `json:"offset"`
 	Size    int64  `json:"size"`
 	IsDir   bool   `json:"is_dir"`
+
+	PathBase64 []byte `json:"path_base64,omitempty"`
+}
+
+func (r *webSftpRequest) UnmarshalJSON(data []byte) error {
+	type request webSftpRequest
+	if err := json.Unmarshal(data, (*request)(r)); err != nil {
+		return err
+	}
+	if r.PathBase64 != nil {
+		r.Path = string(r.PathBase64)
+	}
+	return nil
 }
 
 func notInTokenIds(target string) bool {
