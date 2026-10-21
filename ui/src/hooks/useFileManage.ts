@@ -516,12 +516,12 @@ function handleFileCreate(socket: WebSocket, path: string) {
  * @param path
  * @param newName
  */
-function handleFileRename(socket: WebSocket, path: string, newName: string) {
+function handleFileRename(socket: WebSocket, path: string, newName: string, pathBase64?: string) {
   const sendBody = {
     id: uuid(),
     type: 'SFTP_DATA',
     cmd: 'rename',
-    data: JSON.stringify({ path, new_name: newName }),
+    data: JSON.stringify({ path, new_name: newName, path_base64: pathBase64 }),
   };
 
   socket.send(JSON.stringify(sendBody));
@@ -532,12 +532,12 @@ function handleFileRename(socket: WebSocket, path: string, newName: string) {
  * @param socket
  * @param path
  */
-function handleFileRemove(socket: WebSocket, path: string) {
+function handleFileRemove(socket: WebSocket, path: string, pathBase64?: string) {
   const sendBody = {
     id: uuid(),
     type: 'SFTP_DATA',
     cmd: 'rm',
-    data: JSON.stringify({ path }),
+    data: JSON.stringify({ path, path_base64: pathBase64 }),
   };
 
   socket.send(JSON.stringify(sendBody));
@@ -549,7 +549,7 @@ function handleFileRemove(socket: WebSocket, path: string) {
  * @param path
  * @param is_dir
  */
-function handleFileDownload(socket: WebSocket, path: string, is_dir: boolean, size: string, t: any) {
+function handleFileDownload(socket: WebSocket, path: string, is_dir: boolean, size: string, t: any, pathBase64?: string) {
   const requestId = uuid();
 
   downloadTasks.set(requestId, {
@@ -560,6 +560,7 @@ function handleFileDownload(socket: WebSocket, path: string, is_dir: boolean, si
 
   const sendData = {
     path,
+    path_base64: pathBase64,
     is_dir,
   };
 
@@ -811,11 +812,11 @@ export function useFileManage(token: string, t: any) {
       },
     );
 
-    mittBus.on('download-file', ({ path, is_dir, size }: { path: string; is_dir: boolean; size: string }) => {
-      handleFileDownload(<WebSocket>socket, path, is_dir, size, t);
+    mittBus.on('download-file', ({ path, is_dir, size, path_base64 }) => {
+      handleFileDownload(<WebSocket>socket, path, is_dir, size, t, path_base64);
     });
 
-    mittBus.on('file-manage', ({ path, type, new_name }: { path: string; type: ManageTypes; new_name?: string }) => {
+    mittBus.on('file-manage', ({ path, type, new_name, path_base64 }) => {
       switch (type) {
         case ManageTypes.CREATE: {
           handleFileCreate(<WebSocket>socket, path);
@@ -830,11 +831,11 @@ export function useFileManage(token: string, t: any) {
           break;
         }
         case ManageTypes.RENAME: {
-          handleFileRename(<WebSocket>socket, path, new_name!);
+          handleFileRename(<WebSocket>socket, path, new_name!, path_base64);
           break;
         }
         case ManageTypes.REMOVE: {
-          handleFileRemove(<WebSocket>socket, path);
+          handleFileRemove(<WebSocket>socket, path, path_base64);
           break;
         }
       }

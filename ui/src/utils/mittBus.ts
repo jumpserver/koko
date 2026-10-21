@@ -18,14 +18,14 @@ interface Event {
   'set-Terminal-theme': string;
   'connect-terminal': customTreeOption;
   'set-theme': { themeName: string };
-  'file-manage': { path: string; type: ManageTypes; new_name?: string };
+  'file-manage': { path: string; type: ManageTypes; new_name?: string; path_base64?: string };
   'file-upload': {
     fileInfo: UploadFileInfo;
     onFinish: () => void;
     onError: () => void;
     onProgress: (e: { percent: number }) => void;
   };
-  'download-file': { path: string; is_dir: boolean; size: string };
+  'download-file': { path: string; is_dir: boolean; size: string; path_base64?: string };
   'stop-upload': { fileInfo: UploadFileInfo };
   'upload-stopped': { fileId: string };
   'terminal-search': { keyword: string; type?: string };
