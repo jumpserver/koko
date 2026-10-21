@@ -20,8 +20,6 @@ type webSftp struct {
 
 	currentPath string
 
-	msg *Message
-
 	started bool
 }
 
@@ -40,7 +38,6 @@ func (h *webSftp) CheckValidation() error {
 }
 
 func (h *webSftp) HandleMessage(msg *Message) {
-	h.msg = msg
 	go h.dispatch(*msg)
 }
 
@@ -90,7 +87,7 @@ func (h *webSftp) dispatch(msg Message) {
 	}
 
 	request := &webSftpRequest{}
-	err := json.Unmarshal([]byte(h.msg.Data), request)
+	err := json.Unmarshal([]byte(msg.Data), request)
 	if err != nil {
 		message.Err = err.Error()
 		h.ws.SendMessage(&message)
@@ -106,7 +103,7 @@ func (h *webSftp) dispatch(msg Message) {
 
 	h.started = true
 
-	switch h.msg.Cmd {
+	switch msg.Cmd {
 	case "list":
 		h.handleList(request, &message)
 	case "download":
@@ -120,7 +117,7 @@ func (h *webSftp) dispatch(msg Message) {
 
 	case "upload":
 		if h.ws.ConnectToken.Actions.EnableUpload() {
-			h.handleUpload(request, h.msg, &message)
+			h.handleUpload(request, &msg, &message)
 		} else {
 			message.Err = "Permission denied"
 			h.ws.SendMessage(&message)
