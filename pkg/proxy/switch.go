@@ -333,16 +333,28 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		}
 	}
 	go func() {
+		inputReader, hasSource := userConn.(interface {
+			ReadWithSource([]byte) (int, int, error)
+		})
 		for {
 			buf := make([]byte, 1024)
-			nr, err1 := userConn.Read(buf)
+			var nr int
+			source := model.CommandSourceManual
+			var err1 error
+			if hasSource {
+				nr, source, err1 = inputReader.ReadWithSource(buf)
+			} else {
+				nr, err1 = userConn.Read(buf)
+			}
 			if err1 != nil {
 				logger.Errorf("Session[%s] user read err: %s", s.ID, err1)
 				break
 			}
+			inputMeta := meta
+			inputMeta.Source = source
 			room.Receive(&exchange.RoomMessage{
 				Event: exchange.DataEvent, Body: buf[:nr],
-				Meta: meta})
+				Meta: inputMeta})
 		}
 		logger.Infof("Session[%s] user read end", s.ID)
 		exitSignal <- struct{}{}

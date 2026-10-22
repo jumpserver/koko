@@ -41,7 +41,7 @@ func (s *Server) getWinRMConn(tunnel *net.TCPAddr) (*srvconn.WinRMConnection, er
 }
 
 func (s *Server) executeWinRMCommand(conn *srvconn.WinRMConnection, ctx context.Context, command, user string, output io.Writer) (err error) {
-	item := &ExecutedCommand{Command: command, CreatedDate: time.Now(), User: CurrentActiveUser{User: user}}
+	item := &ExecutedCommand{Command: command, CreatedDate: time.Now(), User: CurrentActiveUser{User: user}, Source: model.CommandSourceManual}
 	if user == "" {
 		item.User.User = s.connOpts.authInfo.User.String()
 	}

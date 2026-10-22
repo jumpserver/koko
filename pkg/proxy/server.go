@@ -366,6 +366,7 @@ func (s *Server) RecordBackgroundCommand(
 		User: s.sessionInfo.User, Server: s.sessionInfo.Asset,
 		Account: s.sessionInfo.Account, Timestamp: now.Unix(),
 		RiskLevel: riskLevel, CmdFilterAclId: aclID, CmdGroupId: itemID,
+		Source:      model.CommandSourceAI,
 		DateCreated: now.UTC(),
 	}
 	s.recordBackgroundCommand(record)
@@ -570,6 +571,7 @@ func (s *Server) GenerateCommandItem(user, input, output string, item *ExecutedC
 		Output:      output,
 		Timestamp:   createdDate.Unix(),
 		RiskLevel:   item.RiskLevel,
+		Source:      item.Source,
 		DateCreated: createdDate.UTC(),
 
 		CmdFilterAclId: item.CmdFilterACLId,
