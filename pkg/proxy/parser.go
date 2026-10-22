@@ -82,6 +82,8 @@ type Parser struct {
 	command       string
 	output        string
 	cmdCreateDate time.Time
+	commandSource string // Also used by deferred records from multi-line input.
+	inputSource   string
 
 	cmdFilterACLs model.CommandACLs
 	closed        chan struct{}
@@ -569,6 +571,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.sendCommandRecord()
 		p.command = currentCmd
 		p.cmdCreateDate = time.Now()
+		p.commandSource = p.inputSource
 		if decision, ok := p.consumeAgentToolGrant(currentCmd); ok {
 			p.applyAgentToolGrant(decision)
 		} else if rule, cmd, ok := p.IsMatchCommandRule(currentCmd); ok {
@@ -612,7 +615,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 }
 
 func (p *Parser) consumeAgentToolGrant(command string) (CommandACLDecision, bool) {
-	if p.agentToolGrant == nil {
+	if p.inputSource != model.CommandSourceAI || p.agentToolGrant == nil {
 		return CommandACLDecision{}, false
 	}
 	return p.agentToolGrant(command)
@@ -1260,6 +1263,7 @@ func (p *Parser) sendCommandToChan() {
 		Output:         output,
 		CreatedDate:    p.cmdCreateDate,
 		RiskLevel:      p.getCurrentCmdStatusLevel(),
+		Source:         p.commandSource,
 		CmdFilterACLId: cmdFilterId,
 		CmdGroupId:     cmdGroupId,
 		User:           p.currentActiveUser,
@@ -1281,6 +1285,10 @@ func (p *Parser) CommandRecordChan() chan *ExecutedCommand {
 func (p *Parser) UpdateActiveUser(msg *exchange.RoomMessage) {
 	p.currentActiveUser.UserId = msg.Meta.UserId
 	p.currentActiveUser.User = msg.Meta.User
+	p.inputSource = msg.Meta.Source
+	if p.inputSource != model.CommandSourceAI && p.inputSource != model.CommandSourceManual {
+		p.inputSource = model.CommandSourceUnknown
+	}
 }
 
 type ExecutedCommand struct {
@@ -1288,6 +1296,7 @@ type ExecutedCommand struct {
 	Output      string
 	CreatedDate time.Time
 	RiskLevel   int64
+	Source      string
 	User        CurrentActiveUser
 
 	CmdFilterACLId string

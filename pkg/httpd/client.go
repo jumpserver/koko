@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gliderlabs/ssh"
+	"github.com/jumpserver-dev/sdk-go/model"
 
 	"github.com/jumpserver/koko/internal/sessiontools"
 	"github.com/jumpserver/koko/pkg/exchange"
@@ -18,6 +19,11 @@ import (
 )
 
 const sessionReadyIdle = 500 * time.Millisecond
+
+type inputSource struct {
+	remaining int
+	source    string
+}
 
 type Client struct {
 	WinChan   chan ssh.Window
@@ -55,6 +61,8 @@ type Client struct {
 	inputCancel  context.CancelFunc
 	userWriteMu  sync.Mutex
 	inputWriting bool
+	inputWriteMu sync.Mutex
+	inputSources []*inputSource
 	metrics      clientMetrics
 	observerMu   sync.RWMutex
 	observer     *sessiontools.TerminalObserver
@@ -143,9 +151,24 @@ func (c *Client) RemoteAddr() string {
 }
 
 func (c *Client) Read(p []byte) (n int, err error) {
+	n, _, err = c.ReadWithSource(p)
+	return n, err
+}
+
+func (c *Client) ReadWithSource(p []byte) (int, string, error) {
 	c.Lock()
 	defer c.Unlock()
-	return c.UserRead.Read(p)
+	n, err := c.UserRead.Read(p)
+	source := model.CommandSourceUnknown
+	c.inputMu.Lock()
+	if n > 0 && len(c.inputSources) > 0 {
+		input := c.inputSources[0]
+		source = input.source
+		input.remaining -= n
+		c.trimInputSources()
+	}
+	c.inputMu.Unlock()
+	return n, source, err
 }
 
 // 向客户端发送数据进行1毫秒的防抖处理
@@ -236,6 +259,7 @@ func (c *Client) initPipe() {
 	c.inputMu.Lock()
 	defer c.inputMu.Unlock()
 	c.UserRead, c.UserWrite = net.Pipe()
+	c.inputSources = nil
 }
 
 func (c *Client) SetWinSize(size ssh.Window) {
@@ -316,12 +340,17 @@ func (c *Client) WriteData(p []byte) {
 		c.inputWriting = false
 		c.inputMu.Unlock()
 	}()
-	_, _ = writer.Write(p)
+	_, _ = c.writeInput(writer, p, model.CommandSourceManual)
 }
 
 func (c *Client) WriteAgentToolData(ctx context.Context, p []byte) error {
+	_, err := c.writeAgentToolData(ctx, p)
+	return err
+}
+
+func (c *Client) writeAgentToolData(ctx context.Context, p []byte) (int, error) {
 	if err := ctx.Err(); err != nil {
-		return err
+		return 0, err
 	}
 	c.inputMu.Lock()
 	writer := c.UserWrite
@@ -337,11 +366,37 @@ func (c *Client) WriteAgentToolData(ctx context.Context, p []byte) error {
 		}
 		_ = writer.SetWriteDeadline(time.Time{})
 	}()
-	_, err := writer.Write(p)
+	n, err := c.writeInput(writer, p, model.CommandSourceAI)
 	if ctx.Err() != nil {
-		return ctx.Err()
+		return n, ctx.Err()
 	}
-	return err
+	return n, err
+}
+
+func (c *Client) writeInput(writer net.Conn, p []byte, source string) (int, error) {
+	// Keep source records in pipe write order, including partially cancelled writes.
+	c.inputWriteMu.Lock()
+	defer c.inputWriteMu.Unlock()
+	input := &inputSource{remaining: len(p), source: source}
+	c.inputMu.Lock()
+	if len(p) > 0 {
+		c.inputSources = append(c.inputSources, input)
+	}
+	c.inputMu.Unlock()
+	n, err := writer.Write(p)
+	c.inputMu.Lock()
+	input.remaining -= len(p) - n
+	c.trimInputSources()
+	c.inputMu.Unlock()
+	return n, err
+}
+
+// trimInputSources is called with inputMu held.
+func (c *Client) trimInputSources() {
+	for len(c.inputSources) > 0 && c.inputSources[0].remaining == 0 {
+		c.inputSources[0] = nil
+		c.inputSources = c.inputSources[1:]
+	}
 }
 
 func (c *Client) closeInput() {

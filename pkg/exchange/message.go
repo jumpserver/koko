@@ -23,6 +23,7 @@ type MetaMessage struct {
 	TerminalId string `json:"terminal_id"`
 	Primary    bool   `json:"primary"`
 	Writable   bool   `json:"writable"`
+	Source     string `json:"source,omitempty"`
 }
 
 const (
