@@ -3,6 +3,7 @@ package session
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -45,6 +46,15 @@ type Server struct {
 	PandaClientFactory func(string) *panda.Client
 }
 
+// Keep connection fields not yet represented by the SDK alongside its options.
+type connectTokenResponse struct {
+	model.ConnectToken
+	Options struct {
+		model.ConnectOptions
+		PrintersRedirect bool `json:"printers_redirect"`
+	} `json:"connect_options"`
+}
+
 func ParseWidthAndHeight(ctx *gin.Context, connectToken *model.ConnectToken) (int, int) {
 	var width, height int
 	if guacWidth, ok := ctx.GetQuery("GUAC_WIDTH"); ok {
@@ -79,7 +89,11 @@ func ParseWidthAndHeight(ctx *gin.Context, connectToken *model.ConnectToken) (in
 }
 
 func (s *Server) CreatByToken(ctx *gin.Context, token string) (TunnelSession, error) {
-	connectToken, err := s.JmsService.GetConnectTokenInfo(token, false)
+	var response connectTokenResponse
+	_, err := s.JmsService.Call(http.MethodPost, service.SuperConnectTokenSecretURL,
+		map[string]any{"id": token, "expire_now": false}, &response)
+	connectToken := response.ConnectToken
+	connectToken.ConnectOptions = response.Options.ConnectOptions
 	if err != nil {
 		msg := err.Error()
 		logger.Errorf("Get connect token err: %s", err.Error())
@@ -174,7 +188,9 @@ func (s *Server) CreatByToken(ctx *gin.Context, token string) (TunnelSession, er
 			logger.Errorf("Try to expire connect token err: %s", err1.Error())
 		}
 	}
-	return s.Create(ctx, opts...)
+	sess, err := s.Create(ctx, opts...)
+	sess.EnablePrinting = response.Options.PrintersRedirect
+	return sess, err
 }
 
 func ConnectTokenAuthInfo(authInfo *model.ConnectToken) TunnelOption {

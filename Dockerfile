@@ -30,6 +30,7 @@ USER root
 ARG DEPENDENCIES="                    \
         bash-completion               \
         ffmpeg                        \
+        ghostscript                   \
         less                          \
         openssl                       \
         redis-tools                   \

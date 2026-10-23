@@ -42,6 +42,7 @@ const (
 const (
 	RDPDisableAudio     = "disable-audio"
 	RDPEnableAudioInput = "enable-audio-input"
+	RDPEnablePrinting   = "enable-printing"
 	RDPPrinterName      = "printer-name"
 	RDPEnableDrive      = "enable-drive"
 	RDPDisableDownload  = "disable-download"

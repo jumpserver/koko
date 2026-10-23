@@ -29,6 +29,7 @@ type TunnelSession struct {
 	AppletOpts *model.AppletOption `json:"-"`
 	AuthInfo   *model.ConnectToken `json:"-"`
 
+	EnablePrinting bool                       `json:"-"`
 	VirtualAppOpts *model.VirtualAppContainer `json:"-"`
 
 	ConnectedCallback       func() error          `json:"-"`
@@ -87,6 +88,7 @@ func (s TunnelSession) configurationRDP() guacd.Configuration {
 		Platform:       s.Platform,
 		TerminalConfig: s.TerminalConfig,
 		ActionsPerm:    s.ActionPerm,
+		EnablePrinting: s.EnablePrinting,
 	}
 	return rdpConf.GetGuacdConfiguration()
 }
@@ -109,6 +111,7 @@ func (s TunnelSession) configurationRemoteAppRDP() guacd.Configuration {
 		Platform:       s.Platform,
 		TerminalConfig: s.TerminalConfig,
 		ActionsPerm:    s.ActionPerm,
+		EnablePrinting: s.EnablePrinting,
 	}
 	conf := rdpConf.GetGuacdConfiguration()
 	if isAppletLoginTicket(appletOpt) {
