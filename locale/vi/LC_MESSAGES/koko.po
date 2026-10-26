@@ -1215,3 +1215,116 @@ msgstr "Phiên hiện tại đã kết thúc. Đóng thẻ này?"
 
 msgid "Keep"
 msgstr "Giữ lại"
+
+msgid "Connection token expired"
+msgstr "Mã kết nối đã hết hạn"
+
+msgid "Enroll MFA in the web console before connecting"
+msgstr "Hãy thiết lập MFA trong bảng điều khiển web trước khi kết nối"
+
+msgid "Connection reason: "
+msgstr "Lý do kết nối: "
+
+
+msgid "MFA code: "
+msgstr "Mã MFA: "
+
+
+msgid "Task ID: %s"
+msgstr "ID tác vụ: %s"
+
+msgid "Account push failed. Contact an administrator."
+msgstr "Đẩy tài khoản thất bại. Liên hệ quản trị viên."
+
+msgid "Connection cancelled."
+msgstr "Đã hủy kết nối."
+
+msgid "Enter y to continue or n to cancel."
+msgstr "Nhập y để tiếp tục hoặc n để hủy."
+
+msgid "Enter q and press Enter to cancel at any step."
+msgstr "Nhập q rồi nhấn Enter để hủy ở bất kỳ bước nào."
+
+msgid "Connection reason"
+msgstr "Lý do kết nối"
+
+msgid "MFA verification"
+msgstr "Xác thực MFA"
+
+msgid "Face verification"
+msgstr "Xác thực khuôn mặt"
+
+msgid "Connection approval"
+msgstr "Phê duyệt kết nối"
+
+msgid "Account push"
+msgstr "Đẩy tài khoản"
+
+msgid "Connection is not ready. Start a new connection."
+msgstr "Kết nối chưa sẵn sàng. Hãy bắt đầu kết nối mới."
+
+msgid "Enter a connection reason (up to 4096 characters)."
+msgstr "Nhập lý do kết nối (tối đa 4096 ký tự)."
+
+msgid "MFA method [1]: "
+msgstr "Phương thức MFA [1]: "
+
+msgid "Select a listed MFA method."
+msgstr "Chọn một phương thức MFA trong danh sách."
+
+msgid "MFA code sent."
+msgstr "Đã gửi mã MFA."
+
+msgid "Enter the MFA code."
+msgstr "Nhập mã MFA."
+
+msgid "Approval is required. Submit a request? (y/n): "
+msgstr "Cần phê duyệt. Gửi yêu cầu? (y/n): "
+
+msgid "Submitting approval request..."
+msgstr "Đang gửi yêu cầu phê duyệt..."
+
+msgid "Approval granted."
+msgstr "Đã được phê duyệt."
+
+msgid "Push the same-name account before connecting? (y/n): "
+msgstr "Đẩy tài khoản cùng tên trước khi kết nối? (y/n): "
+
+msgid "Starting account push..."
+msgstr "Đang bắt đầu đẩy tài khoản..."
+
+msgid "Account is ready."
+msgstr "Tài khoản đã sẵn sàng."
+
+msgid "Connection reason saved."
+msgstr "Đã lưu lý do kết nối."
+
+msgid "MFA verification passed."
+msgstr "Xác thực MFA thành công."
+
+msgid "Approval rejected. Connection cancelled."
+msgstr "Phê duyệt bị từ chối. Đã hủy kết nối."
+
+msgid "Approval request closed. Connection cancelled."
+msgstr "Yêu cầu phê duyệt đã đóng. Đã hủy kết nối."
+
+msgid "Approval ticket: %s"
+msgstr "Yêu cầu phê duyệt: %s"
+
+msgid "Waiting for approval."
+msgstr "Đang chờ phê duyệt."
+
+msgid "Cancel connection (q + Enter): "
+msgstr "Hủy kết nối (q + Enter): "
+
+msgid "Account push is running."
+msgstr "Đang đẩy tài khoản."
+
+msgid "Account push is queued."
+msgstr "Đẩy tài khoản đang chờ trong hàng đợi."
+
+msgid "Request failed (HTTP %d)."
+msgstr "Yêu cầu thất bại (HTTP %d)."
+
+msgid "Invalid response from server."
+msgstr "Phản hồi từ máy chủ không hợp lệ."

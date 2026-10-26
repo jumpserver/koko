@@ -42,6 +42,16 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 		if req, ok := parseDirectLoginReq(jmsService, ctx); ok {
 			if req.IsToken() {
 				if req.Authenticate(password) {
+					// Reusable credentials and authentication retries may come from
+					// cache. Recheck the current policy before accepting either.
+					if ctx.Err() != nil {
+						return authErr
+					}
+					status, err := jmsService.CheckTokenStatus(req.ConnectToken.Id)
+					if err != nil || status.Code != model.CodePermOk || ctx.Err() != nil {
+						logger.Errorf("SSH conn[%s] connection token authorization failed", ctx.SessionID())
+						return authErr
+					}
 					ctx.SetValue(ContextKeyUser, &req.ConnectToken.User)
 					logger.Infof("SSH conn[%s] %s for %s from %s", ctx.SessionID(),
 						actionAccepted, username, remoteAddr)

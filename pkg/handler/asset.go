@@ -216,8 +216,8 @@ func connectSelectedAsset(conn proxy.UserConnection, jmsService *service.JMServi
 		Account:       selectedAccount.Alias,
 		Protocol:      protocol,
 		ConnectMethod: "ssh",
-		InputUsername: selectedAccount.Username,
 		RemoteAddr:    conn.RemoteAddr(),
+		Params:        map[string]string{"acl_stepwise": "true"},
 	}
 	if selectedAccount.IsInputUser() {
 		inputUsername, err1 := GetInputUsername(conn)
@@ -246,24 +246,6 @@ func connectSelectedAsset(conn proxy.UserConnection, jmsService *service.JMServi
 			logger.Errorf("Create connect token and auth info failed: %s %s", tokenInfo.Code, tokenInfo.Detail)
 			msg := lang.T("Face ACL is not supported yet. Please use the WebTerminal to connect the asset.")
 			return false, msg, false
-		case model.ACLReview:
-			reviewHandler := LoginReviewHandler{
-				readWriter: conn,
-				i18nLang:   i18nLang,
-				user:       user,
-				jmsService: jmsService,
-				req:        &req,
-			}
-			ok2, err2 := reviewHandler.WaitReview(conn.Context())
-			if err2 != nil {
-				logger.Errorf("Wait login review failed: %s", err2)
-				return false, userFacingErrorMessage(lang.T("Core API failed"), err2), false
-			}
-			if !ok2 {
-				logger.Error("Wait login review failed")
-				return false, lang.T("Cancel confirm"), false
-			}
-			tokenInfo = reviewHandler.tokenInfo
 		default:
 			msg := lang.T("Unknown error code: %s, detail: %s")
 			logger.Errorf("Create connect token and auth info failed: %s %s", tokenInfo.Code, tokenInfo.Detail)
@@ -271,6 +253,9 @@ func connectSelectedAsset(conn proxy.UserConnection, jmsService *service.JMServi
 		}
 	}
 
+	if err := completeConnectionACL(conn.Context(), jmsService, tokenInfo.ID, conn, i18nLang); err != nil {
+		return false, connectionACLErrorMessage(i18nLang, err), false
+	}
 	if conn.Context().Err() != nil {
 		return false, "", false
 	}

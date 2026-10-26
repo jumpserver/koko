@@ -120,13 +120,15 @@ type assetTUIMultiScreen struct {
 }
 
 type assetTUIMultiUserConnection struct {
-	manager *assetTUIMultiSessionManager
-	session *assetTUIMultiSession
-	parent  *WrapperSession
-	input   chan []byte
-	pending []byte
-	ctx     context.Context
-	cancel  context.CancelFunc
+	manager         *assetTUIMultiSessionManager
+	session         *assetTUIMultiSession
+	parent          *WrapperSession
+	input           chan []byte
+	pending         []byte
+	readInterrupt   chan struct{}
+	readInterruptMu sync.Mutex
+	ctx             context.Context
+	cancel          context.CancelFunc
 
 	closeOnce sync.Once
 	winMu     sync.RWMutex
@@ -2456,6 +2458,15 @@ func (c *assetTUIMultiUserConnection) Read(data []byte) (int, error) {
 	if len(data) == 0 {
 		return 0, nil
 	}
+	if c.ctx.Err() != nil {
+		return 0, io.EOF
+	}
+	interrupt := c.readInterruptSignal()
+	select {
+	case <-interrupt:
+		return 0, io.ErrClosedPipe
+	default:
+	}
 	for len(c.pending) == 0 {
 		if c.ctx.Err() != nil {
 			return 0, io.EOF
@@ -2463,12 +2474,36 @@ func (c *assetTUIMultiUserConnection) Read(data []byte) (int, error) {
 		select {
 		case <-c.ctx.Done():
 			return 0, io.EOF
+		case <-interrupt:
+			return 0, io.ErrClosedPipe
 		case c.pending = <-c.input:
 		}
+	}
+	if c.ctx.Err() != nil {
+		return 0, io.EOF
 	}
 	n := copy(data, c.pending)
 	c.pending = c.pending[n:]
 	return n, nil
+}
+
+func (c *assetTUIMultiUserConnection) readInterruptSignal() chan struct{} {
+	c.readInterruptMu.Lock()
+	defer c.readInterruptMu.Unlock()
+	if c.readInterrupt == nil {
+		c.readInterrupt = make(chan struct{}, 1)
+	}
+	return c.readInterrupt
+}
+
+// InterruptRead stops one ACL input read while keeping the pane usable for the
+// approved connection. The caller must join that reader before reusing input.
+func (c *assetTUIMultiUserConnection) InterruptRead() error {
+	select {
+	case c.readInterruptSignal() <- struct{}{}:
+	default:
+	}
+	return nil
 }
 
 func (c *assetTUIMultiUserConnection) Write(data []byte) (int, error) {

@@ -419,6 +419,7 @@ func (d *DirectHandler) Proxy(asset model.PermAsset) {
 		Protocol:      protocol,
 		ConnectMethod: model.ProtocolSSH,
 		RemoteAddr:    d.wrapperSess.RemoteAddr(),
+		Params:        map[string]string{"acl_stepwise": "true"},
 	}
 	if selectAccount.IsInputUser() {
 		inputUsername, err1 := GetInputUsername(d.wrapperSess)
@@ -449,29 +450,17 @@ func (d *DirectHandler) Proxy(asset model.PermAsset) {
 			utils.IgnoreErrWriteString(d.term, msg)
 			utils.IgnoreErrWriteString(d.term, utils.CharNewLine)
 			return
-		case model.ACLReview:
-			reviewHandler := LoginReviewHandler{
-				readWriter: d.wrapperSess,
-				i18nLang:   d.i18nLang,
-				user:       d.opts.User,
-				jmsService: d.jmsService,
-				req:        &req,
-			}
-			ok2, err2 := reviewHandler.WaitReview(d.sess.Context())
-			if err2 != nil {
-				logger.Errorf("Wait login review failed: %s", err)
-				utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
-				return
-			}
-			if !ok2 {
-				logger.Error("Wait login review failed")
-				return
-			}
-			tokenInfo = reviewHandler.tokenInfo
 		default:
 			logger.Errorf("Create connect token and auth info failed: %s", tokenInfo.Detail)
 			return
 		}
+	}
+	if err := completeConnectionACL(d.sess.Context(), d.jmsService, tokenInfo.ID, d.wrapperSess, d.i18nLang); err != nil {
+		utils.IgnoreErrWriteString(d.term, connectionACLErrorMessage(d.i18nLang, err)+"\r\n")
+		return
+	}
+	if d.sess.Context().Err() != nil {
+		return
 	}
 	connectToken, err := sshcert.GetConnectTokenInfo(d.jmsService, tokenInfo.ID, true)
 	if err != nil {

@@ -1246,3 +1246,116 @@ msgstr "目前會話已結束，是否關閉此標籤？"
 
 msgid "Keep"
 msgstr "保留"
+
+msgid "Connection token expired"
+msgstr "連線權杖已過期"
+
+msgid "Enroll MFA in the web console before connecting"
+msgstr "請先在 Web 主控台設定 MFA，再連線資產"
+
+msgid "Connection reason: "
+msgstr "連線原因："
+
+
+msgid "MFA code: "
+msgstr "MFA 驗證碼："
+
+
+msgid "Task ID: %s"
+msgstr "任務 ID：%s"
+
+msgid "Account push failed. Contact an administrator."
+msgstr "帳號推送失敗，請聯絡管理員。"
+
+msgid "Connection cancelled."
+msgstr "已取消連線。"
+
+msgid "Enter y to continue or n to cancel."
+msgstr "輸入 y 繼續，或輸入 n 取消。"
+
+msgid "Enter q and press Enter to cancel at any step."
+msgstr "在任何步驟輸入 q 並按 Enter，即可取消連線。"
+
+msgid "Connection reason"
+msgstr "連線原因"
+
+msgid "MFA verification"
+msgstr "MFA 驗證"
+
+msgid "Face verification"
+msgstr "人臉驗證"
+
+msgid "Connection approval"
+msgstr "連線審批"
+
+msgid "Account push"
+msgstr "推送帳號"
+
+msgid "Connection is not ready. Start a new connection."
+msgstr "連線尚未就緒，請重新發起連線。"
+
+msgid "Enter a connection reason (up to 4096 characters)."
+msgstr "請輸入連線原因（最多 4096 個字元）。"
+
+msgid "MFA method [1]: "
+msgstr "MFA 方式 [1]: "
+
+msgid "Select a listed MFA method."
+msgstr "請選擇列表中的 MFA 方式。"
+
+msgid "MFA code sent."
+msgstr "MFA 驗證碼已傳送。"
+
+msgid "Enter the MFA code."
+msgstr "請輸入 MFA 驗證碼。"
+
+msgid "Approval is required. Submit a request? (y/n): "
+msgstr "本次連線需要審批，是否申請？ (y/n): "
+
+msgid "Submitting approval request..."
+msgstr "正在提交審批申請..."
+
+msgid "Approval granted."
+msgstr "審批已通過。"
+
+msgid "Push the same-name account before connecting? (y/n): "
+msgstr "是否在連線前推送同名帳號？ (y/n): "
+
+msgid "Starting account push..."
+msgstr "正在啟動帳號推送..."
+
+msgid "Account is ready."
+msgstr "帳號已就緒。"
+
+msgid "Connection reason saved."
+msgstr "連線原因已儲存。"
+
+msgid "MFA verification passed."
+msgstr "MFA 驗證已通過。"
+
+msgid "Approval rejected. Connection cancelled."
+msgstr "審批已拒絕，連線已取消。"
+
+msgid "Approval request closed. Connection cancelled."
+msgstr "審批工單已關閉，連線已取消。"
+
+msgid "Approval ticket: %s"
+msgstr "審批工單：%s"
+
+msgid "Waiting for approval."
+msgstr "正在等待審批。"
+
+msgid "Cancel connection (q + Enter): "
+msgstr "取消連線 (q + Enter): "
+
+msgid "Account push is running."
+msgstr "正在推送帳號。"
+
+msgid "Account push is queued."
+msgstr "帳號推送正在排隊。"
+
+msgid "Request failed (HTTP %d)."
+msgstr "請求失敗（HTTP %d）。"
+
+msgid "Invalid response from server."
+msgstr "伺服器回應無效。"

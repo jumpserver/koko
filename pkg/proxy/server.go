@@ -1287,6 +1287,11 @@ func (s *Server) Proxy() {
 			s.UserConn.ID(), s.ID, msg, err)
 		return
 	}
+	defer func() {
+		if err := s.DisConnectedCallback(); err != nil {
+			logger.Errorf("Conn[%s] update session %s err: %+v", s.UserConn.ID(), s.ID, err)
+		}
+	}()
 	if s.connOpts.authInfo.Ticket != nil {
 		reviewTicketId := s.connOpts.authInfo.Ticket.ID
 		msg := fmt.Sprintf("Conn[%s] create session %s ticket %s relation",
@@ -1305,6 +1310,12 @@ func (s *Server) Proxy() {
 		logger.Infof("Conn[%s] join face monitor %s", s.UserConn.ID(), faceMonitorToken)
 		if err := s.jmsService.JoinFaceMonitor(faceReq); err != nil {
 			logger.Errorf("Conn[%s] join face monitor err: %s", s.UserConn.ID(), err)
+			s.ConnectionError = err
+			s.sendConnectErrorMsg(err)
+			if callbackErr := s.ConnectedFailedCallback(err); callbackErr != nil {
+				logger.Errorf("Conn[%s] update failed face monitor session err: %s", s.UserConn.ID(), callbackErr)
+			}
+			return
 		}
 	}
 
@@ -1327,11 +1338,6 @@ func (s *Server) Proxy() {
 	})
 	session.AddSession(traceSession)
 	defer session.RemoveSession(traceSession)
-	defer func() {
-		if err := s.DisConnectedCallback(); err != nil {
-			logger.Errorf("Conn[%s] update session %s err: %+v", s.UserConn.ID(), s.ID, err)
-		}
-	}()
 	var proxyAddr *net.TCPAddr
 	if s.gateway != nil {
 		protocol := s.connOpts.authInfo.Protocol

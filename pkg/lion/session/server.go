@@ -351,6 +351,7 @@ func (s *Server) Create(ctx *gin.Context, opts ...TunnelOption) (sess TunnelSess
 		UserID:     sess.User.ID,
 		AssetID:    sess.Asset.ID,
 		AccountID:  opt.Account.ID,
+		TokenId:    opt.authInfo.Id,
 		Comment:    comment,
 		Type:       model.NORMALType,
 	}

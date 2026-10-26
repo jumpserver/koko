@@ -1246,3 +1246,117 @@ msgstr "当前会话已结束，是否关闭此标签？"
 
 msgid "Keep"
 msgstr "保留"
+
+msgid "Connection token expired"
+msgstr "连接令牌已过期"
+
+msgid "Enroll MFA in the web console before connecting"
+msgstr "请先在 Web 控制台配置 MFA，再连接资产"
+
+msgid "Connection reason: "
+msgstr "连接原因："
+
+
+msgid "MFA code: "
+msgstr "MFA 验证码："
+
+
+msgid "Task ID: %s"
+msgstr "任务 ID：%s"
+
+msgid "Account push failed. Contact an administrator."
+msgstr "账号推送失败，请联系管理员。"
+
+
+msgid "Connection cancelled."
+msgstr "已取消连接。"
+
+msgid "Enter y to continue or n to cancel."
+msgstr "输入 y 继续，或输入 n 取消。"
+
+msgid "Enter q and press Enter to cancel at any step."
+msgstr "任何步骤均可输入 q 并回车取消连接。"
+
+msgid "Connection reason"
+msgstr "连接原因"
+
+msgid "MFA verification"
+msgstr "MFA 验证"
+
+msgid "Face verification"
+msgstr "人脸验证"
+
+msgid "Connection approval"
+msgstr "连接审批"
+
+msgid "Account push"
+msgstr "推送账号"
+
+msgid "Connection is not ready. Start a new connection."
+msgstr "本次连接尚未就绪，请重新发起连接。"
+
+msgid "Enter a connection reason (up to 4096 characters)."
+msgstr "请输入连接原因，最多 4096 个字符。"
+
+msgid "MFA method [1]: "
+msgstr "选择 MFA 方式 [1]："
+
+msgid "Select a listed MFA method."
+msgstr "请选择列表中的 MFA 方式。"
+
+msgid "MFA code sent."
+msgstr "MFA 验证码已发送。"
+
+msgid "Enter the MFA code."
+msgstr "请输入 MFA 验证码。"
+
+msgid "Approval is required. Submit a request? (y/n): "
+msgstr "本次连接需要审批，是否提交申请？(y/n)："
+
+msgid "Submitting approval request..."
+msgstr "正在提交审批申请…"
+
+msgid "Approval granted."
+msgstr "审批已通过。"
+
+msgid "Push the same-name account before connecting? (y/n): "
+msgstr "连接前需要推送同名账号，是否继续？(y/n)："
+
+msgid "Starting account push..."
+msgstr "正在启动账号推送…"
+
+msgid "Account is ready."
+msgstr "账号已就绪。"
+
+msgid "Connection reason saved."
+msgstr "连接原因已保存。"
+
+msgid "MFA verification passed."
+msgstr "MFA 验证已通过。"
+
+msgid "Approval rejected. Connection cancelled."
+msgstr "审批被拒绝，已取消连接。"
+
+msgid "Approval request closed. Connection cancelled."
+msgstr "审批申请已关闭，已取消连接。"
+
+msgid "Approval ticket: %s"
+msgstr "审批工单：%s"
+
+msgid "Waiting for approval."
+msgstr "正在等待审批。"
+
+msgid "Cancel connection (q + Enter): "
+msgstr "取消连接（输入 q 并回车）："
+
+msgid "Account push is running."
+msgstr "正在推送账号。"
+
+msgid "Account push is queued."
+msgstr "账号推送已排队，等待执行。"
+
+msgid "Request failed (HTTP %d)."
+msgstr "请求失败（HTTP %d）。"
+
+msgid "Invalid response from server."
+msgstr "服务端响应异常，请重新发起连接。"
