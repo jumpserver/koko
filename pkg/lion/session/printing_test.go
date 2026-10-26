@@ -16,22 +16,24 @@ func TestRDPPrinting(t *testing.T) {
 		want     string
 	}{
 		{"default", `{"resolution":"auto"}`, true, BoolFalse},
+		{"null", `{"resolution":"auto","printers_redirect":null}`, true, BoolFalse},
 		{"disabled", `{"resolution":"auto","printers_redirect":false}`, true, BoolFalse},
 		{"enabled", `{"resolution":"auto","printers_redirect":true}`, true, BoolTrue},
 		{"download denied", `{"resolution":"auto","printers_redirect":true}`, false, BoolFalse},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			var token connectTokenResponse
+			var token model.ConnectToken
 			if err := json.Unmarshal([]byte(`{"connect_options":`+tc.options+`}`), &token); err != nil {
 				t.Fatal(err)
 			}
-			if token.Options.Resolution != "auto" {
+			if token.ConnectOptions.Resolution != "auto" {
 				t.Fatal("SDK connection options were lost")
 			}
+			printersRedirect := token.ConnectOptions.PrintersRedirect
 			sess := TunnelSession{
 				Asset: &model.Asset{}, Account: &model.Account{}, User: &model.User{},
 				ActionPerm:     &ActionPermission{EnableDownload: tc.download},
-				EnablePrinting: token.Options.PrintersRedirect,
+				EnablePrinting: printersRedirect != nil && *printersRedirect,
 			}
 			for _, applet := range []bool{false, true} {
 				if applet {
