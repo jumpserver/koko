@@ -183,6 +183,15 @@ func (g *GuacamoleTunnelServer) Connect(ctx *gin.Context) {
 		logger.Infof("Session %s join face monitor", tunnelSession.ID)
 		if err1 := g.JmsService.JoinFaceMonitor(faceReq); err1 != nil {
 			logger.Errorf("Session %s join face monitor err: %s", tunnelSession.ID, err1)
+			errIns := NewJMSGuacamoleError(1006, err1.Error())
+			_ = ws.WriteMessage(websocket.TextMessage, []byte(errIns.String()))
+			if callbackErr := tunnelSession.ConnectedFailedCallback(err1); callbackErr != nil {
+				logger.Errorf("Update failed face monitor session err: %s", callbackErr)
+			}
+			if callbackErr := tunnelSession.DisConnectedCallback(); callbackErr != nil {
+				logger.Errorf("Close failed face monitor session err: %s", callbackErr)
+			}
+			return
 		}
 	}
 

@@ -1246,3 +1246,116 @@ msgstr "Текущий сеанс завершён. Закрыть эту вкл
 
 msgid "Keep"
 msgstr "Оставить"
+
+msgid "Connection token expired"
+msgstr "Срок действия токена подключения истёк"
+
+msgid "Enroll MFA in the web console before connecting"
+msgstr "Настройте MFA в веб-консоли перед подключением"
+
+msgid "Connection reason: "
+msgstr "Причина подключения: "
+
+
+msgid "MFA code: "
+msgstr "Код MFA: "
+
+
+msgid "Task ID: %s"
+msgstr "ID задачи: %s"
+
+msgid "Account push failed. Contact an administrator."
+msgstr "Не удалось развернуть учётную запись. Обратитесь к администратору."
+
+msgid "Connection cancelled."
+msgstr "Подключение отменено."
+
+msgid "Enter y to continue or n to cancel."
+msgstr "Введите y для продолжения или n для отмены."
+
+msgid "Enter q and press Enter to cancel at any step."
+msgstr "Для отмены на любом этапе введите q и нажмите Enter."
+
+msgid "Connection reason"
+msgstr "Причина подключения"
+
+msgid "MFA verification"
+msgstr "Проверка MFA"
+
+msgid "Face verification"
+msgstr "Проверка лица"
+
+msgid "Connection approval"
+msgstr "Согласование подключения"
+
+msgid "Account push"
+msgstr "Развёртывание учётной записи"
+
+msgid "Connection is not ready. Start a new connection."
+msgstr "Подключение не готово. Начните новое подключение."
+
+msgid "Enter a connection reason (up to 4096 characters)."
+msgstr "Укажите причину подключения (до 4096 символов)."
+
+msgid "MFA method [1]: "
+msgstr "Метод MFA [1]: "
+
+msgid "Select a listed MFA method."
+msgstr "Выберите метод MFA из списка."
+
+msgid "MFA code sent."
+msgstr "Код MFA отправлен."
+
+msgid "Enter the MFA code."
+msgstr "Введите код MFA."
+
+msgid "Approval is required. Submit a request? (y/n): "
+msgstr "Требуется согласование. Отправить заявку? (y/n): "
+
+msgid "Submitting approval request..."
+msgstr "Отправка заявки на согласование..."
+
+msgid "Approval granted."
+msgstr "Подключение одобрено."
+
+msgid "Push the same-name account before connecting? (y/n): "
+msgstr "Развернуть одноимённую учётную запись перед подключением? (y/n): "
+
+msgid "Starting account push..."
+msgstr "Запуск развёртывания учётной записи..."
+
+msgid "Account is ready."
+msgstr "Учётная запись готова."
+
+msgid "Connection reason saved."
+msgstr "Причина подключения сохранена."
+
+msgid "MFA verification passed."
+msgstr "Проверка MFA пройдена."
+
+msgid "Approval rejected. Connection cancelled."
+msgstr "В согласовании отказано. Подключение отменено."
+
+msgid "Approval request closed. Connection cancelled."
+msgstr "Заявка на согласование закрыта. Подключение отменено."
+
+msgid "Approval ticket: %s"
+msgstr "Заявка на согласование: %s"
+
+msgid "Waiting for approval."
+msgstr "Ожидание согласования."
+
+msgid "Cancel connection (q + Enter): "
+msgstr "Отменить подключение (q + Enter): "
+
+msgid "Account push is running."
+msgstr "Идёт развёртывание учётной записи."
+
+msgid "Account push is queued."
+msgstr "Развёртывание учётной записи в очереди."
+
+msgid "Request failed (HTTP %d)."
+msgstr "Ошибка запроса (HTTP %d)."
+
+msgid "Invalid response from server."
+msgstr "Недопустимый ответ сервера."

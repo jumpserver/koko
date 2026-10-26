@@ -1246,3 +1246,116 @@ msgstr "A sessão atual foi encerrada. Fechar esta aba?"
 
 msgid "Keep"
 msgstr "Manter"
+
+msgid "Connection token expired"
+msgstr "O token de conexão expirou"
+
+msgid "Enroll MFA in the web console before connecting"
+msgstr "Configure o MFA no console web antes de conectar"
+
+msgid "Connection reason: "
+msgstr "Motivo da conexão: "
+
+
+msgid "MFA code: "
+msgstr "Código MFA: "
+
+
+msgid "Task ID: %s"
+msgstr "ID da tarefa: %s"
+
+msgid "Account push failed. Contact an administrator."
+msgstr "Falha no provisionamento da conta. Contate um administrador."
+
+msgid "Connection cancelled."
+msgstr "Conexão cancelada."
+
+msgid "Enter y to continue or n to cancel."
+msgstr "Digite y para continuar ou n para cancelar."
+
+msgid "Enter q and press Enter to cancel at any step."
+msgstr "Digite q e pressione Enter para cancelar em qualquer etapa."
+
+msgid "Connection reason"
+msgstr "Motivo da conexão"
+
+msgid "MFA verification"
+msgstr "Verificação MFA"
+
+msgid "Face verification"
+msgstr "Verificação facial"
+
+msgid "Connection approval"
+msgstr "Aprovação da conexão"
+
+msgid "Account push"
+msgstr "Provisionamento de conta"
+
+msgid "Connection is not ready. Start a new connection."
+msgstr "A conexão não está pronta. Inicie uma nova conexão."
+
+msgid "Enter a connection reason (up to 4096 characters)."
+msgstr "Informe o motivo da conexão (até 4096 caracteres)."
+
+msgid "MFA method [1]: "
+msgstr "Método MFA [1]: "
+
+msgid "Select a listed MFA method."
+msgstr "Selecione um dos métodos MFA listados."
+
+msgid "MFA code sent."
+msgstr "Código MFA enviado."
+
+msgid "Enter the MFA code."
+msgstr "Digite o código MFA."
+
+msgid "Approval is required. Submit a request? (y/n): "
+msgstr "É necessária aprovação. Enviar uma solicitação? (y/n): "
+
+msgid "Submitting approval request..."
+msgstr "Enviando solicitação de aprovação..."
+
+msgid "Approval granted."
+msgstr "Aprovação concedida."
+
+msgid "Push the same-name account before connecting? (y/n): "
+msgstr "Provisionar a conta de mesmo nome antes de conectar? (y/n): "
+
+msgid "Starting account push..."
+msgstr "Iniciando provisionamento da conta..."
+
+msgid "Account is ready."
+msgstr "A conta está pronta."
+
+msgid "Connection reason saved."
+msgstr "Motivo da conexão salvo."
+
+msgid "MFA verification passed."
+msgstr "Verificação MFA concluída."
+
+msgid "Approval rejected. Connection cancelled."
+msgstr "Aprovação rejeitada. Conexão cancelada."
+
+msgid "Approval request closed. Connection cancelled."
+msgstr "Solicitação de aprovação encerrada. Conexão cancelada."
+
+msgid "Approval ticket: %s"
+msgstr "Solicitação de aprovação: %s"
+
+msgid "Waiting for approval."
+msgstr "Aguardando aprovação."
+
+msgid "Cancel connection (q + Enter): "
+msgstr "Cancelar conexão (q + Enter): "
+
+msgid "Account push is running."
+msgstr "Provisionamento da conta em andamento."
+
+msgid "Account push is queued."
+msgstr "Provisionamento da conta na fila."
+
+msgid "Request failed (HTTP %d)."
+msgstr "Falha na solicitação (HTTP %d)."
+
+msgid "Invalid response from server."
+msgstr "Resposta inválida do servidor."

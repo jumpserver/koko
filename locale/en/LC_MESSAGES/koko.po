@@ -1111,3 +1111,117 @@ msgstr "The current session has ended. Close this tab?"
 
 msgid "Keep"
 msgstr "Keep"
+
+msgid "Connection token expired"
+msgstr "Connection token expired"
+
+msgid "Enroll MFA in the web console before connecting"
+msgstr "Enroll MFA in the web console before connecting"
+
+msgid "Connection reason: "
+msgstr "Connection reason: "
+
+
+msgid "MFA code: "
+msgstr "MFA code: "
+
+
+msgid "Task ID: %s"
+msgstr "Task ID: %s"
+
+msgid "Account push failed. Contact an administrator."
+msgstr "Account push failed. Contact an administrator."
+
+
+msgid "Connection cancelled."
+msgstr "Connection cancelled."
+
+msgid "Enter y to continue or n to cancel."
+msgstr "Enter y to continue or n to cancel."
+
+msgid "Enter q and press Enter to cancel at any step."
+msgstr "Enter q and press Enter to cancel at any step."
+
+msgid "Connection reason"
+msgstr "Connection reason"
+
+msgid "MFA verification"
+msgstr "MFA verification"
+
+msgid "Face verification"
+msgstr "Face verification"
+
+msgid "Connection approval"
+msgstr "Connection approval"
+
+msgid "Account push"
+msgstr "Account push"
+
+msgid "Connection is not ready. Start a new connection."
+msgstr "Connection is not ready. Start a new connection."
+
+msgid "Enter a connection reason (up to 4096 characters)."
+msgstr "Enter a connection reason (up to 4096 characters)."
+
+msgid "MFA method [1]: "
+msgstr "MFA method [1]: "
+
+msgid "Select a listed MFA method."
+msgstr "Select a listed MFA method."
+
+msgid "MFA code sent."
+msgstr "MFA code sent."
+
+msgid "Enter the MFA code."
+msgstr "Enter the MFA code."
+
+msgid "Approval is required. Submit a request? (y/n): "
+msgstr "Approval is required. Submit a request? (y/n): "
+
+msgid "Submitting approval request..."
+msgstr "Submitting approval request..."
+
+msgid "Approval granted."
+msgstr "Approval granted."
+
+msgid "Push the same-name account before connecting? (y/n): "
+msgstr "Push the same-name account before connecting? (y/n): "
+
+msgid "Starting account push..."
+msgstr "Starting account push..."
+
+msgid "Account is ready."
+msgstr "Account is ready."
+
+msgid "Connection reason saved."
+msgstr "Connection reason saved."
+
+msgid "MFA verification passed."
+msgstr "MFA verification passed."
+
+msgid "Approval rejected. Connection cancelled."
+msgstr "Approval rejected. Connection cancelled."
+
+msgid "Approval request closed. Connection cancelled."
+msgstr "Approval request closed. Connection cancelled."
+
+msgid "Approval ticket: %s"
+msgstr "Approval ticket: %s"
+
+msgid "Waiting for approval."
+msgstr "Waiting for approval."
+
+msgid "Cancel connection (q + Enter): "
+msgstr "Cancel connection (q + Enter): "
+
+msgid "Account push is running."
+msgstr "Account push is running."
+
+msgid "Account push is queued."
+msgstr "Account push is queued."
+
+msgid "Request failed (HTTP %d)."
+msgstr "Request failed (HTTP %d)."
+
+msgid "Invalid response from server."
+msgstr "Invalid response from server."

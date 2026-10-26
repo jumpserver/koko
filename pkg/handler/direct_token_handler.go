@@ -8,6 +8,9 @@ import (
 
 func (d *DirectHandler) LoginConnectToken(connectToken *model.ConnectToken) {
 	defer connectToken.ClearSSHCertificateCredential()
+	if d.sess.Context().Err() != nil {
+		return
+	}
 	i18nLang := d.i18nLang
 	proxyOpts := make([]proxy.ConnectionOption, 0, 3)
 	proxyOpts = append(proxyOpts, proxy.ConnectTokenAuthInfo(connectToken))

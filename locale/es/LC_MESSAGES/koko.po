@@ -1246,3 +1246,117 @@ msgstr "La sesión actual ha finalizado. ¿Cerrar esta pestaña?"
 
 msgid "Keep"
 msgstr "Conservar"
+
+msgid "Connection token expired"
+msgstr "El token de conexión ha caducado"
+
+msgid "Enroll MFA in the web console before connecting"
+msgstr "Configure MFA en la consola web antes de conectarse"
+
+msgid "Connection reason: "
+msgstr "Motivo de conexión: "
+
+
+msgid "MFA code: "
+msgstr "Código MFA: "
+
+
+msgid "Task ID: %s"
+msgstr "ID de tarea: %s"
+
+msgid "Account push failed. Contact an administrator."
+msgstr "No se pudo aprovisionar la cuenta. Contacte con un administrador."
+
+msgid "Connection cancelled."
+msgstr "Conexión cancelada."
+
+msgid "Enter y to continue or n to cancel."
+msgstr "Introduzca y para continuar o n para cancelar."
+
+msgid "Enter q and press Enter to cancel at any step."
+msgstr "Introduzca q y pulse Intro para cancelar en cualquier paso."
+
+msgid "Connection reason"
+msgstr "Motivo de conexión"
+
+msgid "MFA verification"
+msgstr "Verificación MFA"
+
+msgid "Face verification"
+msgstr "Verificación facial"
+
+msgid "Connection approval"
+msgstr "Aprobación de conexión"
+
+msgid "Account push"
+msgstr "Aprovisionamiento de cuenta"
+
+msgid "Connection is not ready. Start a new connection."
+msgstr "La conexión no está lista. Inicie una nueva conexión."
+
+msgid "Enter a connection reason (up to 4096 characters)."
+msgstr "Introduzca un motivo de conexión (hasta 4096 caracteres)."
+
+msgid "MFA method [1]: "
+msgstr "Método MFA [1]: "
+
+msgid "Select a listed MFA method."
+msgstr "Seleccione uno de los métodos MFA indicados."
+
+msgid "MFA code sent."
+msgstr "Código MFA enviado."
+
+msgid "Enter the MFA code."
+msgstr "Introduzca el código MFA."
+
+msgid "Approval is required. Submit a request? (y/n): "
+msgstr "Se requiere aprobación. ¿Enviar una solicitud? (y/n): "
+
+msgid "Submitting approval request..."
+msgstr "Enviando solicitud de aprobación..."
+
+msgid "Approval granted."
+msgstr "Aprobación concedida."
+
+msgid "Push the same-name account before connecting? (y/n): "
+msgstr ""
+"¿Aprovisionar la cuenta con el mismo nombre antes de conectar? (y/n): "
+
+msgid "Starting account push..."
+msgstr "Iniciando el aprovisionamiento de la cuenta..."
+
+msgid "Account is ready."
+msgstr "La cuenta está lista."
+
+msgid "Connection reason saved."
+msgstr "Motivo de conexión guardado."
+
+msgid "MFA verification passed."
+msgstr "Verificación MFA completada."
+
+msgid "Approval rejected. Connection cancelled."
+msgstr "Aprobación rechazada. Conexión cancelada."
+
+msgid "Approval request closed. Connection cancelled."
+msgstr "Solicitud de aprobación cerrada. Conexión cancelada."
+
+msgid "Approval ticket: %s"
+msgstr "Solicitud de aprobación: %s"
+
+msgid "Waiting for approval."
+msgstr "Esperando aprobación."
+
+msgid "Cancel connection (q + Enter): "
+msgstr "Cancelar conexión (q + Intro): "
+
+msgid "Account push is running."
+msgstr "Aprovisionamiento de cuenta en curso."
+
+msgid "Account push is queued."
+msgstr "Aprovisionamiento de cuenta en cola."
+
+msgid "Request failed (HTTP %d)."
+msgstr "La solicitud falló (HTTP %d)."
+
+msgid "Invalid response from server."
+msgstr "Respuesta del servidor no válida."

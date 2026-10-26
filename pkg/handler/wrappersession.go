@@ -14,12 +14,15 @@ import (
 )
 
 type WrapperSession struct {
-	Uuid      string
-	Sess      ssh.Session
-	inWriter  io.WriteCloser
-	outReader io.ReadCloser
-	mux       *sync.RWMutex
-	winMux    sync.RWMutex
+	Uuid            string
+	Sess            ssh.Session
+	inWriter        io.WriteCloser
+	outReader       io.ReadCloser
+	mux             *sync.RWMutex
+	winMux          sync.RWMutex
+	readResetMu     sync.Mutex
+	readStateMu     sync.Mutex
+	readInterrupted bool
 
 	closed chan struct{}
 
@@ -62,19 +65,48 @@ func (w *WrapperSession) Read(p []byte) (int, error) {
 		return 0, io.EOF
 	default:
 	}
+	w.readStateMu.Lock()
+	if w.readInterrupted {
+		w.readInterrupted = false
+		w.readStateMu.Unlock()
+		return 0, io.ErrClosedPipe
+	}
 	w.mux.RLock()
 	defer w.mux.RUnlock()
-	return w.outReader.Read(p)
+	w.readStateMu.Unlock()
+	n, err := w.outReader.Read(p)
+	w.readStateMu.Lock()
+	if w.readInterrupted {
+		w.readInterrupted = false
+		n, err = 0, io.ErrClosedPipe
+	}
+	w.readStateMu.Unlock()
+	return n, err
 }
 
 func (w *WrapperSession) Close() error {
+	return w.resetReadPipe(false)
+}
+
+// InterruptRead releases the current input reader without closing the SSH
+// session. The caller must wait for that reader to stop before starting another.
+func (w *WrapperSession) InterruptRead() error {
+	return w.resetReadPipe(true)
+}
+
+func (w *WrapperSession) resetReadPipe(interrupt bool) error {
+	w.readResetMu.Lock()
+	defer w.readResetMu.Unlock()
 	select {
 	case <-w.closed:
 		return nil
 	default:
 	}
+	w.readStateMu.Lock()
+	w.readInterrupted = interrupt
 	_ = w.inWriter.Close()
 	err := w.outReader.Close()
+	w.readStateMu.Unlock()
 	w.initReadPip()
 	return err
 }

@@ -1246,3 +1246,116 @@ msgstr "現在のセッションは終了しました。このタブを閉じま
 
 msgid "Keep"
 msgstr "保持"
+
+msgid "Connection token expired"
+msgstr "接続トークンの有効期限が切れました"
+
+msgid "Enroll MFA in the web console before connecting"
+msgstr "接続する前に Web コンソールで MFA を設定してください"
+
+msgid "Connection reason: "
+msgstr "接続理由: "
+
+
+msgid "MFA code: "
+msgstr "MFA コード: "
+
+
+msgid "Task ID: %s"
+msgstr "タスク ID: %s"
+
+msgid "Account push failed. Contact an administrator."
+msgstr "アカウントの配布に失敗しました。管理者に連絡してください。"
+
+msgid "Connection cancelled."
+msgstr "接続をキャンセルしました。"
+
+msgid "Enter y to continue or n to cancel."
+msgstr "続行するには y、キャンセルするには n を入力してください。"
+
+msgid "Enter q and press Enter to cancel at any step."
+msgstr "どの手順でも q を入力して Enter を押すとキャンセルできます。"
+
+msgid "Connection reason"
+msgstr "接続理由"
+
+msgid "MFA verification"
+msgstr "MFA 認証"
+
+msgid "Face verification"
+msgstr "顔認証"
+
+msgid "Connection approval"
+msgstr "接続承認"
+
+msgid "Account push"
+msgstr "アカウント配布"
+
+msgid "Connection is not ready. Start a new connection."
+msgstr "接続の準備ができていません。接続をやり直してください。"
+
+msgid "Enter a connection reason (up to 4096 characters)."
+msgstr "接続理由を入力してください（4096文字以内）。"
+
+msgid "MFA method [1]: "
+msgstr "MFA 方式 [1]: "
+
+msgid "Select a listed MFA method."
+msgstr "表示された MFA 方式を選択してください。"
+
+msgid "MFA code sent."
+msgstr "MFA コードを送信しました。"
+
+msgid "Enter the MFA code."
+msgstr "MFA コードを入力してください。"
+
+msgid "Approval is required. Submit a request? (y/n): "
+msgstr "承認が必要です。申請しますか？ (y/n): "
+
+msgid "Submitting approval request..."
+msgstr "承認を申請しています..."
+
+msgid "Approval granted."
+msgstr "承認されました。"
+
+msgid "Push the same-name account before connecting? (y/n): "
+msgstr "接続前に同名アカウントを配布しますか？ (y/n): "
+
+msgid "Starting account push..."
+msgstr "アカウント配布を開始しています..."
+
+msgid "Account is ready."
+msgstr "アカウントの準備が完了しました。"
+
+msgid "Connection reason saved."
+msgstr "接続理由を保存しました。"
+
+msgid "MFA verification passed."
+msgstr "MFA 認証に成功しました。"
+
+msgid "Approval rejected. Connection cancelled."
+msgstr "承認が拒否されました。接続をキャンセルしました。"
+
+msgid "Approval request closed. Connection cancelled."
+msgstr "承認申請が終了しました。接続をキャンセルしました。"
+
+msgid "Approval ticket: %s"
+msgstr "承認チケット: %s"
+
+msgid "Waiting for approval."
+msgstr "承認を待っています。"
+
+msgid "Cancel connection (q + Enter): "
+msgstr "接続をキャンセル (q + Enter): "
+
+msgid "Account push is running."
+msgstr "アカウントを配布しています。"
+
+msgid "Account push is queued."
+msgstr "アカウント配布は待機中です。"
+
+msgid "Request failed (HTTP %d)."
+msgstr "リクエストに失敗しました（HTTP %d）。"
+
+msgid "Invalid response from server."
+msgstr "サーバーからの応答が無効です。"
