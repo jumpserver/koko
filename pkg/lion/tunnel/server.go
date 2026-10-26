@@ -312,6 +312,10 @@ func (g *GuacamoleTunnelServer) DownloadFile(ctx *gin.Context) {
 	}
 	user := userItem.(*model.User)
 	if tun := g.Cache.Get(tid); tun != nil && tun.Sess.User.ID == user.ID {
+		if tun.Sess.ActionPerm == nil || !tun.Sess.ActionPerm.EnableDownload {
+			ctx.AbortWithStatus(http.StatusForbidden)
+			return
+		}
 		recorder := proxy.GetFTPFileRecorder(g.JmsService)
 		fileLog := model.FTPLog{
 			ID:         common.UUID(),

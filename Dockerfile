@@ -1,4 +1,4 @@
-FROM jumpserver/koko-base:20261022_060838 AS stage-build
+FROM jumpserver/koko-base:20261026_031041 AS stage-build
 WORKDIR /opt/koko
 ARG TARGETARCH
 COPY . .
@@ -30,6 +30,7 @@ USER root
 ARG DEPENDENCIES="                    \
         bash-completion               \
         ffmpeg                        \
+        ghostscript                   \
         less                          \
         openssl                       \
         redis-tools                   \
