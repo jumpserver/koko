@@ -28,7 +28,7 @@ require (
 	github.com/investigato/go-psrpcore v0.0.0-20260330234048-955387dec48e
 	github.com/investigato/ntlmssp v0.0.0-20260402144643-d52285ca2ad6
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/jumpserver-dev/sdk-go v0.0.0-20261026062148-795da9e7773d
+	github.com/jumpserver-dev/sdk-go v0.0.0-20261026093057-fee6f1d5ad13
 	github.com/leonelquinteros/gotext v1.7.2
 	github.com/mattn/go-runewidth v0.0.28
 	github.com/microsoft/go-mssqldb v1.11.0
