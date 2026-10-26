@@ -363,9 +363,10 @@ func (s *Server) RecordBackgroundCommand(
 	record := &model.Command{
 		SessionID: s.sessionInfo.ID, OrgID: s.sessionInfo.OrgID,
 		Input: command, Output: output,
-		User: s.sessionInfo.User, Server: s.sessionInfo.Asset,
+		User: s.sessionInfo.User + " - AI", Server: s.sessionInfo.Asset,
 		Account: s.sessionInfo.Account, Timestamp: now.Unix(),
 		RiskLevel: riskLevel, CmdFilterAclId: aclID, CmdGroupId: itemID,
+		Source:      model.CommandSourceAI,
 		DateCreated: now.UTC(),
 	}
 	s.recordBackgroundCommand(record)
@@ -560,6 +561,9 @@ func (s *Server) GenerateCommandItem(user, input, output string, item *ExecutedC
 		}
 	}
 	createdDate := item.CreatedDate
+	if item.Source == model.CommandSourceAI {
+		user += " - AI"
+	}
 	return &model.Command{
 		SessionID:   s.ID,
 		OrgID:       asset.OrgID,
@@ -570,6 +574,7 @@ func (s *Server) GenerateCommandItem(user, input, output string, item *ExecutedC
 		Output:      output,
 		Timestamp:   createdDate.Unix(),
 		RiskLevel:   item.RiskLevel,
+		Source:      item.Source,
 		DateCreated: createdDate.UTC(),
 
 		CmdFilterAclId: item.CmdFilterACLId,
