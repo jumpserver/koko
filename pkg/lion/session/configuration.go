@@ -35,6 +35,7 @@ type RDPConfiguration struct {
 	TerminalConfig *model.TerminalConfig
 	ActionsPerm    *ActionPermission
 	EnablePrinting bool
+	Security       string
 }
 
 func (r RDPConfiguration) GetGuacdConfiguration() guacd.Configuration {
@@ -157,6 +158,9 @@ func (r RDPConfiguration) GetGuacdConfiguration() guacd.Configuration {
 				conf.SetParameter(guacd.RDPConsole, BoolTrue)
 			}
 		}
+	}
+	if ValidateSecurityValue(r.Security) {
+		rdpSecurityValue = r.Security
 	}
 	conf.SetParameter(guacd.RDPSecurity, rdpSecurityValue)
 	conf.SetParameter(guacd.RDPIgnoreCert, BoolTrue)
