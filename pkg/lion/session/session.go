@@ -90,6 +90,9 @@ func (s TunnelSession) configurationRDP() guacd.Configuration {
 		ActionsPerm:    s.ActionPerm,
 		EnablePrinting: s.EnablePrinting,
 	}
+	if s.AuthInfo != nil {
+		rdpConf.Security = s.AuthInfo.ConnectOptions.RDPSecurity
+	}
 	return rdpConf.GetGuacdConfiguration()
 }
 
