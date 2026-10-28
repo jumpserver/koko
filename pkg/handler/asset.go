@@ -25,14 +25,7 @@ import (
 )
 
 func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) []model.PermAsset {
-	res, err := u.h.jmsService.GetUserPermsAssets(u.user.ID, reqParam)
-	if err != nil {
-		logger.Errorf("Get user perm assets failed: %s", err.Error())
-		u.loadErr = err
-		return nil
-	}
-	assets := u.updateRemotePageData(reqParam, res)
-	return u.prepareAssetPage(assets, u.assetListPath())
+	return u.retrieveRemoteAssetPage(reqParam, u.assetListPath(), nil)
 }
 
 func (u *UserSelectHandler) searchLocalAsset(searches ...string) []model.PermAsset {
