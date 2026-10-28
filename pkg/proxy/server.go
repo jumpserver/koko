@@ -655,7 +655,15 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 					continue
 				}
 			}
-			line, err2 := vt.ReadLine()
+			var (
+				line string
+				err2 error
+			)
+			if echos[i] {
+				line, err2 = vt.ReadLine()
+			} else {
+				line, err2 = vt.ReadPassword(q)
+			}
 			if err2 != nil {
 				logger.Errorf("Conn[%s] keyboard auth read err: %s", s.UserConn.ID(), err2)
 			}
