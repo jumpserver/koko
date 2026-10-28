@@ -2,13 +2,15 @@ package srvconn
 
 import (
 	"encoding/json"
-	"github.com/jumpserver-dev/sdk-go/model"
+	"errors"
 	"net"
 	"net/url"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/localcommand"
 )
 
@@ -67,6 +69,9 @@ func startUSQLCommand(opt *sqlOption) (*localcommand.LocalCommand, error) {
 }
 
 func (o *sqlOption) USQLCommandArgs() ([]string, error) {
+	if o.Schema == "db2" && strings.TrimSpace(o.DBName) == "" {
+		return nil, errors.New("Db2 requires a database name; configure the asset's default database")
+	}
 	var dsnURL url.URL
 	dsnURL.Scheme = o.Schema
 	dsnURL.Host = net.JoinHostPort(o.Host, strconv.Itoa(o.Port))
@@ -90,6 +95,20 @@ func (o *sqlOption) USQLCommandArgs() ([]string, error) {
 		defer ClearTempFileDelay(time.Minute, clientCertPath, clientCertKeyPath, caCertPath)
 
 		switch o.Schema {
+		case "db2":
+			params.Set("ssl", "true")
+			if o.ServerName != "" {
+				params.Set("ssl-server-name", o.ServerName)
+			}
+			if caCertPath != "" {
+				params.Set("ssl-ca", caCertPath)
+			}
+			if clientCertPath != "" {
+				params.Set("ssl-cert", clientCertPath)
+			}
+			if clientCertKeyPath != "" {
+				params.Set("ssl-key", clientCertKeyPath)
+			}
 		case "postgres":
 			params.Set("sslmode", o.SqlPgSSLMode)
 

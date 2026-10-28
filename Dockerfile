@@ -1,6 +1,21 @@
 FROM jumpserver/koko-base:20261027_092858 AS stage-build
 WORKDIR /opt/koko
 ARG TARGETARCH
+ARG USQL_VERSION=v0.2.7
+
+# The pinned base image may contain an older usql; update the binary copied
+# into the final image without requiring a separate base-image release.
+RUN set -ex \
+    && asset="usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz" \
+    && release_url="https://github.com/jumpserver-dev/usql/releases/download/${USQL_VERSION}" \
+    && wget -O "/tmp/${asset}" "${release_url}/${asset}" \
+    && wget -O /tmp/usql_checksums.txt "${release_url}/usql_${USQL_VERSION#v}_checksums.txt" \
+    && cd /tmp \
+    && grep "  ${asset}$" usql_checksums.txt | sha256sum -c - \
+    && tar -xzf "${asset}" -C /opt/koko/bin usql \
+    && rm -f "${asset}" usql_checksums.txt \
+    && /opt/koko/bin/usql --drivers | grep -qx db2
+
 COPY . .
 
 ARG VERSION

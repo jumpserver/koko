@@ -17,6 +17,7 @@ var usqlProtocolAlias = map[string]string{
 	srvconn.ProtocolSQLServer:  "sqlserver",
 	srvconn.ProtocolOracle:     "oracle",
 	srvconn.ProtocolDameng:     "dameng",
+	srvconn.ProtocolDB2:        "db2",
 }
 
 var errUnknownProtocol = errors.New("unknown protocol")
@@ -117,7 +118,7 @@ func isDatabaseProtocol(protocol string) bool {
 		srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 		srvconn.ProtocolPostgresql, srvconn.ProtocolSQLServer,
 		srvconn.ProtocolClickHouse, srvconn.ProtocolOracle,
-		srvconn.ProtocolDameng:
+		srvconn.ProtocolDameng, srvconn.ProtocolDB2:
 		return true
 	default:
 		return false

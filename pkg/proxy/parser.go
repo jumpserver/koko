@@ -328,6 +328,7 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 		srvconn.ProtocolClickHouse,
 		srvconn.ProtocolOracle,
 		srvconn.ProtocolDameng,
+		srvconn.ProtocolDB2,
 		srvconn.ProtocolSQLServer:
 		// terminal 右键粘贴时，没有 \r 只有 \n
 		if bytes.ContainsRune(b, '\n') && bytes.ContainsRune(b, ';') {

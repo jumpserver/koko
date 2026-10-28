@@ -60,6 +60,53 @@ func TestUSQLUsesOneSuppliedPasswordAttempt(t *testing.T) {
 	}
 }
 
+func TestUSQLDB2ConnectionArgs(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	for _, useSSL := range []bool{false, true} {
+		opt := &sqlOption{Schema: "db2", Host: "2001:db8::1", Port: 50000,
+			Username: "user@tenant", Password: "p@ss:/?#%", DBName: "TESTDB",
+			UseSSL: useSSL, ServerName: "db2.example.test", CaCert: "test CA",
+			ClientCert: "test client certificate", CertKey: "test client key"}
+		args, err := opt.USQLCommandArgs()
+		if err != nil {
+			t.Fatal(err)
+		}
+		u, err := url.Parse(args[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		password, _ := u.User.Password()
+		if u.Scheme != "db2" || u.Hostname() != opt.Host || u.Port() != "50000" ||
+			u.Path != "/TESTDB" || u.User.Username() != opt.Username || password != opt.Password {
+			t.Fatal("Db2 endpoint, database or credentials were not preserved")
+		}
+		if !slices.Contains(args, "--no-password") || !slices.Contains(args, "--variable=PROMPT1=db2%R%#") {
+			t.Fatal("Db2 must use the audited prompt and supplied-password behavior")
+		}
+		q := u.Query()
+		if !useSSL {
+			if len(q) != 0 {
+				t.Fatal("TLS options leaked into a non-TLS connection")
+			}
+			continue
+		}
+		if q.Get("ssl") != "true" || q.Get("ssl-server-name") != opt.ServerName {
+			t.Fatal("Db2 TLS must verify the original asset hostname through a gateway")
+		}
+		for key, want := range map[string]string{"ssl-ca": opt.CaCert, "ssl-cert": opt.ClientCert, "ssl-key": opt.CertKey} {
+			path := q.Get(key)
+			t.Cleanup(func() { _ = os.Remove(path) })
+			data, err := os.ReadFile(path)
+			if err != nil || string(data) != want {
+				t.Fatalf("%s does not reference the configured file: %v", key, err)
+			}
+		}
+	}
+	if _, err := (&sqlOption{Schema: "db2", DBName: " "}).USQLCommandArgs(); err == nil {
+		t.Fatal("Db2 without a database must fail before launching usql")
+	}
+}
+
 func TestUSQLCloseUnblocksPTYWrite(t *testing.T) {
 	command, err := localcommand.New("/bin/sh", []string{
 		"-c", "stty raw -echo && printf READY && exec /bin/sleep 30",
