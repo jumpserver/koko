@@ -8,8 +8,8 @@ ARG USQL_VERSION=v0.2.7
 RUN set -ex \
     && asset="usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz" \
     && release_url="https://github.com/jumpserver-dev/usql/releases/download/${USQL_VERSION}" \
-    && wget -O "/tmp/${asset}" "${release_url}/${asset}" \
-    && wget -O /tmp/usql_checksums.txt "${release_url}/usql_${USQL_VERSION#v}_checksums.txt" \
+    && curl --fail --location --proto '=https' --proto-redir '=https' --retry 3 -o "/tmp/${asset}" "${release_url}/${asset}" \
+    && curl --fail --location --proto '=https' --proto-redir '=https' --retry 3 -o /tmp/usql_checksums.txt "${release_url}/usql_${USQL_VERSION#v}_checksums.txt" \
     && cd /tmp \
     && grep "  ${asset}$" usql_checksums.txt | sha256sum -c - \
     && tar -xzf "${asset}" -C /opt/koko/bin usql \
