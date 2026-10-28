@@ -634,7 +634,7 @@ func (s *Server) checkRequiredAuth() error {
 
 		srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 		srvconn.ProtocolSQLServer, srvconn.ProtocolPostgresql,
-		srvconn.ProtocolRedis, srvconn.ProtocolOracle, srvconn.ProtocolDameng:
+		srvconn.ProtocolRedis, srvconn.ProtocolOracle, srvconn.ProtocolDameng, srvconn.ProtocolDB2:
 		if err := s.getAuthPasswordIfNeed(); err != nil {
 			s.sendAuthPasswordError(err)
 			return fmt.Errorf("get auth password failed: %s", err)
@@ -1193,7 +1193,8 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		srvconn.ProtocolSQLServer,
 		srvconn.ProtocolClickHouse,
 		srvconn.ProtocolOracle,
-		srvconn.ProtocolDameng:
+		srvconn.ProtocolDameng,
+		srvconn.ProtocolDB2:
 		return s.getUSQLConn(proxyAddr)
 	default:
 		return nil, ErrUnMatchProtocol

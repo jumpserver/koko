@@ -48,6 +48,7 @@ const (
 	ProtocolPostgresql = "postgresql"
 	ProtocolOracle     = "oracle"
 	ProtocolDameng     = "dameng"
+	ProtocolDB2        = "db2"
 )
 
 func SupportedDBProtocols() []string {
@@ -59,6 +60,7 @@ func SupportedDBProtocols() []string {
 		ProtocolMariadb,
 		ProtocolOracle,
 		ProtocolDameng,
+		ProtocolDB2,
 		ProtocolSQLServer,
 		ProtocolPostgresql,
 		ProtocolClickHouse,
@@ -86,6 +88,7 @@ func SupportedProtocols() []string {
 		ProtocolSQLServer,
 		ProtocolOracle,
 		ProtocolDameng,
+		ProtocolDB2,
 		ProtocolRedis,
 		ProtocolMongoDB,
 		ProtocolMariadb,
@@ -150,6 +153,7 @@ var supportedMap = map[string]supportedChecker{
 	ProtocolClickHouse: usqlSupportedChecker(ProtocolClickHouse),
 	ProtocolOracle:     usqlSupportedChecker(ProtocolOracle),
 	ProtocolDameng:     usqlSupportedChecker(ProtocolDameng),
+	ProtocolDB2:        usqlSupportedChecker(ProtocolDB2),
 }
 
 func IsSupportedProtocol(p string) error {
