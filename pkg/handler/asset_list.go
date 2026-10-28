@@ -20,12 +20,19 @@ func (u *UserSelectHandler) displayResult(_ string, labels, fields []string,
 	width, _ := u.h.GetPtySize()
 	start, end := resultDisplayRange(u.CurrentOffSet(), len(u.currentResult), u.TotalCount())
 	pageTip := ""
-	if u.TotalPage() > 1 {
+	if u.allAssetCount != nil {
+		pageTip = assetPageSummary(lang, width, start, end, u.TotalCount(), *u.allAssetCount)
+	} else if u.TotalPage() > 1 {
 		pageTip = fmt.Sprintf("%d-%d / %d", start, end, u.TotalCount())
 	}
 	statusLines, searchHints := u.assetStatusAndSearchHints(lang, pageTip, width)
 	hints := make([]classicHintRow, 0, 3)
 	hints = append(hints, statusLines...)
+	if u.loadErr == nil && u.allAssetCount != nil {
+		hints = append(hints, classicHintRow{
+			text: assetMatchSummary(lang, u.TotalCount(), *u.allAssetCount), style: classicHintPlain,
+		})
+	}
 	hints = append(hints, searchHints...)
 	hints = append(hints, classicHintRows(classicHintShortcut,
 		u.assetActionHints(lang, width, u.HasPrev(), u.HasNext()))...)
@@ -142,13 +149,19 @@ func (u *UserSelectHandler) assetActionHints(lang i18n.LanguageCode, width int, 
 
 func (u *UserSelectHandler) assetFooterRows(width int) int {
 	lang := i18n.NewLang(u.h.i18nLang)
-	hints, searchHints := u.assetStatusAndSearchHints(lang, "1-99999 / 99999", width)
+	page := assetPageSummary(lang, width, 1, 999999, 999999, 999999)
+	hints, searchHints := u.assetStatusAndSearchHints(lang, page, width)
 	hints = append(hints, searchHints...)
 	hints = append(hints, classicHintRows(classicHintShortcut, u.assetActionHints(lang, width, true, true))...)
 	rows := 1 // Separator.
 	for _, hint := range hints {
 		rows += len(classicHintLines(hint.text, width))
 	}
+	rows += max(
+		len(classicHintLines(assetMatchSummary(lang, 999998, 999999), width)),
+		len(classicHintLines(assetMatchSummary(lang, 0, 999999), width)),
+		len(classicHintLines(assetMatchSummary(lang, 0, 0), width)),
+	)
 	return rows
 }
 
@@ -172,9 +185,83 @@ func currentSearchSummary(searches []string, allAssets string) string {
 }
 
 func resultDisplayRange(currentOffset, currentCount, total int) (start, end int) {
+	if currentCount <= 0 || total <= 0 {
+		return 0, 0
+	}
 	end = min(max(currentOffset, 0), total)
 	start = max(1, end-currentCount+1)
 	return start, end
+}
+
+func assetPageSummary(lang i18n.LanguageCode, width, start, end, supported, total int) string {
+	connectableLabel, totalLabel := lang.T("Connectable"), lang.T("Total")
+	switch lang {
+	case i18n.ZH:
+		connectableLabel, totalLabel = "可连接", "总数"
+	case i18n.ZHHant:
+		connectableLabel, totalLabel = "可連線", "總數"
+	}
+	summary := fmt.Sprintf("%d-%d / %s %d / %s %d", start, end, connectableLabel, supported, totalLabel, total)
+	if runewidth.StringWidth(summary) <= width {
+		return summary
+	}
+	summary = fmt.Sprintf("%d-%d / %d / %d", start, end, supported, total)
+	if runewidth.StringWidth(summary) <= width {
+		return summary
+	}
+	return fmt.Sprintf("%d-%d/%d/%d", start, end, supported, total)
+}
+
+func assetCountExplanation(lang i18n.LanguageCode) string {
+	switch lang {
+	case i18n.ZH:
+		return "序号范围 / 可连接 / 总数；数量随当前筛选变化。可连接指已启用且协议受支持。"
+	case i18n.ZHHant:
+		return "序號範圍 / 可連線 / 總數；數量隨目前篩選變化。可連線指已啟用且通訊協定受支援。"
+	default:
+		return lang.T("Range / Connectable / Total; counts follow the current filters. Connectable means enabled with a supported protocol.")
+	}
+}
+
+func assetMatchSummary(lang i18n.LanguageCode, supported, total int) string {
+	if total == 0 {
+		switch lang {
+		case i18n.ZH:
+			return "未找到符合当前条件的资产"
+		case i18n.ZHHant:
+			return "未找到符合目前條件的資產"
+		default:
+			return lang.T("No assets match the current filters")
+		}
+	}
+	if supported == 0 {
+		switch lang {
+		case i18n.ZH:
+			return fmt.Sprintf("共匹配 %d 台资产，均不支持连接", total)
+		case i18n.ZHHant:
+			return fmt.Sprintf("共匹配 %d 台資產，均不支援連線", total)
+		default:
+			return fmt.Sprintf(lang.T("Matched %d assets; none are connectable"), total)
+		}
+	}
+	if supported == total {
+		switch lang {
+		case i18n.ZH:
+			return fmt.Sprintf("共匹配 %d 台资产，均可连接", total)
+		case i18n.ZHHant:
+			return fmt.Sprintf("共匹配 %d 台資產，均可連線", total)
+		default:
+			return fmt.Sprintf(lang.T("Matched %d assets; all are connectable"), total)
+		}
+	}
+	switch lang {
+	case i18n.ZH:
+		return fmt.Sprintf("共匹配 %d 台资产，其中 %d 台可连接", total, supported)
+	case i18n.ZHHant:
+		return fmt.Sprintf("共匹配 %d 台資產，其中 %d 台可連線", total, supported)
+	default:
+		return fmt.Sprintf(lang.T("Matched %d assets, %d connectable"), total, supported)
+	}
 }
 
 func (u *UserSelectHandler) displayNoResultMsg(_ string, tips string) {
@@ -185,12 +272,24 @@ func (u *UserSelectHandler) displayNoResultMsg(_ string, tips string) {
 	width, _ := u.h.GetPtySize()
 	utils.IgnoreErrWriteString(u.h.term, utils.CharClear)
 	searchHints := u.searchSyntaxHints(lang)
-	for _, line := range classicHintLines(tips, width) {
-		utils.IgnoreErrWriteString(u.h.term, utils.WrapperString(line, utils.Red)+utils.CharNewLine)
+	hasCounts := u.loadErr == nil && u.allAssetCount != nil
+	if !hasCounts {
+		for _, line := range classicHintLines(tips, width) {
+			utils.IgnoreErrWriteString(u.h.term, utils.WrapperString(line, utils.Red)+utils.CharNewLine)
+		}
 	}
 	hints := make([]classicHintRow, 0, 3)
+	page := ""
+	if hasCounts {
+		page = assetPageSummary(lang, width, 0, 0, u.TotalCount(), *u.allAssetCount)
+	}
 	hints = append(hints, classicHintRows(classicHintPlain,
-		compactClassicHintRows(width, u.currentSearchTip(lang), u.scopePathHint(lang)))...)
+		classicAssetStatusLines([]string{u.currentSearchTip(lang), u.scopePathHint(lang)}, page, width))...)
+	if hasCounts {
+		hints = append(hints, classicHintRow{
+			text: assetMatchSummary(lang, u.TotalCount(), *u.allAssetCount), style: classicHintPlain,
+		})
+	}
 	hints = append(hints, searchHints...)
 	hints = append(hints, classicHintRows(classicHintShortcut, compactClassicHintRows(width,
 		fmt.Sprintf("[b] %s", u.classicBackTarget(lang)), fmt.Sprintf("[?] %s", lang.T("View help")),

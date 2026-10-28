@@ -2,11 +2,9 @@ package handler
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/jumpserver-dev/sdk-go/model"
-	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/xlab/treeprint"
 )
 
@@ -155,50 +153,9 @@ func constructFavoriteTreeRows(nodes []classicFavoriteNode) ([]string, []classic
 }
 
 func (u *UserSelectHandler) retrieveRemoteFavoriteAsset(reqParam model.PaginationParam) []model.PermAsset {
-	pageSize := reqParam.PageSize
-	loadAll := pageSize <= 0
-	if loadAll {
-		pageSize = 100
-	}
-	searches := make([]string, 0, len(reqParam.Searches))
-	for _, search := range reqParam.Searches {
-		searches = append(searches, strings.TrimSpace(search))
-	}
-	params := map[string]string{
-		"limit":  strconv.Itoa(pageSize),
-		"offset": strconv.Itoa(max(0, reqParam.Offset)),
-		"order":  reqParam.Order,
-	}
+	filters := map[string]string{}
 	if u.selectedFavorite.ID != "favorite-root" {
-		params["folder_id"] = u.selectedFavorite.ID
+		filters["folder_id"] = u.selectedFavorite.ID
 	}
-	if len(searches) > 0 {
-		params["search"] = strings.Join(searches, ",")
-	}
-	var response model.PaginationResponse
-	path := classicData{userID: u.user.ID}.userPath("nodes/favorite/assets/")
-	_, err := u.h.jmsService.Call("GET", path, nil, &response, params)
-	if err != nil {
-		logger.Errorf("Get user %s favorite assets failed: %s", u.user.Name, err)
-		u.loadErr = err
-		return nil
-	}
-	if loadAll && err == nil {
-		all := append([]model.PermAsset(nil), response.Data...)
-		for response.NextURL != "" {
-			response, err = u.h.jmsService.GetNextURLPermAssets(response.NextURL)
-			if err != nil {
-				logger.Errorf("Get user %s next favorite assets failed: %s", u.user.Name, err)
-				u.loadErr = err
-				return nil
-			}
-			all = append(all, response.Data...)
-		}
-		response.Data = all
-		response.Total = len(all)
-		response.NextURL = ""
-		response.PreviousURL = ""
-	}
-	assets := u.updateRemotePageData(reqParam, response)
-	return u.prepareAssetPage(assets, path)
+	return u.retrieveRemoteAssetPage(reqParam, u.assetListPath(), filters)
 }

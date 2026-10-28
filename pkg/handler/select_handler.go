@@ -3,14 +3,12 @@ package handler
 import (
 	"fmt"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -54,7 +52,9 @@ type UserSelectHandler struct {
 	hasPre  bool
 	hasNext bool
 
-	allLocalData []model.PermAsset
+	allLocalData     []model.PermAsset
+	localConnectable map[string]bool
+	allAssetCount    *int
 
 	selectedNode     model.Node
 	selectedType     classicTypeNode
@@ -116,6 +116,7 @@ func (u *UserSelectHandler) SetFavorite(node classicFavoriteNode) {
 func (u *UserSelectHandler) SetAllLocalData(data []model.PermAsset) {
 	u.allLocalData = make([]model.PermAsset, len(data))
 	copy(u.allLocalData, data)
+	u.localConnectable = nil
 }
 
 func (u *UserSelectHandler) SetLoadPolicy(policy dataSource) { u.loadingPolicy = policy }
@@ -292,6 +293,8 @@ func (u *UserSelectHandler) proxy(target model.PermAsset, autoOnly bool) bool {
 
 func (u *UserSelectHandler) Retrieve(pageSize, offset int, searches ...string) []model.PermAsset {
 	u.loadErr = nil
+	u.allAssetCount = nil
+	u.connectable = nil
 	if u.loadingPolicy == loadingFromLocal {
 		return u.retrieveFromLocal(pageSize, offset, searches...)
 	}
@@ -304,6 +307,12 @@ func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, searches ...
 	}
 	offset = max(offset, 0)
 	searchResult := u.retrieveLocal(searches...)
+	allCount := len(searchResult)
+	searchResult = u.filterLocalAssets(searchResult)
+	if u.loadErr != nil {
+		return nil
+	}
+	u.allAssetCount = &allCount
 	var totalData []model.PermAsset
 	if offset < len(searchResult) {
 		totalData = searchResult[offset:]
@@ -317,7 +326,7 @@ func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, searches ...
 	if len(totalData) > currentPageSize {
 		currentData = totalData[:currentPageSize]
 	}
-	currentData = u.prepareAssetPage(currentData, u.assetListPath())
+	u.markConnectableAssets(currentData)
 	currentOffset := offset + len(currentData)
 	u.updatePageInfo(currentPageSize, total, currentOffset)
 	u.hasPre = u.currentPage > 1
@@ -398,57 +407,6 @@ func (u *UserSelectHandler) assetListPath() string {
 	default:
 		return data.userPath("nodes/" + url.PathEscape(u.selectedNode.ID) + "/assets/")
 	}
-}
-
-func (u *UserSelectHandler) prepareAssetPage(assets []model.PermAsset, path string) []model.PermAsset {
-	u.connectable = nil
-	if len(assets) == 0 {
-		return assets
-	}
-	if path == "" || u.h == nil || u.h.jmsService == nil {
-		u.connectable = make([]bool, len(assets))
-		for i := range assets {
-			u.connectable[i] = assets[i].IsActive
-		}
-		return assets
-	}
-	ids := make([]string, 0, len(assets))
-	for _, asset := range assets {
-		ids = append(ids, asset.ID)
-	}
-	protocols := srvconn.SupportedProtocols()
-	sort.Strings(protocols)
-	var supported model.PaginationResponse
-	_, err := u.h.jmsService.Call("GET", path, nil, &supported, map[string]string{
-		"limit":     strconv.Itoa(len(ids)),
-		"offset":    "0",
-		"id__in":    strings.Join(ids, ","),
-		"protocols": strings.Join(protocols, ","),
-	})
-	if err != nil {
-		logger.Errorf("Classic text asset protocol support lookup failed: %s", err)
-		u.loadErr = err
-		return assets
-	}
-	supportedIDs := make(map[string]struct{}, len(supported.Data))
-	for _, asset := range supported.Data {
-		supportedIDs[asset.ID] = struct{}{}
-	}
-	ordered := make([]model.PermAsset, 0, len(assets))
-	availability := make([]bool, 0, len(assets))
-	for _, enabled := range []bool{true, false} {
-		for _, asset := range assets {
-			_, protocolSupported := supportedIDs[asset.ID]
-			canConnect := asset.IsActive && protocolSupported
-			if canConnect != enabled {
-				continue
-			}
-			ordered = append(ordered, asset)
-			availability = append(availability, canConnect)
-		}
-	}
-	u.connectable = availability
-	return ordered
 }
 
 func (u *UserSelectHandler) assetCanConnect(index int) bool {

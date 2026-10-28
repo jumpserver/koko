@@ -134,6 +134,12 @@ func (h *InteractiveHandler) displayHelp() {
 	h.term.SetPrompt("Opt> ")
 	h.displayBanner(h.sess, h.user.Name, h.terminalConf)
 	h.displayAnnouncement(h.sess, h.publicSetting)
+	if h.helpReturnView == classicViewList {
+		width, _ := h.GetPtySize()
+		for _, line := range classicHintLines(assetCountExplanation(i18n.NewLang(h.i18nLang)), width) {
+			utils.IgnoreErrWriteString(h.term, line+utils.CharNewLine)
+		}
+	}
 	backTarget := h.helpBackTarget
 	if backTarget == "" && h.helpReturnView == classicViewList {
 		backTarget = "Back to assets"
