@@ -228,8 +228,8 @@ func ensureUSQLSupported() {
 }
 
 func usqlSupportedChecker(protocol string) func() error {
-	ensureUSQLSupported()
 	return func() error {
+		ensureUSQLSupported()
 		if !strings.Contains(usqlSupportedProtocols, protocol) {
 			return ErrUSQLNoSupported{Name: protocol}
 		}

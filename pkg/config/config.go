@@ -32,6 +32,11 @@ type Config struct {
 	WebProxyFFmpegPath       string `mapstructure:"WEB_PROXY_FFMPEG_PATH"`
 	SSHTimeout               int    `mapstructure:"SSH_TIMEOUT"`
 	HttpRequestTimeout       int    `mapstructure:"HTTP_REQUEST_TIMEOUT"`
+	MCPEnabled               bool   `mapstructure:"MCP_ENABLED"`
+	MCPAuthorizationServer   string `mapstructure:"MCP_AUTHORIZATION_SERVER"`
+	MCPMaxSessions           int    `mapstructure:"MCP_MAX_SESSIONS"`
+	MCPMaxConcurrent         int    `mapstructure:"MCP_MAX_CONCURRENT"`
+	MCPMaxPending            int    `mapstructure:"MCP_MAX_PENDING"`
 
 	LogLevel string `mapstructure:"LOG_LEVEL"`
 
@@ -169,6 +174,9 @@ func getDefaultConfig() Config {
 		SSHPort:                  "2222",
 		SSHTimeout:               15,
 		HttpRequestTimeout:       30,
+		MCPMaxSessions:           128,
+		MCPMaxConcurrent:         20,
+		MCPMaxPending:            64,
 		HTTPPort:                 "5000",
 		WebProxyEnabled:          true,
 		WebProxyBindHost:         "127.0.0.1",

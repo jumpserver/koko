@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
+	"github.com/jumpserver/koko/internal/agentexec"
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
@@ -107,18 +109,29 @@ func NewServer(
 	lionRuntime *lion.Runtime,
 ) *Server {
 	srv := &Server{apiClient: jmsService}
+	if err := srv.initializeAgent(); err != nil {
+		log.Fatalf("initialize Agent execution service: %v", err)
+	}
 	eng := createRouter(jmsService, srv, lionRuntime)
 	conf := config.GetConf()
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
 	srv.Srv = &http.Server{Addr: addr, Handler: eng}
+	srv.startAgentRefresh()
 	return srv
 }
 
 type Server struct {
-	Srv         *http.Server
-	apiClient   *service.JMService
-	lionMonitor graphicalMonitor
-	lionShare   graphicalShare
+	Srv           *http.Server
+	apiClient     *service.JMService
+	lionMonitor   graphicalMonitor
+	lionShare     graphicalShare
+	agentRuntime  *agentexec.Runtime
+	agentHTTP     atomic.Pointer[agentexec.HTTP]
+	agentIssuer   string
+	agentRequests chan struct{}
+	agentRoutes   gin.RoutesInfo
+	agentCancel   context.CancelFunc
+	agentDone     chan struct{}
 }
 
 func (s *Server) Start() {
@@ -127,10 +140,21 @@ func (s *Server) Start() {
 }
 
 func (s *Server) Stop() {
+	if s.agentCancel != nil {
+		s.agentCancel()
+	}
 	ctx, cancelFunc := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancelFunc()
 	if s.Srv != nil {
-		_ = s.Srv.Shutdown(ctx)
+		if err := s.Srv.Shutdown(ctx); err != nil {
+			_ = s.Srv.Close()
+		}
+	}
+	s.waitAgentRefresh(ctx)
+	if s.agentRuntime != nil {
+		if err := s.agentRuntime.Close(); err != nil {
+			logger.Errorf("Close Agent execution service: %v", err)
+		}
 	}
 }
 
