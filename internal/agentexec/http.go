@@ -22,6 +22,7 @@ import (
 
 type HTTP struct {
 	Resource     string
+	Issuer       string
 	Handler      http.Handler
 	Metadata     http.Handler
 	Path         string
@@ -111,7 +112,7 @@ func NewHTTP(r *Runtime, resourceURL, issuerURL string) (*HTTP, error) {
 		}
 		secured.ServeHTTP(w, req)
 	})
-	return &HTTP{Resource: resourceURL, Handler: handler, Metadata: metadata, Path: resource.Path, MetadataPath: metadataPath}, nil
+	return &HTTP{Resource: resourceURL, Issuer: issuer, Handler: handler, Metadata: metadata, Path: resource.Path, MetadataPath: metadataPath}, nil
 }
 
 // Koko's HTTP adapter supplies the IP resolved by its shared ClientIP policy.

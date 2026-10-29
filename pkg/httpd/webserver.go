@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -108,10 +109,7 @@ func NewServer(
 	jmsService *service.JMService,
 	lionRuntime *lion.Runtime,
 ) *Server {
-	srv := &Server{apiClient: jmsService}
-	if err := srv.initializeAgent(); err != nil {
-		log.Fatalf("initialize Agent execution service: %v", err)
-	}
+	srv := &Server{apiClient: jmsService, agentRequests: make(chan struct{}, 32)}
 	eng := createRouter(jmsService, srv, lionRuntime)
 	conf := config.GetConf()
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
@@ -127,7 +125,8 @@ type Server struct {
 	lionShare     graphicalShare
 	agentRuntime  *agentexec.Runtime
 	agentHTTP     atomic.Pointer[agentexec.HTTP]
-	agentIssuer   string
+	agentMu       sync.Mutex
+	agentStopped  bool
 	agentRequests chan struct{}
 	agentRoutes   gin.RoutesInfo
 	agentCancel   context.CancelFunc
@@ -140,6 +139,11 @@ func (s *Server) Start() {
 }
 
 func (s *Server) Stop() {
+	s.agentMu.Lock()
+	s.agentStopped = true
+	s.agentHTTP.Store(nil)
+	runtime := s.agentRuntime
+	s.agentMu.Unlock()
 	if s.agentCancel != nil {
 		s.agentCancel()
 	}
@@ -151,8 +155,8 @@ func (s *Server) Stop() {
 		}
 	}
 	s.waitAgentRefresh(ctx)
-	if s.agentRuntime != nil {
-		if err := s.agentRuntime.Close(); err != nil {
+	if runtime != nil {
+		if err := runtime.Close(); err != nil {
 			logger.Errorf("Close Agent execution service: %v", err)
 		}
 	}

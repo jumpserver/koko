@@ -19,46 +19,43 @@ MCP 数据库执行使用 Go 原生驱动：MySQL/MariaDB 使用 `go-sql-driver/
 1. 部署包含此功能的 Core、Koko 和 Lina，并执行 Core 数据库迁移。
 2. 确认 Koko 已通过现有组件注册取得 Access Key，能访问 Core。
 3. 在 Lina 的 **系统设置 > 功能设置 > Agent / MCP** 配置以下 Core 参数。
-4. 配置 Koko 参数、持久目录和 docker-web 转发，启动 Koko；确认 MCP 资源元数据已就绪后开放客户端接入。
+4. 配置 Koko 持久目录和 docker-web 转发，启动 Koko；在 Core 启用 MCP，确认资源元数据已就绪后开放客户端接入。
 
 | Core 配置 | 要求 |
 | --- | --- |
+| `MCP_ENABLED` | 默认 `false`；统一启停 MCP 接入，Koko 最多每 60 秒同步一次 |
 | `MCP_PUBLIC_URL` | 用户可达的完整 HTTP 或 HTTPS 地址，通常以 `/koko/mcp` 结尾；不含末尾斜线、查询参数或片段。Core 是唯一配置源 |
 | `MCP_DCR_ENABLED` | 默认 `false`；开启后允许客户端自动登记，用户只需提供 MCP 地址即可进入登录授权流程 |
+| `SITE_URL` | 在 **基本设置 > 网站地址** 填写客户端可访问的 Core 地址；Core 从中生成授权 origin，并同时用于 OAuth 元数据和组件下发 |
 
-MCP 地址始终可编辑。启用自动注册时地址不能为空；清空地址时需同时关闭自动注册。设置页面使用现有配置权限和变更审计，Core 的授权与组件 API 说明见 Core 仓库的 `docs/agent-mcp.md`。
+MCP 地址始终可编辑。启用 MCP 时地址不能为空，网站地址也必须有效；关闭 MCP 后可清空地址并保留自动注册偏好，自动注册仅在 MCP 启用时生效。设置页面使用现有配置权限和变更审计，Core 的授权与组件 API 说明见 Core 仓库的 `docs/agent-mcp.md`。
 地址支持合法的 UTF-8 百分号转义，保留原始字符串作为 OAuth resource；Core 与 Koko 均拒绝无效转义、解码后的末尾斜线、控制字符和反斜杠。资源元数据地址按 URL 编码生成。
 
-| Koko 配置 | 默认值与要求 |
-| --- | --- |
-| `MCP_ENABLED` | `false`；显式设为 `true` 启用 |
-| `MCP_AUTHORIZATION_SERVER` | Core 对外 HTTP 或 HTTPS origin（协议、主机及可选端口），须与授权服务器元数据中的 issuer 一致；不含路径，单个末尾斜线自动移除 |
-| `MCP_MAX_SESSIONS` | `128`，最多 `256` |
-| `MCP_MAX_CONCURRENT` | `20`，最多 `64`；同一资产会话串行执行 |
-| `MCP_MAX_PENDING` | `64`，最多 `256`；含排队和等待审批的工作 |
+Koko 无需本地 MCP 配置。Core 通过现有组件接口下发 `MCP_ENABLED`、`MCP_PUBLIC_URL` 和由网站地址生成的 `MCP_AUTHORIZATION_SERVER`。节点容量使用内置保护值：128 个资产会话、20 个并发任务、64 个待处理任务；同一资产会话串行执行。
 
-MCP 地址和授权服务器地址描述客户端实际访问的外部入口。TLS 在 docker-web/Nginx 配置，代理可通过 HTTP 转发到 Koko 和 Core；向 Core 保留正确的外部 Host 和 `X-Forwarded-Proto`。Core/Koko 接受 HTTP/HTTPS 地址并执行身份、权限和 Origin 校验。客户端自身须支持部署所用协议；人脸摄像头等浏览器能力需要安全上下文，可由 docker-web 提供 HTTPS。
+MCP 地址和网站地址描述客户端实际访问的外部入口，内部 `CORE_HOST` 仅用于组件通信。TLS 在 docker-web/Nginx 配置，代理可通过 HTTP 转发到 Koko 和 Core；Agent OAuth 的 issuer 和端点来自 Core 网站地址。Core/Koko 接受 HTTP/HTTPS 地址并执行身份、权限和 Origin 校验。客户端自身须支持部署所用协议；人脸摄像头等浏览器能力需要安全上下文，可由 docker-web 提供 HTTPS。
 
 MCP 和文件流接口沿用 Koko 普通 Web 终端的 `ClientIP()` 来源 IP 解析，不单独配置可信代理。生产环境由 docker-web 统一入口清洗转发头，Koko HTTP 端口和 docker-web 内部端口仅允许可信内部网络访问；默认 `USE_LB=1` 时入口覆盖客户端传入的 `X-Forwarded-For`。显式设置 `USE_LB=0` 时，外层负载均衡必须清洗来源头，并限制客户端绕过它访问后端。该来源 IP 经组件鉴权的请求传递给 Core，用于资产登录 IP 规则和审计。
 
-开发时可直接通过 Koko 的 `5000` 端口使用 MCP，无需 docker-web、HTTPS 或额外的开发开关。在 Core 将 `MCP_PUBLIC_URL` 配置为客户端实际可达的 `http://<Koko开发机>:5000/koko/mcp`，`MCP_AUTHORIZATION_SERVER` 仍指向 Core 登录授权入口；同机客户端可使用 `127.0.0.1`。无转发头时使用 TCP 对端 IP。直连开发服务应限制在可信开发网络；沿用普通终端的解析方式意味着直接传入的转发头也会被解析。
+开发时可直接通过 Koko 的 `5000` 端口使用 MCP，无需 docker-web、HTTPS 或额外的开发开关。在 Core 将 `MCP_PUBLIC_URL` 配置为客户端实际可达的 `http://<Koko开发机>:5000/koko/mcp`，网站地址填写 Core 登录授权入口，再启用 MCP；同机客户端可使用 `127.0.0.1`。无转发头时使用 TCP 对端 IP。直连开发服务应限制在可信开发网络；沿用普通终端的解析方式意味着直接传入的转发头也会被解析。
 
 反向代理须将 MCP 地址及其 `/files/upload`、`/files/download`、`/.well-known/oauth-protected-resource` 子路径转发到该 Koko 节点，保留 Authorization、Content-Type、MCP 协议头和文件长度。文件上传大小需允许 100 MiB，文件请求超时需允许五分钟。Core 的 `/.well-known/oauth-authorization-server`、`/core/auth/` 和现有 API 路由转发到 Core。客户端从 Koko 的 401 响应 `WWW-Authenticate` 获取资源元数据地址。
 
 持久挂载 Koko 的 data 目录，保留 `data/agent/journal.db` 及同目录 `journal.key`，目录只允许进程用户访问。审计事件与内部 capability 加密保存；文件 artifact 可使用加密卷保护。打开已有 journal 时校验结构和密钥，校验失败则停止初始化，不改写记录或生成替代密钥。停用服务前先排空操作并确认审计交付，不能通过删除 journal 恢复故障。
 
-## 地址动态更新
+## 配置动态更新
 
-Koko 启动时通过现有组件配置接口获取 MCP 地址，此后每 60 秒同步。有效更新整体切换 MCP 路由、元数据和鉴权资源，保留执行引擎、资产连接、任务及审计存储。地址不能覆盖 Koko 的既有路由。
+Koko 启动时即通过现有组件配置接口获取 MCP 开关和地址，此后每 60 秒同步，未启用时也持续同步。首次启用时创建执行引擎；有效更新整体切换 MCP 路由、元数据、授权地址和鉴权资源，保留已有执行引擎、资产连接、任务及审计存储。地址不能覆盖 Koko 的既有路由。
 
 | 配置或状态变化 | 行为 |
 | --- | --- |
 | 拉取失败、字段缺失或地址非法 | 保留上次有效配置并重试 |
-| Core 明确清空地址 | 停止接收新 MCP 请求，保留已接受操作和审计 |
-| 启动时没有有效地址 | MCP 等待配置，其他 Koko 服务正常运行 |
+| Core 关闭 MCP | 停止接收新 MCP 请求，保留已接受操作、资产连接和审计维护；可随后清空地址 |
+| 启动时未启用或没有有效配置 | MCP 等待配置，其他 Koko 服务正常运行；无历史 journal 时不创建持久目录 |
+| 已有 journal 或初始化失败 | 即使 Core 禁用或暂不可达也尝试恢复历史审计；失败只停用 MCP，记录错误并重试 |
 | 关闭 DCR | 仅停止新客户端登记，不清空地址、不撤销已有授权、不停止 MCP |
 
-对外地址也是 OAuth 资源标识。更换地址前先收尾重要会话、暂关 DCR，再修改 Core 配置与 docker-web 转发；确认 Koko 元数据已更新后重新开启 DCR。客户端随后更新地址并重新登记、授权。已有令牌和资产会话不会改绑到新地址，新客户端也不能接管其他客户端的会话。
+对外地址也是 OAuth 资源标识。更换地址前先收尾重要会话、暂关 DCR，再修改 Core 配置与 docker-web 转发；确认 Koko 元数据已更新后重新开启 DCR。客户端随后更新地址并重新登记、授权。已有令牌和资产会话不会改绑到新地址，新客户端也不能接管其他客户端的会话。网站地址变化也会更新授权 issuer 和对外链接，应同步客户端的登录授权信息。
 
 轮询并非原子发布，网络异常时不保证一分钟内生效。地址更新期间，已接受操作继续遵守原有授权及超时规则，执行证据继续交付，不自动重放操作。
 

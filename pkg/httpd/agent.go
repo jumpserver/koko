@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -15,14 +16,23 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-func (s *Server) initializeAgent() error {
-	conf := config.GetConf()
-	if !conf.MCPEnabled {
+func (s *Server) initializeAgent(ctx context.Context, enabled bool) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if s.agentRuntime != nil {
 		return nil
 	}
-	issuer, err := agentexec.NormalizeIssuer(conf.MCPAuthorizationServer)
-	if err != nil {
-		return err
+	conf := config.GetConf()
+	directory := filepath.Join(conf.DataFolderPath, "agent")
+	if !enabled {
+		// Recover pending evidence even when Core is disabled or unavailable.
+		if _, err := os.Stat(filepath.Join(directory, "journal.db")); err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
 	}
 	var key model.AccessKey
 	if err := key.LoadFromFile(conf.AccessKeyFilePath); err != nil {
@@ -32,22 +42,22 @@ func (s *Server) initializeAgent() error {
 	if err != nil {
 		return err
 	}
-	runtime, err := agentexec.New(core, s.apiClient, agentexec.Options{
-		Directory:   filepath.Join(conf.DataFolderPath, "agent"),
-		MaxSessions: conf.MCPMaxSessions, MaxRunning: conf.MCPMaxConcurrent, MaxPending: conf.MCPMaxPending,
-	})
+	runtime, err := agentexec.New(core, s.apiClient, agentexec.Options{Directory: directory})
 	if err != nil {
 		return err
 	}
-	s.agentRuntime, s.agentIssuer = runtime, issuer
-	s.agentRequests = make(chan struct{}, 32)
+	s.agentMu.Lock()
+	if ctx.Err() != nil || s.agentStopped {
+		s.agentMu.Unlock()
+		_ = runtime.Close()
+		return errors.New("MCP initialization cancelled")
+	}
+	s.agentRuntime = runtime
+	s.agentMu.Unlock()
 	return nil
 }
 
 func (s *Server) startAgentRefresh() {
-	if s.agentRuntime == nil {
-		return
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	s.agentCancel, s.agentDone = cancel, make(chan struct{})
 	go func() {
@@ -61,7 +71,11 @@ func (s *Server) startAgentRefresh() {
 func (s *Server) runAgentRefresh(ctx context.Context, ticks <-chan time.Time) {
 	var previousError string
 	for ctx.Err() == nil {
+		recoveryErr := s.initializeAgent(ctx, false)
 		err := s.refreshAgentConfig(ctx)
+		if err == nil {
+			err = recoveryErr
+		}
 		if ctx.Err() != nil {
 			return
 		}
@@ -96,7 +110,9 @@ func (s *Server) waitAgentRefresh(ctx context.Context) {
 
 func (s *Server) refreshAgentConfig(ctx context.Context) error {
 	var config struct {
+		Enabled   *bool   `json:"MCP_ENABLED"`
 		PublicURL *string `json:"MCP_PUBLIC_URL"`
+		Issuer    *string `json:"MCP_AUTHORIZATION_SERVER"`
 	}
 	_, err := s.apiClient.WithResponse(&config).GetTerminalConfig()
 	if err != nil {
@@ -106,25 +122,37 @@ func (s *Server) refreshAgentConfig(ctx context.Context) error {
 	if err = ctx.Err(); err != nil {
 		return err
 	}
-	if config.PublicURL == nil {
-		return errors.New("Core component configuration is missing MCP_PUBLIC_URL")
+	if config.Enabled == nil {
+		return errors.New("Core component configuration is missing MCP_ENABLED")
 	}
-	return s.applyAgentResource(*config.PublicURL)
+	if !*config.Enabled {
+		return s.applyAgentConfig(ctx, false, "", "")
+	}
+	if config.PublicURL == nil || config.Issuer == nil {
+		return errors.New("Core component configuration is missing MCP addresses")
+	}
+	return s.applyAgentConfig(ctx, true, *config.PublicURL, *config.Issuer)
 }
 
-func (s *Server) applyAgentResource(resource string) error {
+func (s *Server) applyAgentConfig(ctx context.Context, enabled bool, resource, issuer string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	current := s.agentHTTP.Load()
-	if resource == "" {
+	if !enabled {
 		s.agentHTTP.Store(nil)
 		if current != nil {
-			logger.Info("MCP is awaiting configuration; accepted operations and audit storage are retained")
+			logger.Info("MCP disabled by Core; accepted operations and audit storage are retained")
 		}
 		return nil
 	}
-	if current != nil && current.Resource == resource {
+	if current != nil && current.Resource == resource && current.Issuer == issuer {
 		return nil
 	}
-	module, err := agentexec.NewHTTP(s.agentRuntime, resource, s.agentIssuer)
+	if err := s.initializeAgent(ctx, true); err != nil {
+		return err
+	}
+	module, err := agentexec.NewHTTP(s.agentRuntime, resource, issuer)
 	if err != nil {
 		return err
 	}
@@ -138,6 +166,11 @@ func (s *Server) applyAgentResource(resource string) error {
 			}
 		}
 	}
+	s.agentMu.Lock()
+	defer s.agentMu.Unlock()
+	if ctx.Err() != nil || s.agentStopped {
+		return errors.New("MCP configuration update cancelled")
+	}
 	s.agentHTTP.Store(module)
 	logger.Info("MCP configuration applied from Core")
 	return nil
@@ -149,9 +182,6 @@ func agentPaths(base string) [5]string {
 }
 
 func (s *Server) registerAgentRoutes(router *gin.Engine) {
-	if s.agentRuntime == nil {
-		return
-	}
 	// Existing routes retain priority. The live Gin routing tree is never changed.
 	s.agentRoutes = router.Routes()
 	router.NoRoute(func(c *gin.Context) {
