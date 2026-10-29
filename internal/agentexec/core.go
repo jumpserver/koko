@@ -41,6 +41,7 @@ type Session struct {
 	ActionID          string    `json:"action_id"`
 	SessionToken      string    `json:"session_token,omitempty"`
 	TerminalSessionID string    `json:"terminal_session_id,omitempty"`
+	Protocol          string    `json:"protocol,omitempty"`
 	ApprovalURL       string    `json:"approval_url,omitempty"`
 	ExpiresAt         time.Time `json:"expires_at,omitempty"`
 	RequiresTerminal  bool      `json:"requires_terminal,omitempty"`
@@ -64,6 +65,7 @@ type Action struct {
 	LastSequence    uint64         `json:"last_sequence,omitempty"`
 	HandoffURL      string         `json:"handoff_url,omitempty"`
 	AuditURL        string         `json:"audit_url,omitempty"`
+	NextStep        string         `json:"next_step,omitempty"`
 }
 
 func terminalState(s string) bool {
@@ -114,8 +116,16 @@ func (c *CoreClient) Call(ctx context.Context, path string, body, result any) er
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		// Never include a credential response or bearer token in an error.
-		return &CoreError{Status: response.StatusCode, Operation: path}
+		// Only recognize fixed, public validation messages. Never reflect an
+		// arbitrary error body: credential endpoints can contain secrets.
+		failure := &CoreError{Status: response.StatusCode, Operation: path}
+		data, _ := io.ReadAll(io.LimitReader(response.Body, 8192))
+		var detail any
+		if json.Unmarshal(data, &detail) == nil {
+			failure.Code = publicCoreError(detail, 0)
+		}
+		clear(data)
+		return failure
 	}
 	data, err = io.ReadAll(io.LimitReader(response.Body, (5<<20)+1))
 	if err != nil || len(data) > 5<<20 {
@@ -131,10 +141,60 @@ func (c *CoreClient) Call(ctx context.Context, path string, body, result any) er
 type CoreError struct {
 	Status    int
 	Operation string
+	Code      string
 }
 
 func (e *CoreError) Error() string {
-	return fmt.Sprintf("authorization service %s returned HTTP %d", e.Operation, e.Status)
+	_, hint := e.guidance()
+	return fmt.Sprintf("authorization service %s returned HTTP %d: %s", e.Operation, e.Status, hint)
+}
+
+func publicCoreError(value any, depth int) string {
+	if depth > 4 {
+		return ""
+	}
+	switch value := value.(type) {
+	case string:
+		switch value {
+		case "File operations require an SFTP session":
+			return "sftp_session_required"
+		case "Asset connection is not ready":
+			return "connection_not_ready"
+		case "This operation requires a shell or database session":
+			return "shell_session_required"
+		}
+	case []any:
+		for _, item := range value {
+			if code := publicCoreError(item, depth+1); code != "" {
+				return code
+			}
+		}
+	case map[string]any:
+		for _, key := range []string{"detail", "error", "msg"} {
+			if code := publicCoreError(value[key], depth+1); code != "" {
+				return code
+			}
+		}
+	}
+	return ""
+}
+
+func (e *CoreError) guidance() (string, string) {
+	switch e.Code {
+	case "sftp_session_required":
+		return e.Code, "File operations require a separate connect_asset session with protocol=sftp. Use virtual SFTP paths rooted at /; SSH filesystem paths may differ."
+	case "connection_not_ready":
+		return e.Code, "Query the connection action_id until succeeded; complete any returned human approval before submitting operations."
+	case "shell_session_required":
+		return e.Code, "execute_command requires an SSH or database session; an SFTP session only supports file operations."
+	}
+	if e.Operation == "sessions/" && e.Status == http.StatusForbidden {
+		return "asset_not_authorized", "Use the exact search_assets results[].id and accounts[].id (including virtual aliases), not account names. Check the account's authorized protocols and organization; do not repeat unchanged parameters."
+	}
+	if e.Operation == "sessions/" && e.Status == http.StatusNotFound {
+		return "asset_not_found", "Refresh search_assets and use the current asset/account IDs before connecting; cached references may have changed."
+	}
+	return "core_request_rejected", "Do not automatically replay this request. Check parameters, authorization and any known action_id; keep the original idempotency key for the identical operation."
 }
 
 func operationPath(kind, id, operation string) (string, error) {

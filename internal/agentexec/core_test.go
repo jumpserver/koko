@@ -53,6 +53,27 @@ func TestCoreClientHonorsCancellation(t *testing.T) {
 	}
 }
 
+func TestCoreClientExplainsRejectedOperationsWithoutReflectingSecrets(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"detail":["File operations require an SFTP session"],"password":"never-expose-this"}`))
+	}))
+	defer server.Close()
+	c, err := NewCoreClient(server.URL, model.AccessKey{ID: "component", Secret: "secret"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = c.Call(context.Background(), "actions/", nil, nil)
+	if err == nil || !strings.Contains(err.Error(), "protocol=sftp") || strings.Contains(err.Error(), "never-expose-this") {
+		t.Fatalf("missing safe SFTP guidance: %v", err)
+	}
+	for status, expected := range map[int]string{403: "accounts[].id", 404: "Refresh search_assets"} {
+		if message := (&CoreError{Status: status, Operation: "sessions/"}).Error(); !strings.Contains(message, expected) {
+			t.Fatalf("missing correction for HTTP %d: %s", status, message)
+		}
+	}
+}
+
 func TestIntrospectionRequiresCoreOrganization(t *testing.T) {
 	resource := "https://jumpserver.example/koko/mcp"
 	r := &Runtime{}

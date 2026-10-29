@@ -202,6 +202,7 @@ func (r *Runtime) Connect(ctx context.Context, p Principal, asset, account, prot
 	if !identifier.MatchString(info.ID) || info.SessionToken == "" || !identifier.MatchString(info.ActionID) {
 		return nil, errors.New("invalid asset session response")
 	}
+	info.Protocol = protocol
 	r.mu.Lock()
 	if existing := r.sessions[info.ID]; existing != nil {
 		r.mu.Unlock()
@@ -263,6 +264,12 @@ func (r *Runtime) Connect(ctx context.Context, p Principal, asset, account, prot
 
 func publicSession(s Session) map[string]any {
 	result := map[string]any{"session_id": s.ID, "action_id": s.ActionID, "status": s.Status}
+	if s.Protocol != "" {
+		result["protocol"] = s.Protocol
+	}
+	if s.Protocol == "sftp" {
+		result["path_scope"] = "virtual SFTP root /; SSH paths may differ"
+	}
 	if s.RequiresTerminal {
 		result["requires_terminal"] = true
 	}
@@ -500,7 +507,13 @@ func (r *Runtime) Submit(ctx context.Context, p Principal, sessionID, kind, key 
 	}
 	if kind == "file_upload" {
 		// Upload content must be durably staged and verified before dispatch.
-		return r.authorize(ctx, action, info)
+		authorized, err := r.authorize(ctx, action, info)
+		if err == nil && authorized.Status == "queued" {
+			if record, readErr := r.journal.Action(action.ID); readErr == nil && record.Artifact == "" && !record.Dispatched && !terminalState(record.Action.Status) {
+				authorized.NextStep = "upload_bytes"
+			}
+		}
+		return authorized, err
 	}
 	err = r.enqueue(action, s)
 	if err != nil {
@@ -794,6 +807,9 @@ func (r *Runtime) Get(ctx context.Context, p Principal, id string, offset, limit
 			return Action{}, readErr
 		}
 		if readErr == nil {
+			if action.Kind == "file_upload" && action.Status == "queued" && local.Artifact == "" && !local.Dispatched && !terminalState(local.Action.Status) {
+				action.NextStep = "upload_bytes"
+			}
 			if !terminalState(action.Status) && (terminalState(local.Action.Status) || local.Action.Status == "awaiting_input") {
 				// Core must observe the connection's success before it accepts
 				// commands. Reporting local success here would race that gate.
