@@ -22,6 +22,8 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 )
 
+const agentLoginFrom = "AG"
+
 type Options struct {
 	Directory      string
 	MaxSessions    int
@@ -358,13 +360,13 @@ func (r *Runtime) openSession(ctx context.Context, s *liveSession, remoteAddr st
 		fail(err)
 		return
 	}
-	connection, err := assetexec.Open(ctx, &token, assetexec.Options{JMS: r.jms, RemoteAddr: remoteAddr, LoginFrom: "WT", ConnectTimeout: 30 * time.Second, MaxFileBytes: r.opts.MaxFileBytes, MaxOutputBytes: r.opts.MaxOutputBytes, MaxRows: 1000})
+	connection, err := assetexec.Open(ctx, &token, assetexec.Options{JMS: r.jms, RemoteAddr: remoteAddr, LoginFrom: agentLoginFrom, ConnectTimeout: 30 * time.Second, MaxFileBytes: r.opts.MaxFileBytes, MaxOutputBytes: r.opts.MaxOutputBytes, MaxRows: 1000})
 	if err != nil {
 		fail(err)
 		return
 	}
 	ids := connection.TerminalSessionIDs()
-	terminal := token.CreateSession(remoteAddr, model.LabelField("WT"), model.NORMALType)
+	terminal := token.CreateSession(remoteAddr, model.LabelField(agentLoginFrom), model.NORMALType)
 	managedTerminal := len(ids) == 0
 	if len(ids) == 0 {
 		terminal.ID = uuid.NewString()
