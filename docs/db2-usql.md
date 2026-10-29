@@ -23,10 +23,10 @@ The usql Db2 driver always verifies server certificates; allowing invalid
 certificates is unsupported. Real-server TLS/mTLS was not validated by the
 plain-TCP QA test.
 
-`Dockerfile-base`, the development installer and `Dockerfile` all select v0.2.7.
-`Dockerfile` also downloads and verifies the selected release archive before
-replacing the binary inherited from its pinned base image, so an older base
-image cannot silently retain v0.2.6.
+`Dockerfile-base` and the development installer select v0.2.7. `Dockerfile`
+inherits usql from its pinned `koko-base` image without downloading it again.
+When upgrading usql, build and publish the base image first, then update the
+`koko-base` tag in `Dockerfile`; offline application builds reuse that dependency.
 
 The essential protocol/DSN/audit tests run with `go test ./pkg/srvconn ./pkg/proxy`.
 For the opt-in read-only KoKo PTY integration test, put a plain Db2 URL with an
