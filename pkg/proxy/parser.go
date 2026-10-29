@@ -85,6 +85,8 @@ type Parser struct {
 	commandSource int // Also used by deferred records from multi-line input.
 	inputSource   int
 
+	lastInputWasCR bool
+
 	cmdFilterACLs model.CommandACLs
 	closed        chan struct{}
 
@@ -314,7 +316,7 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 	if bytes.LastIndex(b, charEnter) == 0 {
 		return true
 	}
-	if len(b) > 1 && bytes.HasSuffix(b, charLF) && isLinux(p.platform) {
+	if bytes.HasSuffix(b, charLF) && isLinux(p.platform) {
 		return true
 	}
 	// 多行命令，会有 \r 字符，此处也需要拦截
@@ -340,6 +342,11 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 
 // parseInputState 切换用户输入状态, 并结算命令和结果
 func (p *Parser) parseInputState(b []byte) []byte {
+	lastInputWasCR := p.lastInputWasCR
+	if len(b) > 0 {
+		p.lastInputWasCR = false
+	}
+
 	if p.awaitingZmodemSrvOO {
 		// 下载结束阶段客户端回给远端的 ZFIN 必须原样通过，不能当作 shell 命令解析。
 		return b
@@ -567,6 +574,13 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			p.srvOutputChan <- []byte("\r\n" + confirmMsg)
 		}
 		return nil
+	}
+	// A split CRLF must not settle the same command twice before remote echo.
+	if lastInputWasCR && bytes.Equal(b, charLF) && isLinux(p.platform) {
+		return b
+	}
+	if len(b) > 0 {
+		p.lastInputWasCR = bytes.HasSuffix(b, charEnter)
 	}
 	if currentCmd, ok1 := p.TerminalParser.WriteInput(b); ok1 {
 		p.sendCommandRecord()
