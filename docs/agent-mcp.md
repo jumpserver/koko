@@ -61,7 +61,31 @@ Koko 启动时即通过现有组件配置接口获取 MCP 开关和地址，此�
 
 ## 用户接入与操作流程
 
-用户在 Codex 添加入口：`codex mcp add jumpserver --url <MCP_PUBLIC_URL>`，然后执行 `codex mcp login jumpserver`。Codex 从 MCP 元数据发现 Core，自动登记 public OAuth 客户端及本机回调地址；用户无需手工配置 client ID、client secret、回调地址或组织 header。参见 [Codex 官方 MCP 文档](https://learn.chatgpt.com/docs/extend/mcp)。
+### 接入前准备
+
+1. 向管理员取得 Core 中保存的完整 `MCP_PUBLIC_URL`，确认客户端能访问该地址，浏览器能访问 Core 网站地址。下文命令中的 `<MCP_PUBLIC_URL>` 须连同尖括号替换为实际地址，保留引号。
+2. 首次自动登记客户端时，管理员须同时启用 `MCP_ENABLED` 和 `MCP_DCR_ENABLED`。关闭 DCR 后，已登记且授权有效的客户端仍可使用；新客户端不能自动登记。
+3. 客户端选择 **Streamable HTTP / HTTP** 和浏览器 OAuth 授权。无需填写资产密码、client secret 或组织 header；组织在 JumpServer 授权页面选择。
+4. 使用本机 CLI 时，在同一台电脑的浏览器完成授权。SSH、容器或远程开发环境中的客户端须另外确保浏览器回调能到达客户端监听端口。
+
+### 客户端接入要求
+
+当前配套 Core 的 DCR 仅接受主机为字面 IP `127.0.0.1` 或 `::1` 的 HTTP 回调，注册请求中的**每个**回调地址都必须满足要求；`localhost`、自定义 URI scheme 和外部 HTTPS 回调均不符合该注册契约。回调路径与查询参数固定，本机端口可变化；仅支持 public client、PKCE S256 和 `agent:access`，未启用 CIMD。
+
+以下接入方式依据当前 Core 实现和 Codex 官方文档核对，尚未完成端到端联调。保存配置后，仍须完成浏览器授权和实际工具调用验证。
+
+### Codex CLI / IDE
+
+1. 在终端执行 `codex mcp add jumpserver --url "<MCP_PUBLIC_URL>"`，添加远程服务。
+2. 执行 `codex mcp login jumpserver --scopes agent:access`，按浏览器提示登录 JumpServer、选择组织并确认授权。Codex 从 MCP 元数据发现 Core，自动登记 public OAuth 客户端及本机回调地址。
+3. 执行 `codex mcp list` 确认配置已保存，再启动或重新打开 Codex 会话，通过 `/mcp` 检查服务与工具是否可用。
+4. 按下述统一流程验证 `search_assets`。切换组织时先执行 `codex mcp logout jumpserver`，再重新登录授权。
+
+配置默认保存在 `~/.codex/config.toml`；同一 Codex 主机的 CLI 与 IDE 扩展共享配置。参见 [Codex 官方 MCP 文档](https://learn.chatgpt.com/docs/extend/mcp)。
+
+### 授权、验证与资产操作
+
+首次验证时，让 Agent 使用 `jumpserver` 的 `search_assets` 查询本人获准访问的资产、账号和协议，暂不连接资产或执行命令。展开工具调用，确认结果来自该服务且没有认证或连接错误；成功返回空列表时，再核对当前授权组织及资产权限。
 
 1. 在浏览器登录 JumpServer，选择可用组织并确认授权。只有一个组织时可自动选中，多个组织须明确选择。
 2. Agent 通过 `initialize`、`tools/list` 发现工具，用 `search_assets` 查询获准访问的资产、账号和协议。
@@ -74,6 +98,19 @@ OAuth 使用 authorization code、PKCE S256、`agent:access` scope 和精确的 
 客户端保存并复用自动登记的 client ID，管理访问令牌刷新与撤销。资产密码、私钥和内部执行 capability 不返回 PC。客户端类型不改变资产权限、审批、幂等与审计规则。
 
 DSH 插件后续实现同一套发现、登记、浏览器授权、令牌管理、工具调用和审批链接呈现。PC 大文件传输属于额外客户端能力，按下述文件流协议实现；原生 MCP 工具调用不会自动传输 PC 文件，也不能把本地路径交给远端 Koko 读取。DSH 插件的开发和发布独立于 Core/Koko。
+
+### 常见接入问题
+
+| 现象 | 排查步骤 |
+| --- | --- |
+| HTTP 503，提示等待配置 | 核对 Core 的 MCP 开关与地址、Koko 到 Core 的连通性和配置同步日志；配置通常每 60 秒同步，失败时会重试 |
+| HTTP 404 或返回登录页 HTML | 核对完整 MCP 地址及代理路由，确认没有把 Core 登录地址或旧 SSE 地址填作 MCP 地址 |
+| 首次 HTTP 401 | 属于 OAuth 发现入口，客户端应继续读取 `WWW-Authenticate` 指向的元数据并发起授权；持续 401 时核对令牌、精确 resource、授权组织及客户端是否被停用 |
+| 未发现自动登记入口 | 确认 Core 同时启用 MCP 与 DCR，且授权服务器元数据路由可达 |
+| `invalid_redirect_uri` | 检查注册提交的全部回调地址；`localhost` 与 `127.0.0.1` 在当前契约下不同，仅改回调端口或 MCP 地址不能解决客户端回调兼容性 |
+| `invalid_scope` 或 `invalid_client_metadata` | 核对客户端是否使用 public client、`agent:access` 和符合要求的注册参数；自动申请额外 scope 或 client secret 的配置不符合当前契约 |
+| TLS 错误或浏览器授权后无法回到客户端 | 确认客户端信任入口证书，并检查本机回调端口、浏览器所在电脑与客户端运行位置 |
+| 配置已保存但 Agent 没有工具 | 在客户端重新加载服务，检查连接和授权状态，确认当前会话已启用该服务的工具，再验证 `search_assets` |
 
 ## 工具与执行语义
 
