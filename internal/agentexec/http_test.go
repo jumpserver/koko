@@ -106,7 +106,15 @@ func TestHTTPMCPNativeSDKAndAbsolutePublicLinks(t *testing.T) {
 
 func testHTTPMCPNativeSDKAndAbsolutePublicLinks(t *testing.T, scheme string) {
 	t.Helper()
-	_, endpoint, _, remote := httpTestEndpoint(t, scheme)
+	r, endpoint, _, remote := httpTestEndpoint(t, scheme)
+	var coreCalls atomic.Int32
+	originalCore := r.core
+	r.core = coreFunc(func(ctx context.Context, path string, body, out any) error {
+		if path != "introspect/" {
+			coreCalls.Add(1)
+		}
+		return originalCore.Call(ctx, path, body, out)
+	})
 	issuer := scheme + "://jumpserver.example"
 	server := httptest.NewUnstartedServer(endpoint.Handler)
 	if scheme == "https" {
@@ -132,11 +140,21 @@ func testHTTPMCPNativeSDKAndAbsolutePublicLinks(t *testing.T, scheme string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	names := map[string]bool{}
+	expectedTools := map[string]bool{
+		"search_assets": true, "connect_asset": false, "query_sessions": true,
+		"disconnect_asset": false, "execute_command": false, "query_actions": true,
+		"cancel_action": false, "file_read": true, "file_write": false, "open_terminal": false,
+	}
+	if len(listed.Tools) != len(expectedTools) {
+		t.Fatalf("expected 10 tools, got %d", len(listed.Tools))
+	}
 	for _, tool := range listed.Tools {
-		names[tool.Name] = true
 		if tool.OutputSchema == nil || tool.Annotations == nil {
 			t.Fatalf("%s omitted its result schema or annotations", tool.Name)
+		}
+		readOnly, ok := expectedTools[tool.Name]
+		if !ok || tool.Annotations.ReadOnlyHint != readOnly || tool.Annotations.DestructiveHint == nil || *tool.Annotations.DestructiveHint == readOnly {
+			t.Fatalf("unexpected tool or unsafe annotation: %s", tool.Name)
 		}
 		if tool.Name == "cancel_action" {
 			var schema struct{ Properties map[string]json.RawMessage }
@@ -149,14 +167,11 @@ func testHTTPMCPNativeSDKAndAbsolutePublicLinks(t *testing.T, scheme string) {
 			}
 		}
 	}
-	if !names["search_assets"] || !names["connect_asset"] || !names["get_action"] || !names["cancel_action"] || !names["upload_file"] || !names["get_session"] || !names["list_sessions"] || !names["list_actions"] {
-		t.Fatal("native tools/list lost required tools")
-	}
 	call := func(name string, args map[string]any) map[string]any {
 		t.Helper()
 		result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: args})
-		if err != nil || result.IsError {
-			t.Fatalf("native tools/call %s failed: %v", name, err)
+		if err != nil || result == nil || result.IsError {
+			t.Fatalf("native tools/call %s failed: %v %v", name, result, err)
 		}
 		encoded, _ := json.Marshal(result.StructuredContent)
 		var value map[string]any
@@ -168,7 +183,7 @@ func testHTTPMCPNativeSDKAndAbsolutePublicLinks(t *testing.T, scheme string) {
 	if value := call("search_assets", map[string]any{"limit": 1}); len(value["results"].([]any)) != 1 {
 		t.Fatal("search did not preserve authenticated result")
 	}
-	value := call("get_action", map[string]any{"action_id": "approval"})
+	value := call("query_actions", map[string]any{"operation": "get", "action_id": "approval"})
 	for key, expected := range map[string]string{"approval_url": issuer + "/core/approve/", "handoff_url": issuer + "/core/handoff/", "audit_url": issuer + "/core/audit/"} {
 		if value[key] != expected {
 			t.Fatalf("relative %s escaped public normalization: %v", key, value[key])
@@ -177,16 +192,46 @@ func testHTTPMCPNativeSDKAndAbsolutePublicLinks(t *testing.T, scheme string) {
 	if value["result"].(map[string]any)["handoff_url"] != issuer+"/core/handoff/" {
 		t.Fatal("action result handoff remained relative")
 	}
-	if value := call("get_action", map[string]any{"idempotency_key": "original-key"}); value["action_id"] != "approval" {
+	if value := call("query_actions", map[string]any{"operation": "get", "idempotency_key": "original-key"}); value["action_id"] != "approval" {
 		t.Fatal("action recovery lost its ID", value)
 	}
-	if value := call("get_session", map[string]any{"idempotency_key": "connect-key"}); value["session_token"] != nil || value["connection_status"] != "ready" {
+	if value := call("query_sessions", map[string]any{"operation": "get", "idempotency_key": "connect-key"}); value["session_token"] != nil || value["connection_status"] != "ready" {
 		t.Fatal("unsafe or inconsistent session recovery", value)
 	}
-	for _, name := range []string{"list_sessions", "list_actions"} {
-		value := call(name, map[string]any{})
+	for _, name := range []string{"query_sessions", "query_actions"} {
+		value := call(name, map[string]any{"operation": "list"})
 		if value["results"].([]any)[0].(map[string]any)["audit_url"] != issuer+"/core/audit/" {
 			t.Fatal("recovery audit link remained relative", name)
+		}
+	}
+	if value := call("query_sessions", map[string]any{"operation": "get", "session_id": "session"}); value["session_token"] != nil || value["session_id"] != "session" {
+		t.Fatal("session query exposed credentials or lost its ID")
+	}
+	for _, name := range []string{"get_action", "upload_file"} {
+		before := coreCalls.Load()
+		result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: map[string]any{}})
+		if (err == nil && (result == nil || !result.IsError)) || coreCalls.Load() != before {
+			t.Fatalf("unsupported tool reached Core: %s", name)
+		}
+	}
+	for _, test := range []struct {
+		name string
+		args map[string]any
+	}{
+		{"query_sessions", map[string]any{}},
+		{"query_sessions", map[string]any{"operation": "connect"}},
+		{"query_sessions", map[string]any{"operation": "get", "session_id": "session", "idempotency_key": "connect-key"}},
+		{"query_sessions", map[string]any{"operation": "list", "limit": 101}},
+		{"query_actions", map[string]any{"operation": "cancel", "action_id": "approval"}},
+		{"query_actions", map[string]any{"operation": "get"}},
+		{"query_actions", map[string]any{"operation": "get", "action_id": "approval", "idempotency_key": "original-key"}},
+		{"query_actions", map[string]any{"operation": "get", "action_id": "approval", "limit": 33}},
+		{"query_actions", map[string]any{"operation": "list", "action_id": "approval"}},
+	} {
+		before := coreCalls.Load()
+		result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: test.name, Arguments: test.args})
+		if err != nil || result == nil || !result.IsError || result.StructuredContent == nil || coreCalls.Load() != before {
+			t.Fatalf("invalid query reached Core or lost its error contract: %s %v %v", test.name, result, err)
 		}
 	}
 	value = call("connect_asset", map[string]any{"asset_id": "asset", "account": "root", "protocol": "ssh", "idempotency_key": "connect-key"})
@@ -228,47 +273,26 @@ func TestHTTPFileToolSchemasRequireExplicitContent(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer session.Close()
-	listed, err := session.ListTools(ctx, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fields := map[string]string{"list_files": "limit cursor", "write_file": "content overwrite", "rename_file": "destination", "stat_file": "", "read_file": "", "make_directory": "", "remove_file": ""}
-	for _, tool := range listed.Tools {
-		extra, ok := fields[tool.Name]
-		if !ok {
-			continue
-		}
-		var schema struct{ Properties map[string]json.RawMessage }
-		encoded, _ := json.Marshal(tool.InputSchema)
-		if err = json.Unmarshal(encoded, &schema); err != nil {
-			t.Fatal(err)
-		}
-		expected := strings.Fields("session_id path idempotency_key " + extra)
-		if len(schema.Properties) != len(expected) {
-			t.Fatalf("%s exposes unrelated fields: %s", tool.Name, encoded)
-		}
-		for _, name := range expected {
-			if schema.Properties[name] == nil {
-				t.Fatalf("%s omitted %s", tool.Name, name)
-			}
-		}
-		delete(fields, tool.Name)
-	}
-	if len(fields) != 0 {
-		t.Fatal("file tools missing from tools/list")
-	}
 	for _, test := range []struct {
-		name  string
-		extra map[string]any
+		name, operation string
+		extra           map[string]any
 	}{
-		{"write_file", nil}, {"write_file", map[string]any{"content": nil}},
-		{"rename_file", nil}, {"read_file", map[string]any{"content": "ignored"}},
-		{"list_files", map[string]any{"destination": "/other"}},
-		{"write_file", map[string]any{"content": "", "destination": "/other"}},
+		{"file_write", "write", nil},
+		{"file_write", "write", map[string]any{"content": nil}},
+		{"file_write", "rename", nil},
+		{"file_read", "read", map[string]any{"content": "ignored"}},
+		{"file_read", "list", map[string]any{"destination": "/other"}},
+		{"file_read", "list", map[string]any{"limit": 201}},
+		{"file_write", "write", map[string]any{"content": "", "destination": "/other"}},
+		{"file_write", "upload", map[string]any{"remote_path": "/file", "size": 1, "sha256": "invalid"}},
+		{"file_read", "remove", nil},
 	} {
-		args := map[string]any{"session_id": "session", "path": "/file", "idempotency_key": "file-key"}
+		args := map[string]any{"operation": test.operation, "session_id": "session", "path": "/file", "idempotency_key": "file-key"}
 		for key, value := range test.extra {
 			args[key] = value
+		}
+		if test.operation == "upload" {
+			delete(args, "path")
 		}
 		result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: test.name, Arguments: args})
 		if err != nil || result == nil || !result.IsError || actions.Load() != 0 {
@@ -281,17 +305,50 @@ func TestHTTPFileToolSchemasRequireExplicitContent(t *testing.T) {
 	if _, err = r.journal.Action("file-action"); !errors.Is(err, os.ErrNotExist) || len(r.jobs) != 0 {
 		t.Fatal("invalid file arguments created local execution work")
 	}
-	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "write_file", Arguments: map[string]any{"session_id": "session", "path": "/file", "content": "", "idempotency_key": "file-key"}})
+	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "file_write", Arguments: map[string]any{"operation": "write", "session_id": "session", "path": "/file", "content": "", "idempotency_key": "file-key"}})
 	if err != nil || result == nil || result.IsError || actions.Load() != 1 {
 		t.Fatalf("explicit empty content rejected: result=%v err=%v", result, err)
 	}
 	if request := <-submitted; request["content"] != "" {
 		t.Fatal("explicit empty content was not preserved")
 	}
+	for _, test := range []struct {
+		name, operation, kind string
+		extra                 map[string]any
+	}{
+		{"file_read", "list", "file_list", nil},
+		{"file_read", "stat", "file_stat", nil},
+		{"file_read", "read", "file_read", nil},
+		{"file_read", "download", "file_download", nil},
+		{"file_write", "write", "file_write", map[string]any{"content": "text"}},
+		{"file_write", "upload", "file_upload", map[string]any{"size": 1, "sha256": strings.Repeat("a", 64)}},
+		{"file_write", "mkdir", "file_mkdir", nil},
+		{"file_write", "rename", "file_rename", map[string]any{"destination": "/other"}},
+		{"file_write", "remove", "file_remove", nil},
+	} {
+		args := map[string]any{"operation": test.operation, "session_id": "session", "path": "/file", "idempotency_key": "file-key"}
+		if test.operation == "upload" || test.operation == "download" {
+			delete(args, "path")
+			args["remote_path"] = "/file"
+		}
+		for key, value := range test.extra {
+			args[key] = value
+		}
+		result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: test.name, Arguments: args})
+		if err != nil || result == nil || result.IsError {
+			t.Fatalf("%s operation=%s failed: %v %v", test.name, test.operation, result, err)
+		}
+		var action Action
+		encoded, _ := json.Marshal(result.StructuredContent)
+		if json.Unmarshal(encoded, &action) != nil || action.Kind != test.kind || action.Request["path"] != "/file" {
+			t.Fatalf("wrong operation submitted to Core: %s", encoded)
+		}
+		<-submitted
+	}
 	for i, content := range []string{strings.Repeat("a", 65536), strings.Repeat("\x00", 65536), strings.Repeat("中", 21846)} {
 		before := actions.Load()
-		result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "write_file", Arguments: map[string]any{
-			"session_id": "session", "path": "/file", "content": content, "idempotency_key": "boundary-" + strconv.Itoa(i),
+		result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "file_write", Arguments: map[string]any{
+			"operation": "write", "session_id": "session", "path": "/file", "content": content, "idempotency_key": "boundary-" + strconv.Itoa(i),
 		}})
 		if err != nil || result == nil || result.IsError != (i == 2) {
 			t.Fatalf("incorrect UTF-8 content boundary: %v %v", result, err)

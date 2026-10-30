@@ -489,7 +489,7 @@ func (r *Runtime) Submit(ctx context.Context, p Principal, sessionID, kind, key 
 	if kind == "file_write" {
 		content, ok := request["content"].(string)
 		if !ok || len(content) > 64<<10 {
-			return Action{}, errors.New("use upload_file for content larger than 64 KiB")
+			return Action{}, errors.New("use file_write(operation=upload) for content larger than 64 KiB")
 		}
 	}
 	s, err := r.getSession(p, sessionID, kind != "open_terminal")

@@ -30,7 +30,7 @@ var publicErrorHints = map[string]string{
 	"shell_session_required": "execute_command requires a shell or database session.",
 	"shell_context_required": "cwd and env require a shell session.",
 	"connection_not_ready":   "Query the connection action_id and complete any returned approval before submitting operations.",
-	"file_content_too_large": "Use upload_file for content larger than 64 KiB.",
+	"file_content_too_large": "Use file_write(operation=upload) for content larger than 64 KiB.",
 	"request_too_large":      "The encoded request exceeds its size limit; use file transfer for large content.",
 	"invalid_action_request": "Correct the action fields and encoding before submitting again.",
 	"invalid_request":        "Correct the request parameters before submitting again.",

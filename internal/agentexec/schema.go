@@ -7,11 +7,15 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func inputSchema[T any](name string) *jsonschema.Schema {
+func inputSchema[T any]() *jsonschema.Schema {
 	schema, err := jsonschema.For[T](nil)
 	if err != nil {
 		panic(err)
 	}
+	var input T
+	_, actionLookup := any(input).(getActionInput)
+	_, sessionLookup := any(input).(recoverSessionInput)
+	_, directoryList := any(input).(listFilesInput)
 	for key, property := range schema.Properties {
 		switch key {
 		case "action_id", "session_id", "asset_id", "idempotency_key":
@@ -25,7 +29,7 @@ func inputSchema[T any](name string) *jsonschema.Schema {
 			property.MinLength, property.MaxLength, property.Pattern = new(1), new(4096), "^/"
 		case "content":
 			property.MaxLength = new(65536)
-			property.Description = "UTF-8 text of at most 65536 encoded bytes; use upload_file for larger content."
+			property.Description = "UTF-8 text of at most 65536 encoded bytes; use file_write(operation=upload) for larger content."
 		case "sha256":
 			property.Pattern = "^[0-9a-f]{64}$"
 		case "size":
@@ -45,15 +49,15 @@ func inputSchema[T any](name string) *jsonschema.Schema {
 			}
 		case "offset", "account_offset":
 			maximum := float64(100000)
-			if name == "get_action" {
+			if actionLookup {
 				maximum = 1000000
 			}
 			property.Minimum, property.Maximum = new(float64(0)), &maximum
 		case "limit":
 			maximum, fallback := float64(100), "20"
-			if name == "list_files" {
+			if directoryList {
 				maximum, fallback = 200, "100"
-			} else if name == "get_action" {
+			} else if actionLookup {
 				maximum, fallback = 32, "16"
 			}
 			property.Minimum, property.Maximum, property.Default = new(float64(0)), &maximum, json.RawMessage(fallback)
@@ -61,14 +65,24 @@ func inputSchema[T any](name string) *jsonschema.Schema {
 			property.Default = json.RawMessage("false")
 		}
 	}
-	if name == "get_action" || name == "get_session" {
+	if actionLookup || sessionLookup {
 		field := "action_id"
-		if name == "get_session" {
+		if sessionLookup {
 			field = "session_id"
 		}
-		schema.OneOf = []*jsonschema.Schema{
-			{Required: []string{field}, Not: &jsonschema.Schema{Required: []string{"idempotency_key"}}},
-			{Required: []string{"idempotency_key"}, Not: &jsonschema.Schema{Required: []string{field}}},
+		// Materialize each alternative so clients that project oneOf do not lose
+		// shared properties or the exclusive identifier constraint.
+		base := schema
+		schema = &jsonschema.Schema{Type: "object"}
+		for _, required := range []string{field, "idempotency_key"} {
+			branch := base.CloneSchemas()
+			for _, excluded := range []string{field, "idempotency_key"} {
+				if excluded != required {
+					delete(branch.Properties, excluded)
+				}
+			}
+			branch.Required = []string{required}
+			schema.OneOf = append(schema.OneOf, branch)
 		}
 	}
 	return schema
@@ -76,21 +90,22 @@ func inputSchema[T any](name string) *jsonschema.Schema {
 
 func outputSchema(name string) *jsonschema.Schema {
 	text := func() *jsonschema.Schema { return &jsonschema.Schema{Type: "string"} }
-	success := &jsonschema.Schema{Type: "object"}
+	list := &jsonschema.Schema{Type: "object", Required: []string{"results"}, Properties: map[string]*jsonschema.Schema{"results": {Type: "array"}}}
+	session := &jsonschema.Schema{Type: "object", Required: []string{"session_id"}, Properties: map[string]*jsonschema.Schema{"session_id": text()}}
+	success := &jsonschema.Schema{Type: "object", Required: []string{"action_id", "status"}, Properties: map[string]*jsonschema.Schema{
+		"action_id": text(), "status": text(), "next_step": text(),
+		"is_terminal": {Type: "boolean"}, "output_complete": {Type: "boolean"},
+		"events": {Type: "array"}, "output": {Type: "array"}, "next_cursor": text(),
+	}}
 	switch name {
-	case "search_assets", "list_sessions", "list_actions":
-		success.Required = []string{"results"}
-		success.Properties = map[string]*jsonschema.Schema{"results": {Type: "array"}}
-	case "connect_asset", "get_session", "disconnect_asset":
-		success.Required = []string{"session_id"}
-		success.Properties = map[string]*jsonschema.Schema{"session_id": text()}
-	default:
-		success.Required = []string{"action_id", "status"}
-		success.Properties = map[string]*jsonschema.Schema{
-			"action_id": text(), "status": text(), "next_step": text(),
-			"is_terminal": {Type: "boolean"}, "output_complete": {Type: "boolean"},
-			"events": {Type: "array"}, "output": {Type: "array"}, "next_cursor": text(),
-		}
+	case "search_assets":
+		success = list
+	case "connect_asset", "disconnect_asset":
+		success = session
+	case "query_sessions":
+		success = &jsonschema.Schema{Type: "object", AnyOf: []*jsonschema.Schema{session, list}}
+	case "query_actions":
+		success = &jsonschema.Schema{Type: "object", AnyOf: []*jsonschema.Schema{success, list}}
 	}
 	failure := &jsonschema.Schema{Type: "object", Required: []string{"error"}, Properties: map[string]*jsonschema.Schema{
 		"error": {Type: "object", Required: []string{"code", "message", "retryable", "retry_mode", "next_step"}, Properties: map[string]*jsonschema.Schema{
@@ -103,7 +118,7 @@ func outputSchema(name string) *jsonschema.Schema {
 func toolAnnotations(name string) *mcp.ToolAnnotations {
 	readOnly := false
 	switch name {
-	case "search_assets", "get_action", "get_session", "list_sessions", "list_actions", "list_files", "stat_file", "read_file", "download_file":
+	case "search_assets", "query_actions", "query_sessions", "file_read":
 		readOnly = true
 	}
 	return &mcp.ToolAnnotations{ReadOnlyHint: readOnly, DestructiveHint: new(!readOnly), OpenWorldHint: new(name == "execute_command" || name == "open_terminal")}

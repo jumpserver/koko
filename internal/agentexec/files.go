@@ -359,7 +359,7 @@ func (r *Runtime) executeFile(ctx context.Context, action Action, s *liveSession
 		result, err = textFileResult(value, data.Bytes(), payloadLimit)
 	case "file_write":
 		if len(req.Content) > 64<<10 {
-			return map[string]any{"error": "use upload_file for files larger than 64 KiB"}, "failed"
+			return map[string]any{"error": "use file_write(operation=upload) for files larger than 64 KiB"}, "failed"
 		}
 		hash := sha256.Sum256([]byte(req.Content))
 		value, writeErr := connection.WriteFile(ctx, req.Path, strings.NewReader(req.Content), int64(len(req.Content)), hex.EncodeToString(hash[:]), req.Overwrite)

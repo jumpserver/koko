@@ -109,7 +109,7 @@ func TestMCPThroughCoreToMySQL(t *testing.T) {
 	wait := func(id string) map[string]any {
 		t.Helper()
 		for ctx.Err() == nil {
-			a := call("get_action", map[string]any{"action_id": id, "limit": 32})
+			a := call("query_actions", map[string]any{"operation": "get", "action_id": id, "limit": 32})
 			state, _ := a["status"].(string)
 			if terminalState(state) {
 				if state != "succeeded" {
@@ -148,7 +148,7 @@ func TestMCPThroughCoreToMySQL(t *testing.T) {
 	var output strings.Builder
 	for ctx.Err() == nil {
 		runtime.flush(ctx)
-		a := call("get_action", map[string]any{"action_id": qid, "limit": 32})
+		a := call("query_actions", map[string]any{"operation": "get", "action_id": qid, "limit": 32})
 		output.Reset()
 		if events, ok := a["events"].([]any); ok {
 			for _, item := range events {
