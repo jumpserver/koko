@@ -24,7 +24,7 @@ func httpTestEndpoint(t *testing.T, scheme string) (*Runtime, *HTTP, *atomic.Int
 	r := fileTestRuntime(t)
 	resource, issuer := scheme+"://mcp.example/mcp", scheme+"://jumpserver.example"
 	r.opts.MaxSessions = 128
-	p := Principal{ContextToken: "context", UserID: "user", ClientID: "desktop", OrgID: "org", Resource: resource, Scopes: []string{"agent:access"}, ExpiresAt: time.Now().Add(time.Hour)}
+	p := Principal{ContextToken: "context", UserID: "user", ClientID: "desktop", OrgID: "org", Resource: resource, AllOrganizations: true, Scopes: []string{"agent:access"}, ExpiresAt: time.Now().Add(time.Hour)}
 	r.sessions = map[string]*liveSession{"session": {owner: owner(p), key: "connect-key", connection: &assetexec.Connection{}, info: Session{ID: "session", ActionID: "connect", Status: "active", SessionToken: "capability", ApprovalURL: "/core/approve/"}}}
 	var introspections atomic.Int32
 	remote := make(chan string, 1)
@@ -33,7 +33,10 @@ func httpTestEndpoint(t *testing.T, scheme string) (*Runtime, *HTTP, *atomic.Int
 		switch path {
 		case "introspect/":
 			introspections.Add(1)
-			if (values["org_id"] != "" && values["org_id"] != "org") || values["access_token"] != "valid" {
+			if _, supplied := values["org_id"]; supplied {
+				t.Fatal("client-selected organization reached Core")
+			}
+			if values["access_token"] != "valid" {
 				return &CoreError{Status: http.StatusForbidden, Operation: path}
 			}
 			return respond(out, p)
@@ -440,7 +443,7 @@ func TestHTTPSnapshotsKeepResourceBinding(t *testing.T) {
 		if resource == "" || values["resource"] != resource {
 			return &CoreError{Status: http.StatusForbidden}
 		}
-		return respond(out, Principal{ContextToken: "context", UserID: "user", ClientID: "client", OrgID: "org", Resource: resource, Scopes: []string{"agent:access"}, ExpiresAt: time.Now().Add(time.Hour)})
+		return respond(out, Principal{ContextToken: "context", UserID: "user", ClientID: "client", OrgID: "org", Resource: resource, AllOrganizations: true, Scopes: []string{"agent:access"}, ExpiresAt: time.Now().Add(time.Hour)})
 	})}
 	endpoints := make(map[string]*HTTP)
 	for _, name := range []string{"old", "new"} {
@@ -485,7 +488,7 @@ func testHTTPAuthenticationMetadataOriginAndMCPBodyLimit(t *testing.T, scheme st
 		name, token, org, origin string
 		status                   int
 	}{
-		{"missing token", "", "org", "", 401}, {"wrong token", "wrong", "org", "", 401}, {"wrong organization", "valid", "other", "", 401}, {"wrong origin", "valid", "org", "https://untrusted.example", 403},
+		{"missing token", "", "org", "", 401}, {"wrong token", "wrong", "org", "", 401}, {"organization header cannot select scope", "valid", "other", "", 200}, {"wrong origin", "valid", "org", "https://untrusted.example", 403},
 		{"same origin", "valid", "org", scheme + "://mcp.example", 200},
 		{"organization from authorization", "valid", "", "", 200},
 	} {

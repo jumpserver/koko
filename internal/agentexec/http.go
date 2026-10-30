@@ -90,7 +90,7 @@ func NewHTTP(r *Runtime, resourceURL, issuerURL string) (*HTTP, error) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"resource": resourceURL, "authorization_servers": []string{issuer}, "scopes_supported": []string{"agent:access"}, "bearer_methods_supported": []string{"header"}})
 	})
 	verify := func(ctx context.Context, token string, req *http.Request) (*auth.TokenInfo, error) {
-		p, err := r.Introspect(ctx, token, req.Header.Get("X-JMS-ORG"), resourceURL)
+		p, err := r.Introspect(ctx, token, resourceURL)
 		if err != nil {
 			var coreErr *CoreError
 			if errors.As(err, &coreErr) {

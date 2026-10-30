@@ -57,7 +57,7 @@ func TestCoreClientHonorsCancellation(t *testing.T) {
 func TestCoreClientExplainsRejectedOperationsWithoutReflectingSecrets(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(`{"detail":["File operations require an SFTP session"],"password":"never-expose-this"}`))
+		_, _ = w.Write([]byte(`{"code":"sftp_session_required","detail":"本地化说明","password":"never-expose-this"}`))
 	}))
 	defer server.Close()
 	c, err := NewCoreClient(server.URL, model.AccessKey{ID: "component", Secret: "secret"})
@@ -76,12 +76,15 @@ func TestCoreClientExplainsRejectedOperationsWithoutReflectingSecrets(t *testing
 }
 
 func TestStableErrorsAndSafeRetryGuidance(t *testing.T) {
-	var value any
-	_ = json.Unmarshal([]byte(`{"code":"sftp_session_required","detail":"本地化说明","password":"never-expose-this"}`), &value)
-	err := &CoreError{Status: 400, Operation: "actions/", Code: publicCoreError(value, 0)}
+	err := &CoreError{Status: 400, Operation: "actions/", Code: publicCoreError([]byte(`{"code":"sftp_session_required","detail":"本地化说明","password":"never-expose-this"}`))}
 	result := toolError(err)
 	if result.Code != "sftp_session_required" || result.NextStep != "choose_compatible_session" || strings.Contains(result.Message, "never-expose-this") {
 		t.Fatal("stable error contract lost or exposed private details", result)
+	}
+	for _, body := range []string{`{"detail":"File operations require an SFTP session"}`, `{"code":"unknown","password":"never-expose-this"}`} {
+		if publicCoreError([]byte(body)) != "" {
+			t.Fatal("non-contract error code accepted")
+		}
 	}
 	for _, path := range []string{"actions/", "actions/action/get/", "sessions/list/"} {
 		result = toolError(&CoreError{Status: 503, Operation: path, RetryAfterMS: 3000})
@@ -128,22 +131,29 @@ func TestIntrospectionRequiresCoreOrganization(t *testing.T) {
 	resource := "https://jumpserver.example/koko/mcp"
 	r := &Runtime{}
 	r.core = coreFunc(func(_ context.Context, _ string, body, out any) error {
-		if body.(map[string]any)["org_id"] != "" {
+		if _, supplied := body.(map[string]any)["org_id"]; supplied {
 			t.Fatal("client must not invent an organization")
 		}
 		return respond(out, Principal{ContextToken: "context", UserID: "user", ClientID: "client", Resource: resource})
 	})
-	if _, err := r.Introspect(context.Background(), "token", "", resource); err == nil {
+	if _, err := r.Introspect(context.Background(), "token", resource); err == nil {
 		t.Fatal("identity without Core-authorized organization was accepted")
 	}
+	r.core = coreFunc(func(_ context.Context, _ string, _ any, out any) error {
+		return respond(out, Principal{ContextToken: "context", UserID: "user", ClientID: "client", Resource: resource,
+			OrgID: "00000000-0000-0000-0000-000000000000"})
+	})
+	if _, err := r.Introspect(context.Background(), "token", resource); err == nil {
+		t.Fatal("identity without all-organization scope was accepted")
+	}
 	r.core = coreFunc(func(_ context.Context, _ string, body, out any) error {
-		if body.(map[string]any)["org_id"] != "" {
+		if _, supplied := body.(map[string]any)["org_id"]; supplied {
 			t.Fatal("client must not select an organization for discovery")
 		}
 		return respond(out, Principal{ContextToken: "context", UserID: "user", ClientID: "client", Resource: resource,
 			OrgID: "00000000-0000-0000-0000-000000000000", AllOrganizations: true})
 	})
-	if p, err := r.Introspect(context.Background(), "token", "", resource); err != nil || !p.AllOrganizations {
+	if p, err := r.Introspect(context.Background(), "token", resource); err != nil || !p.AllOrganizations {
 		t.Fatalf("Core-issued multi-organization scope was lost: %v", err)
 	}
 }

@@ -23,8 +23,7 @@ const corePrefix = "/api/v1/terminal/agent/"
 
 var identifier = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,128}$`)
 
-// Public codes are a stable Core contract. Retain the legacy text decoder only
-// for older Core versions, and never reflect arbitrary credential error bodies.
+// Only translate public Core codes; never reflect credential error bodies.
 var publicErrorHints = map[string]string{
 	"sftp_session_required":  "Use a separate connect_asset session with protocol=sftp and virtual paths rooted at /.",
 	"shell_session_required": "execute_command requires a shell or database session.",
@@ -145,17 +144,14 @@ func (c *CoreClient) Call(ctx context.Context, path string, body, result any) er
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		// Only recognize fixed, public validation messages. Never reflect an
+		// Only recognize fixed, public validation codes. Never reflect an
 		// arbitrary error body: credential endpoints can contain secrets.
 		failure := &CoreError{Status: response.StatusCode, Operation: path}
 		if seconds, parseErr := strconv.Atoi(response.Header.Get("Retry-After")); parseErr == nil && seconds > 0 {
 			failure.RetryAfterMS = min(seconds, 60) * 1000
 		}
 		data, _ := io.ReadAll(io.LimitReader(response.Body, 8192))
-		var detail any
-		if json.Unmarshal(data, &detail) == nil {
-			failure.Code = publicCoreError(detail, 0)
-		}
+		failure.Code = publicCoreError(data)
 		clear(data)
 		return failure
 	}
@@ -182,36 +178,13 @@ func (e *CoreError) Error() string {
 	return fmt.Sprintf("authorization service %s returned HTTP %d: %s", e.Operation, e.Status, hint)
 }
 
-func publicCoreError(value any, depth int) string {
-	if depth > 4 {
-		return ""
+func publicCoreError(data []byte) string {
+	var detail struct {
+		Code string `json:"code"`
 	}
-	switch value := value.(type) {
-	case string:
-		switch value {
-		case "File operations require an SFTP session":
-			return "sftp_session_required"
-		case "Asset connection is not ready":
-			return "connection_not_ready"
-		case "This operation requires a shell or database session":
-			return "shell_session_required"
-		}
-	case []any:
-		for _, item := range value {
-			if code := publicCoreError(item, depth+1); code != "" {
-				return code
-			}
-		}
-	case map[string]any:
-		if code, ok := value["code"].(string); ok {
-			if _, public := publicErrorHints[code]; public {
-				return code
-			}
-		}
-		for _, key := range []string{"detail", "error", "msg"} {
-			if code := publicCoreError(value[key], depth+1); code != "" {
-				return code
-			}
+	if json.Unmarshal(data, &detail) == nil {
+		if _, public := publicErrorHints[detail.Code]; public {
+			return detail.Code
 		}
 	}
 	return ""

@@ -34,9 +34,9 @@ func TestIntrospectionDeclaresExecutorCapabilities(t *testing.T) {
 			t.Fatalf("invalid executor capabilities: %v", capabilities)
 		}
 		delete(protocols, "ssh")
-		return respond(out, Principal{ContextToken: "context", UserID: "user", OrgID: "org", ClientID: "client", Resource: "https://mcp.example/mcp"})
+		return respond(out, Principal{ContextToken: "context", UserID: "user", OrgID: "org", ClientID: "client", Resource: "https://mcp.example/mcp", AllOrganizations: true})
 	})}
-	if _, err := r.Introspect(context.Background(), "token", "", "https://mcp.example/mcp"); err != nil {
+	if _, err := r.Introspect(context.Background(), "token", "https://mcp.example/mcp"); err != nil {
 		t.Fatal(err)
 	}
 	if assetexec.ProtocolMode("ssh") != "shell" || assetexec.ProtocolMode("unknown") != "" {

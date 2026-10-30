@@ -149,12 +149,12 @@ func (r *Runtime) finish(id, state string, result map[string]any) {
 	}
 }
 
-func (r *Runtime) Introspect(ctx context.Context, token, org, resource string) (p Principal, err error) {
+func (r *Runtime) Introspect(ctx context.Context, token, resource string) (p Principal, err error) {
 	err = r.core.Call(ctx, "introspect/", map[string]any{
-		"access_token": token, "resource": resource, "org_id": org,
+		"access_token": token, "resource": resource,
 		"capabilities": map[string]any{"version": 1, "protocols": assetexec.ProtocolModes()},
 	}, &p)
-	if err == nil && (p.ContextToken == "" || p.UserID == "" || p.OrgID == "" || p.ClientID == "" || p.Resource != resource) {
+	if err == nil && (p.ContextToken == "" || p.UserID == "" || p.OrgID == "" || p.ClientID == "" || p.Resource != resource || !p.AllOrganizations) {
 		err = errors.New("authorization service returned an invalid identity")
 	}
 	return
