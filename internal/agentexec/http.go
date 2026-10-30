@@ -294,7 +294,7 @@ func (r *Runtime) registerTools(server *mcp.Server, issuer string) {
 	registerTool(server, issuer, "connect_asset", "Connect using exact asset/account IDs from search_assets, never display names. Choose protocol=sftp for file tools or ssh for commands. Poll the connection action_id for completion or human approval. Reuse a key only for an identical request; refresh assets after 404.", func(ctx context.Context, p Principal, in connectInput) (any, error) {
 		return r.Connect(ctx, p, in.AssetID, in.Account, in.Protocol, in.IdempotencyKey, p.RemoteAddr)
 	})
-	registerTool(server, issuer, "execute_command", "Submit an audited SSH command or database statement and return action_id. SSH calls do not inherit shell state. Explicit cwd/env are part of the approval. Query get_action; never automatically repeat unknown results.", func(ctx context.Context, p Principal, in commandInput) (any, error) {
+	registerTool(server, issuer, "execute_command", "Submit an audited SSH command or database statement and return action_id. SSH calls do not inherit shell state. Under command filtering, nonempty cwd/env require full-request human approval; otherwise omit them or use open_terminal. Query get_action; never automatically repeat unknown or rejected results.", func(ctx context.Context, p Principal, in commandInput) (any, error) {
 		if in.TimeoutSeconds == 0 {
 			in.TimeoutSeconds = 120
 		}

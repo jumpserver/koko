@@ -25,6 +25,25 @@ func respond(out, value any) error {
 	return json.Unmarshal(data, out)
 }
 
+func TestIntrospectionDeclaresExecutorCapabilities(t *testing.T) {
+	r := &Runtime{core: coreFunc(func(_ context.Context, path string, body, out any) error {
+		values := body.(map[string]any)
+		capabilities := values["capabilities"].(map[string]any)
+		protocols := capabilities["protocols"].(map[string]string)
+		if path != "introspect/" || capabilities["version"] != 1 || protocols["ssh"] != "shell" || protocols["sftp"] != "files" || protocols["postgresql"] != "database" || len(protocols) != 5 {
+			t.Fatalf("invalid executor capabilities: %v", capabilities)
+		}
+		delete(protocols, "ssh")
+		return respond(out, Principal{ContextToken: "context", UserID: "user", OrgID: "org", ClientID: "client", Resource: "https://mcp.example/mcp"})
+	})}
+	if _, err := r.Introspect(context.Background(), "token", "", "https://mcp.example/mcp"); err != nil {
+		t.Fatal(err)
+	}
+	if assetexec.ProtocolMode("ssh") != "shell" || assetexec.ProtocolMode("unknown") != "" {
+		t.Fatal("capability declaration changed the adapter registry")
+	}
+}
+
 func TestHandoffClaimsOnceAndWaitsForRealTerminal(t *testing.T) {
 	j, err := OpenJournal(t.TempDir(), 16<<20)
 	if err != nil {

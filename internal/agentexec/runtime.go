@@ -149,7 +149,10 @@ func (r *Runtime) finish(id, state string, result map[string]any) {
 }
 
 func (r *Runtime) Introspect(ctx context.Context, token, org, resource string) (p Principal, err error) {
-	err = r.core.Call(ctx, "introspect/", map[string]any{"access_token": token, "resource": resource, "org_id": org}, &p)
+	err = r.core.Call(ctx, "introspect/", map[string]any{
+		"access_token": token, "resource": resource, "org_id": org,
+		"capabilities": map[string]any{"version": 1, "protocols": assetexec.ProtocolModes()},
+	}, &p)
 	if err == nil && (p.ContextToken == "" || p.UserID == "" || p.OrgID == "" || p.ClientID == "" || p.Resource != resource) {
 		err = errors.New("authorization service returned an invalid identity")
 	}
@@ -176,9 +179,7 @@ func (r *Runtime) Connect(ctx context.Context, p Principal, asset, account, prot
 	if !identifier.MatchString(asset) || account == "" || len(account) > 256 || !identifier.MatchString(key) {
 		return nil, errors.New("asset, account and a stable idempotency_key are required")
 	}
-	switch protocol {
-	case "ssh", "sftp", "mysql", "mariadb", "postgresql":
-	default:
+	if assetexec.ProtocolMode(protocol) == "" {
 		return nil, errors.New("unsupported agent protocol")
 	}
 	r.mu.Lock()
@@ -466,7 +467,7 @@ func (r *Runtime) Submit(ctx context.Context, p Principal, sessionID, kind, key 
 		}
 		protocol := s.connection.Protocol()
 		s.mu.Unlock()
-		if protocol != "ssh" && (command.Cwd != "" || len(command.Env) != 0) {
+		if assetexec.ProtocolMode(protocol) != "shell" && (command.Cwd != "" || len(command.Env) != 0) {
 			return Action{}, errors.New("cwd and env apply only to SSH")
 		}
 		prepared, prepareErr := assetexec.PrepareCommand(command)

@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,6 +24,16 @@ var (
 	ErrContextLost = errors.New("asset connection context is no longer available")
 	ErrOutputLimit = errors.New("asset output exceeded its evidence limit")
 )
+
+// These are execution effects, not grants. Core still authorizes each asset,
+// account, protocol and action before the node can execute it.
+var protocolModes = map[string]string{
+	srvconn.ProtocolSSH: "shell", srvconn.ProtocolSFTP: "files",
+	srvconn.ProtocolMySQL: "database", srvconn.ProtocolMariadb: "database", srvconn.ProtocolPostgresql: "database",
+}
+
+func ProtocolModes() map[string]string    { return maps.Clone(protocolModes) }
+func ProtocolMode(protocol string) string { return protocolModes[protocol] }
 
 type Options struct {
 	JMS            *service.JMService
@@ -117,10 +128,12 @@ func Open(ctx context.Context, token *model.ConnectToken, opts Options) (*Connec
 		cancel()
 	case srvconn.ProtocolSFTP:
 		err = c.openSFTP(ctx, token)
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolPostgresql:
-		err = c.openDatabase(ctx, token)
 	default:
-		err = fmt.Errorf("%w: protocol %s", ErrUnsupported, c.protocol)
+		if ProtocolMode(c.protocol) == "database" {
+			err = c.openDatabase(ctx, token)
+		} else {
+			err = fmt.Errorf("%w: protocol %s", ErrUnsupported, c.protocol)
+		}
 	}
 	if err != nil {
 		_ = c.Close()
@@ -154,10 +167,10 @@ func (c *Connection) Execute(ctx context.Context, request Request, emit Emit) (R
 	if emit == nil {
 		return Result{}, errors.New("durable output consumer is required")
 	}
-	switch c.protocol {
-	case srvconn.ProtocolSSH:
+	switch ProtocolMode(c.protocol) {
+	case "shell":
 		return c.executeSSH(ctx, request, emit)
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolPostgresql:
+	case "database":
 		if request.Cwd != "" || len(request.Env) != 0 {
 			return Result{}, errors.New("cwd and env apply only to SSH")
 		}
