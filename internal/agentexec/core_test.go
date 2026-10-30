@@ -2,6 +2,7 @@ package agentexec
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -71,6 +72,55 @@ func TestCoreClientExplainsRejectedOperationsWithoutReflectingSecrets(t *testing
 		if message := (&CoreError{Status: status, Operation: "sessions/"}).Error(); !strings.Contains(message, expected) {
 			t.Fatalf("missing correction for HTTP %d: %s", status, message)
 		}
+	}
+}
+
+func TestStableErrorsAndSafeRetryGuidance(t *testing.T) {
+	var value any
+	_ = json.Unmarshal([]byte(`{"code":"sftp_session_required","detail":"本地化说明","password":"never-expose-this"}`), &value)
+	err := &CoreError{Status: 400, Operation: "actions/", Code: publicCoreError(value, 0)}
+	result := toolError(err)
+	if result.Code != "sftp_session_required" || result.NextStep != "choose_compatible_session" || strings.Contains(result.Message, "never-expose-this") {
+		t.Fatal("stable error contract lost or exposed private details", result)
+	}
+	for _, path := range []string{"actions/", "actions/action/get/", "sessions/list/"} {
+		result = toolError(&CoreError{Status: 503, Operation: path, RetryAfterMS: 3000})
+		if result.Retryable != (path != "actions/") || result.RetryAfterMS != 3000 {
+			t.Fatal("unsafe retry guidance", path, result)
+		}
+		if path == "actions/" && result.NextStep != "lookup_by_idempotency_key" {
+			t.Fatal("unknown submission invited a replay")
+		}
+	}
+}
+
+func TestMalformedCoreSuccessDoesNotInviteMutationReplay(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("invalid JSON")) }))
+	defer server.Close()
+	client, err := NewCoreClient(server.URL, model.AccessKey{ID: "component", Secret: "secret"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = client.Call(context.Background(), "actions/", nil, &Action{})
+	if err == nil {
+		t.Fatal("malformed success response accepted")
+	}
+	result := toolError(err)
+	if result.Retryable || result.NextStep != "lookup_by_idempotency_key" {
+		t.Fatal("ambiguous success invited a mutation replay", result)
+	}
+}
+
+func TestTransferDescriptorPreservesExpiryWithoutCredentials(t *testing.T) {
+	expires := time.Now().Add(time.Minute)
+	action := Action{ID: "download", Kind: "file_download", Status: "succeeded", Transfer: &Transfer{ExpiresAt: &expires}}
+	describeAction(&action, Principal{Resource: "https://host/mcp", ContextToken: "private-context"})
+	if !action.Transfer.Ready || action.Transfer.ExpiresAt != &expires || !action.Transfer.RequiresClientTransfer || action.NextStep != "download_bytes" {
+		t.Fatal("incomplete file transfer descriptor", action.Transfer)
+	}
+	encoded, _ := json.Marshal(action.Transfer)
+	if strings.Contains(string(encoded), "private-context") || action.Transfer.Headers["Authorization"] != "" {
+		t.Fatal("transfer descriptor exposed credentials")
 	}
 }
 

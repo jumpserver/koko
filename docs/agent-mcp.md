@@ -1,6 +1,6 @@
 # Agent 资产执行与 MCP 接入
 
-Koko 提供标准 MCP Streamable HTTP 服务，使 Agent 通过 JumpServer 操作授权资产。支持 SSH、SFTP、MySQL/MariaDB 和 PostgreSQL。Codex 使用原生远程 MCP；DSH（DeepSeek Harness）由后续独立插件适配同一服务端契约。
+Koko 提供标准 MCP Streamable HTTP 服务，使 Agent 通过 JumpServer 操作授权资产。支持 SSH、SFTP、MySQL/MariaDB 和 PostgreSQL。Codex 使用原生远程 MCP；DSH（DeepSeek Harness）通过独立插件适配同一服务端契约。
 
 | 组件 | 职责 |
 | --- | --- |
@@ -99,7 +99,7 @@ Lina 的“个人设置 → Agent / MCP”提供“我的客户端”和“接�
 
 客户端保存并复用自动登记的 client ID，管理访问令牌刷新与撤销。资产密码、私钥和内部执行 capability 不返回 PC。客户端类型不改变资产权限、审批、幂等与审计规则。
 
-DSH 插件后续实现同一套发现、登记、浏览器授权、令牌管理、工具调用和审批链接呈现。PC 大文件传输属于额外客户端能力，按下述文件流协议实现；原生 MCP 工具调用不会自动传输 PC 文件，也不能把本地路径交给远端 Koko 读取。DSH 插件的开发和发布独立于 Core/Koko。
+DSH 插件使用同一套发现、登记、浏览器授权、令牌管理、工具调用和审批链接呈现契约。PC 大文件传输属于额外客户端能力，按下述文件流协议实现；原生 MCP 工具调用不会自动传输 PC 文件，也不能把本地路径交给远端 Koko 读取。DSH 插件的开发和发布独立于 Core/Koko。
 
 ### 常见接入问题
 
@@ -120,8 +120,10 @@ DSH 插件后续实现同一套发现、登记、浏览器授权、令牌管理�
 | --- | --- |
 | `search_assets` | 分页查询授权资产、账号和协议 |
 | `connect_asset` | 创建或复用显式资产会话，返回 `session_id` 和连接 `action_id` |
+| `get_session`、`list_sessions` | 按 ID 或原连接幂等键找回会话，或分页列出当前授权范围内的会话；区分历史记录与当前可用连接 |
+| `list_actions` | 分页找回操作 ID 和状态，可按 `session_id` 筛选，再用 `get_action` 查询输出 |
 | `execute_command` | 提交 SSH 独立命令或数据库语句，返回 `action_id` |
-| `get_action` | 查询权威状态、退出码/结果、分页证据及审计交付状态 |
+| `get_action` | 按 ID 或原操作幂等键查询权威状态、退出码/结果、分页证据及审计交付状态 |
 | `cancel_action` | 请求取消；远端未确认停止时结果可能仍不确定 |
 | `disconnect_asset` | 拒绝新操作，等待已接受操作排空后释放连接 |
 | `list_files`、`stat_file`、`read_file`、`write_file` | SFTP 目录、元信息和小文本操作 |
@@ -131,11 +133,17 @@ DSH 插件后续实现同一套发现、登记、浏览器授权、令牌管理�
 
 每次新操作使用新的 `idempotency_key`；重试同一请求时复用原键。相同键改变资产、命令、工作目录或文件摘要会被拒绝。Core 持久登记并原子授予派发资格，Koko 在执行前持久记录意图。HTTP 200、工具调用成功和操作已接受均不代表资产执行成功。
 
+19 个工具均提供输入约束、返回结构和读写注解。工具错误同时返回 `isError=true`、JSON 文本和 `structuredContent.error`，包含稳定 `code`、`message`、`retryable`、`retry_mode`、`next_step`，需要等待时附 `retry_after_ms`。查询遇到临时服务错误可以延迟重试；提交是否成功不确定时先按原幂等键找回记录，禁止直接创建新的操作。协议级 JSON-RPC 错误及 OAuth HTTP 错误仍按各自协议处理。
+
+会话返回当前 `capabilities.allowed_actions`、执行模式和命令上下文是否需要审核，以及文件、命令和时间上限；能力提示不代替派发时的权限与 ACL 检查。`connection_status=ready` 才表示本地连接就绪。`next_step` 提示查询连接、等待审批、打开人工终端或提交操作；按 `poll_after_ms` 控制查询间隔，等待人工输入时无需密集轮询。恢复查询限定当前用户、客户端、Koko 节点和当前授权组织，不返回内部执行凭据，也不会重连或恢复数据库事务。跨组织幂等键重名时须使用明确的资源 ID，或用会话 ID 缩小操作查询范围。
+
 命令 ACL 的 `warning` 允许执行，并保留命中规则、风险信息及既有告警通知；`notify_and_warn` 要求用户确认，自动执行会被拒绝并提示使用 `open_terminal` 完成人工确认。取消待审批操作或关闭会话会收尾关联待办，仍供其他连接使用的共享审批工单保留。
 
 操作状态包含 `queued`、`awaiting_approval`、`dispatching`、`running`、`awaiting_input`，终态包含 `succeeded`、`failed`、`cancelled`、`rejected`、`expired`、`unknown`。`unknown` 表示无法确认副作用，必须先核对资产状态，禁止自动重发。SSH 成功需要收到退出码 0，关闭连接不代表远端进程已停止。
 
-`get_action.offset` 是最后读取的事件序号，默认从 0 开始，单页最多 32 条；按 `next_offset` 继续。`evidence_pending` 表示该页证据尚未齐全，应保留游标继续查询。`audit_status=pending` 表示证据已在 Koko 落盘、尚待 Core 确认。资产输出始终按不可信数据处理。
+`get_action` 默认从 0 开始，单页最多 32 条；后续将 `next_cursor` 作为 `cursor` 继续。游标同时保存事件序号和 stdout/stderr 各自尚未完整的 UTF-8 字节，`output[].text` 因此可跨事件、跨页连续拼接。原始 `events` 保留不能单独解码的 base64 字节；无效 UTF-8 的文本预览会标记 `output_lossy`。兼容旧的 `offset` / `next_offset`（最后读取的事件序号），但从非零 offset 开始且未携带游标时不生成连续文本，返回 `output_requires_cursor`。`is_terminal` 表示操作终态，`output_complete` 另行表示连续输出已经取完；`evidence_pending` 表示证据尚未齐全，应保留游标继续查询。`audit_status=pending` 表示证据已在 Koko 落盘、尚待 Core 确认。资产输出始终按不可信数据处理。
+
+`list_files` 每页最多 200 项，结果有 `next_cursor` 时以同一会话和目录、该游标及新的幂等键继续。游标不授予文件权限，每页仍独立审核和审计。目录按实时内容读取，变化后需重新查询；每页最多扫描 10,000 个可见条目和 8 MiB 协议数据，达到扫描边界返回 `scan_limit_reached`，不再给出无法推进的游标。
 
 资产搜索每页最多 100 项，每个资产的账号也分页返回。指定 `asset_id` 后，将该资产的 `accounts_next_offset` 作为下一次请求的 `account_offset` 继续查询。
 
@@ -171,6 +179,8 @@ Koko 的资产执行器统一维护协议与执行模式，在组件鉴权的 `i
 
 上传缺少固定长度返回 411，超限返回 413，操作未就绪或内容不匹配可返回 409。文件接口错误通常为 HTTP 文本，客户端须与 MCP JSON-RPC 错误分别处理。审批后用原参数、原幂等键重调 `upload_file`，确认 `queued` 后传输字节。网络中断时先查询原操作，不能自动重复 `unknown` 操作。暂存文件有保留期限，不支持 HTTP Range 断点续传。
 
+文件操作返回 `transfer`，包含 URL、HTTP 方法、必需请求头、大小、摘要和 `ready`；暂存过期时间已知时附 `expires_at`。`requires_client_transfer=true` 表示仍需客户端读取或保存本地字节，`requires_bearer=true` 表示客户端附加自己的 OAuth Authorization header，描述本身不包含令牌。上传须等 `next_step=upload_bytes` 且 `transfer.ready=true` 后传输，下载须等 `succeeded` 和描述就绪。服务端描述不代替客户端的本地文件选择和保存能力。
+
 本地目录限制、符号链接检查、下载原子发布及覆盖策略由客户端负责。文件通过字节流传输，不放进模型的 base64 参数；小文本使用 `read_file` / `write_file`。
 
 ## 资源、恢复与验证
@@ -178,7 +188,7 @@ Koko 的资产执行器统一维护协议与执行模式，在组件鉴权的 `i
 - 默认 15 分钟无操作回收连接，执行期间不按空闲超时回收；Core 会话绝对有效期两小时。
 - 单条命令默认 120 秒，最多 600 秒；审批及排队工作总上限 20 分钟，连接审批最多等待 10 分钟。
 - 命令最多 4 KiB，输出最多 8 MiB；数据库结果最多 1,000 行，单语句网络读取 16 MiB，PG 单消息 8 MiB。
-- 小文本最多 64 KiB，目录最多 200 项，同时受请求和证据预算限制。
+- 小文本最多 64 KiB UTF-8 字节。`write_file` 独立校验内容字节数，编码后的 JSON 预算为 512 KiB；其他操作请求仍最多 64 KiB。目录每页最多 200 项，文本读取和目录结果仍受编码后的证据预算限制。
 - 文件单个最多 100 MiB；节点暂存最多 1 GiB、128 个文件，并发上传提前预留空间。
 - journal 默认逻辑容量 256 MiB，为最终状态保留空间。Core 已确认的终态记录和 artifact 保留 24 小时后回收；未交付事件不自动丢弃。
 - 单个操作还受编码后证据预算限制，包含小块输出的事件开销，并为最终状态预留容量。审计按操作轮转投递，同一操作保持顺序；某个操作持续失败时保留其证据并记录错误，其他操作仍可交付。

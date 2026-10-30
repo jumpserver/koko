@@ -2,10 +2,53 @@ package agentexec
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"strings"
 	"testing"
 )
+
+func TestGetCursorPreservesUTF8AcrossPagesAndStreams(t *testing.T) {
+	r := fileTestRuntime(t)
+	parts := []struct{ stream, data string }{{"stdout", "\xe4\xb8"}, {"stderr", "error"}, {"stdout", "\xad"}}
+	calls := 0
+	r.core = coreFunc(func(_ context.Context, _ string, body, out any) error {
+		calls++
+		offset := int(body.(map[string]any)["offset"].(int64))
+		part := parts[offset]
+		return respond(out, Action{ID: "utf8", Status: "succeeded", LastSequence: 3, Events: []Event{{
+			Sequence: uint64(offset + 1), SessionToken: "private", Payload: map[string]any{
+				"stream": part.stream, "encoding": "base64", "data": base64.StdEncoding.EncodeToString([]byte(part.data)),
+			},
+		}}})
+	})
+	var cursor, stdout, stderr string
+	for page := 0; page < 3; page++ {
+		action, err := r.GetPage(context.Background(), Principal{}, "utf8", 0, 1, cursor)
+		if err != nil || action.OutputLossy || action.OutputComplete != (page == 2) {
+			t.Fatalf("incomplete UTF-8 was corrupted: %#v %v", action, err)
+		}
+		if action.Events[0].SessionToken != "" || (page != 1 && action.Events[0].Payload["encoding"] != "base64") {
+			t.Fatal("raw partial bytes were changed or private capability escaped")
+		}
+		for _, output := range action.Output {
+			if output.Stream == "stdout" {
+				stdout += output.Text
+			} else {
+				stderr += output.Text
+			}
+		}
+		if page == 0 {
+			if _, err = r.GetPage(context.Background(), Principal{}, "other", 0, 1, action.NextCursor); err == nil || calls != 1 {
+				t.Fatal("cross-action cursor reached Core")
+			}
+		}
+		cursor = action.NextCursor
+	}
+	if stdout != "中" || stderr != "error" || cursor != "" {
+		t.Fatal("lost cross-page output", stdout, stderr)
+	}
+}
 
 func getJournal(t *testing.T) (*Journal, []Event) {
 	t.Helper()

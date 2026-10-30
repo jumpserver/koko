@@ -25,6 +25,7 @@ type fileRequest struct {
 	SHA256      string `json:"sha256"`
 	Overwrite   bool   `json:"overwrite"`
 	Limit       int    `json:"limit"`
+	Cursor      string `json:"cursor,omitempty"`
 }
 
 func (r *Runtime) artifactPath(id, suffix string) (string, error) {
@@ -327,9 +328,24 @@ func (r *Runtime) executeFile(ctx context.Context, action Action, s *liveSession
 		if limit > 200 {
 			limit = 200
 		}
-		values, truncated, listErr := connection.List(ctx, req.Path, limit)
+		offset, cursorErr := readDirectoryCursor(req.Cursor, action.SessionID, req.Path)
+		if cursorErr != nil {
+			return map[string]any{"error": cursorErr.Error(), "code": "invalid_cursor"}, "failed"
+		}
+		values, truncated, limited, listErr := connection.ListPage(ctx, req.Path, offset, limit)
 		err = listErr
-		result = listedFileResult(values, truncated, payloadLimit)
+		result = listedFileResult(values, truncated, payloadLimit-512)
+		shown := len(result["entries"].([]assetexec.FileInfo))
+		if shown == 0 && len(values) > 0 {
+			return map[string]any{"error": "directory entry exceeds the result budget", "code": "directory_entry_too_large"}, "failed"
+		}
+		if shown < len(values) || truncated {
+			if shown > 0 {
+				result["next_cursor"] = directoryCursor(action.SessionID, req.Path, offset+shown)
+			}
+		} else if limited {
+			result["truncated"], result["scan_limit_reached"] = true, true
+		}
 	case "file_stat":
 		value, statErr := connection.Stat(ctx, req.Path)
 		err = statErr

@@ -56,24 +56,31 @@ func (u *UserSftpConn) RemoveDirectoryExact(name string) error {
 	return err
 }
 
-// ReadDirBounded uses a separate channel with a wire-byte budget, so the SFTP
+type AgentDirectoryPage struct {
+	Entries []os.FileInfo
+	HasMore bool
+	Limited bool
+}
+
+// ReadDirPage uses a separate channel with a wire-byte budget, so the SFTP
 // library cannot accumulate an unbounded directory before applying the limit.
-func (u *UserSftpConn) ReadDirBounded(ctx context.Context, name string, limit int) ([]os.FileInfo, bool, error) {
-	if u.assetDir == nil || limit < 1 || limit > 1000 {
-		return nil, false, sftp.ErrSshFxPermissionDenied
+func (u *UserSftpConn) ReadDirPage(ctx context.Context, name string, offset, limit int) (AgentDirectoryPage, error) {
+	var page AgentDirectoryPage
+	if u.assetDir == nil || limit < 1 || limit > 1000 || offset < 0 || offset >= 10000 {
+		return page, sftp.ErrSshFxPermissionDenied
 	}
 	ad := u.assetDir
 	resolved, err := ad.ResolveAgentToolPath(name)
 	if err != nil {
-		return nil, false, err
+		return page, err
 	}
 	account, unique := ad.IsUniqueSu()
 	if !unique {
-		return nil, false, errNoAccountUser
+		return page, errNoAccountUser
 	}
 	conn, realPath := ad.GetSFTPAndRealPath(ad.suMaps[account], resolved)
 	if conn == nil || conn.isClosed {
-		return nil, false, sftp.ErrSshFxConnectionLost
+		return page, sftp.ErrSshFxConnectionLost
 	}
 	conn.IncreaseRef()
 	defer conn.DecreaseRef()
@@ -81,44 +88,62 @@ func (u *UserSftpConn) ReadDirBounded(ctx context.Context, name string, limit in
 	defer stop()
 	sess, err := conn.sshClient.AcquireSession()
 	if err != nil {
-		return nil, false, err
+		return page, err
 	}
 	defer func() { _ = sess.Close(); conn.sshClient.ReleaseSession(sess) }()
 	if err = sess.RequestSubsystem("sftp"); err != nil {
-		return nil, false, err
+		return page, err
 	}
 	writer, err := sess.StdinPipe()
 	if err != nil {
-		return nil, false, err
+		return page, err
 	}
 	reader, err := sess.StdoutPipe()
 	if err != nil {
-		return nil, false, err
+		return page, err
 	}
-	limited := &io.LimitedReader{R: reader, N: 512 << 10}
+	limited := &io.LimitedReader{R: reader, N: 8 << 20}
 	client, err := sftp.NewClientPipe(limited, writer, sftpClientOptions()...)
 	if err != nil {
-		return nil, false, err
+		return page, err
 	}
 	defer client.Close()
 	values, err := client.ReadDirContext(ctx, realPath)
 	if ctx.Err() != nil {
-		return nil, false, ctx.Err()
+		return page, ctx.Err()
 	}
 	truncated := limited.N == 0
 	if err != nil && !truncated {
-		return nil, false, err
+		return page, err
 	}
-	result := make([]os.FileInfo, 0, min(len(values), limit))
+	page = directoryPage(values, offset, limit, ad.ShowHidden, truncated)
+	for i, value := range page.Entries {
+		page.Entries[i] = NewSftpFileInfo(value, conn.token.Account.Username == "root", ad.isFromWebTerminal)
+	}
+	return page, nil
+}
+
+func directoryPage(values []os.FileInfo, offset, limit int, showHidden, wireLimited bool) AgentDirectoryPage {
+	page := AgentDirectoryPage{Entries: make([]os.FileInfo, 0, min(len(values), limit))}
+	visible := 0
 	for _, value := range values {
-		if !ad.ShowHidden && strings.HasPrefix(value.Name(), ".") {
+		if !showHidden && strings.HasPrefix(value.Name(), ".") {
 			continue
 		}
-		if len(result) == limit {
-			truncated = true
+		if visible >= 10000 {
+			page.Limited = true
 			break
 		}
-		result = append(result, NewSftpFileInfo(value, conn.token.Account.Username == "root", ad.isFromWebTerminal))
+		visible++
+		if visible <= offset {
+			continue
+		}
+		if len(page.Entries) == limit {
+			page.HasMore = true
+			break
+		}
+		page.Entries = append(page.Entries, value)
 	}
-	return result, truncated, nil
+	page.Limited = page.Limited || (wireLimited && !page.HasMore)
+	return page
 }

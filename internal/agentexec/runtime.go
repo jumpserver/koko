@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -203,9 +204,10 @@ func (r *Runtime) Connect(ctx context.Context, p Principal, asset, account, prot
 		return nil, err
 	}
 	if !identifier.MatchString(info.ID) || info.SessionToken == "" || !identifier.MatchString(info.ActionID) {
-		return nil, errors.New("invalid asset session response")
+		return nil, &CoreError{Status: http.StatusBadGateway, Operation: "sessions/"}
 	}
 	info.Protocol = protocol
+	info.AuthorizationStatus = info.Status
 	r.mu.Lock()
 	if existing := r.sessions[info.ID]; existing != nil {
 		r.mu.Unlock()
@@ -215,15 +217,19 @@ func (r *Runtime) Connect(ctx context.Context, p Principal, asset, account, prot
 			return nil, errors.New("session does not belong to this authorization")
 		}
 		existing.lastUsed = time.Now()
-		return publicSession(existing.info), nil
+		existing.info.Capabilities = info.Capabilities
+		existing.info.AuthorizationStatus = info.AuthorizationStatus
+		return r.publicSession(existing.info), nil
 	}
 	// A durable operation is never opened again after its process-local
 	// transport is lost, including a retry following a node restart.
 	if prior, readErr := r.journal.Action(info.ActionID); readErr == nil {
 		r.mu.Unlock()
-		result := publicSession(info)
+		result := r.publicSession(info)
 		result["status"] = "context_lost"
-		result["connection_status"] = prior.Action.Status
+		result["connection_status"], result["next_step"] = "context_lost", "create_session"
+		result["last_connection_status"] = prior.Action.Status
+		delete(result, "poll_after_ms")
 		result["error"] = "connection context is unavailable; use a new idempotency key to establish a new session"
 		return result, nil
 	} else if !errors.Is(readErr, os.ErrNotExist) {
@@ -262,11 +268,35 @@ func (r *Runtime) Connect(ctx context.Context, p Principal, asset, account, prot
 		defer func() { s.mu.Lock(); s.active--; s.mu.Unlock() }()
 		r.openSession(connectCtx, s, remoteAddr)
 	}()
-	return publicSession(info), nil
+	return r.publicSession(info), nil
 }
 
-func publicSession(s Session) map[string]any {
+func (r *Runtime) publicSession(s Session) map[string]any {
 	result := map[string]any{"session_id": s.ID, "action_id": s.ActionID, "status": s.Status}
+	authorization := s.AuthorizationStatus
+	if authorization == "" {
+		authorization = s.Status
+		if authorization == "active" {
+			authorization = "ready"
+		}
+	}
+	result["authorization_status"] = authorization
+	result["connection_status"], result["next_step"] = "opening", "poll_connection"
+	result["poll_after_ms"] = 1000
+	if s.Status == "active" {
+		result["connection_status"], result["next_step"] = "ready", "submit_operation"
+	} else if s.Status == "awaiting_approval" {
+		result["next_step"] = "open_approval"
+	} else if s.Status == "failed" || s.Status == "context_lost" || s.Status == "closed" {
+		result["connection_status"], result["next_step"] = s.Status, "create_session"
+	}
+	if !s.ExpiresAt.IsZero() {
+		result["expires_at"] = s.ExpiresAt
+	}
+	result["idle_timeout_seconds"] = int(r.opts.IdleTimeout.Seconds())
+	result["capabilities"] = s.Capabilities
+	result["limits"] = map[string]any{"command_bytes": 4096, "text_file_bytes": 64 << 10,
+		"transfer_bytes": r.maxTransferBytes(), "timeout_seconds": 600, "directory_page_entries": 200}
 	if s.Protocol != "" {
 		result["protocol"] = s.Protocol
 	}
@@ -275,6 +305,10 @@ func publicSession(s Session) map[string]any {
 	}
 	if s.RequiresTerminal {
 		result["requires_terminal"] = true
+		result["next_step"] = "open_terminal"
+	}
+	if result["next_step"] != "poll_connection" {
+		delete(result, "poll_after_ms")
 	}
 	if s.ApprovalURL != "" {
 		result["approval_url"] = s.ApprovalURL
@@ -315,6 +349,11 @@ func (r *Runtime) openSession(ctx context.Context, s *liveSession, remoteAddr st
 			fail(err)
 			return
 		}
+		s.mu.Lock()
+		s.info.AuthorizationStatus = checked.Status
+		s.info.RequiresTerminal = checked.RequiresTerminal
+		s.info.ApprovalURL = checked.ApprovalURL
+		s.mu.Unlock()
 		if checked.RequiresTerminal {
 			fail(errors.New("this connection requires a controlled web terminal; call open_terminal with this session_id"))
 			return
@@ -324,7 +363,6 @@ func (r *Runtime) openSession(ctx context.Context, s *liveSession, remoteAddr st
 		}
 		s.mu.Lock()
 		s.info.Status = checked.Status
-		s.info.ApprovalURL = checked.ApprovalURL
 		s.mu.Unlock()
 		select {
 		case <-ctx.Done():
@@ -448,6 +486,12 @@ func (r *Runtime) Submit(ctx context.Context, p Principal, sessionID, kind, key 
 	if !identifier.MatchString(key) {
 		return Action{}, errors.New("a stable idempotency_key is required")
 	}
+	if kind == "file_write" {
+		content, ok := request["content"].(string)
+		if !ok || len(content) > 64<<10 {
+			return Action{}, errors.New("use upload_file for content larger than 64 KiB")
+		}
+	}
 	s, err := r.getSession(p, sessionID, kind != "open_terminal")
 	if err != nil {
 		return Action{}, err
@@ -481,8 +525,8 @@ func (r *Runtime) Submit(ctx context.Context, p Principal, sessionID, kind, key 
 	if err != nil {
 		return action, err
 	}
-	if action.ID == "" {
-		return action, errors.New("invalid operation response")
+	if !identifier.MatchString(action.ID) {
+		return action, &CoreError{Status: http.StatusBadGateway, Operation: "actions/"}
 	}
 	action.ActionID = action.ID
 	action.SessionID = sessionID
@@ -780,6 +824,34 @@ func (r *Runtime) execute(ctx context.Context, action Action, s *liveSession) (m
 }
 
 func (r *Runtime) Get(ctx context.Context, p Principal, id string, offset, limit int64) (Action, error) {
+	return r.GetPage(ctx, p, id, offset, limit, "")
+}
+
+func (r *Runtime) GetPage(ctx context.Context, p Principal, id string, offset, limit int64, value string) (Action, error) {
+	cursor := outputCursor{Offset: offset}
+	if value != "" {
+		var err error
+		cursor, err = readOutputCursor(value, id)
+		if err != nil || (offset != 0 && offset != cursor.Offset) {
+			return Action{}, errors.New("invalid output cursor or conflicting offset")
+		}
+		offset = cursor.Offset
+	}
+	action, err := r.getAction(ctx, p, id, offset, limit)
+	if err != nil {
+		return action, err
+	}
+	renderOutput(&action, cursor, value != "" || offset == 0)
+	describeAction(&action, p)
+	if action.Transfer != nil {
+		if rec, readErr := r.journal.Action(id); readErr == nil && rec.Artifact != "" && rec.Action.AuditStatus == "delivered" && !rec.ExpiresAt.IsZero() {
+			action.Transfer.ExpiresAt = &rec.ExpiresAt
+		}
+	}
+	return action, nil
+}
+
+func (r *Runtime) getAction(ctx context.Context, p Principal, id string, offset, limit int64) (Action, error) {
 	path, err := operationPath("actions", id, "get")
 	if err != nil {
 		return Action{}, err
@@ -868,20 +940,6 @@ func (r *Runtime) Get(ctx context.Context, p Principal, id string, offset, limit
 			action.NextOffset = &next
 		}
 		break
-	}
-	// Decode the bounded stream evidence for agents while retaining an explicit
-	// untrusted-output boundary in the MCP server instructions.
-	for i := range action.Events {
-		payload := action.Events[i].Payload
-		if payload["encoding"] == "base64" {
-			if encoded, ok := payload["data"].(string); ok {
-				if data, err := base64.StdEncoding.DecodeString(encoded); err == nil {
-					payload["data"] = strings.ToValidUTF8(string(data), "�")
-					payload["encoding"] = "utf-8"
-				}
-			}
-		}
-		action.Events[i].SessionToken = ""
 	}
 	return action, nil
 }

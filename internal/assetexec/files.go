@@ -107,26 +107,26 @@ func makeFileInfo(value os.FileInfo, name string) FileInfo {
 	return FileInfo{Name: value.Name(), Path: name, Size: value.Size(), Mode: value.Mode().String(), IsDir: value.IsDir(), Modified: value.ModTime()}
 }
 
-func (c *Connection) List(ctx context.Context, name string, limit int) ([]FileInfo, bool, error) {
+func (c *Connection) ListPage(ctx context.Context, name string, offset, limit int) ([]FileInfo, bool, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	defer c.watchFileContext(ctx)()
 	resolved, err := c.filePath(ctx, name)
 	if err != nil {
-		return nil, false, err
+		return nil, false, false, err
 	}
 	if limit <= 0 || limit > 1000 {
 		limit = 1000
 	}
-	values, truncated, err := c.sftp.ReadDirBounded(ctx, resolved, limit)
+	page, err := c.sftp.ReadDirPage(ctx, resolved, offset, limit)
 	if err != nil {
-		return nil, false, err
+		return nil, false, false, err
 	}
-	result := make([]FileInfo, 0, len(values))
-	for _, value := range values {
+	result := make([]FileInfo, 0, len(page.Entries))
+	for _, value := range page.Entries {
 		result = append(result, makeFileInfo(value, path.Join(resolved, value.Name())))
 	}
-	return result, truncated, nil
+	return result, page.HasMore, page.Limited, nil
 }
 
 func (c *Connection) Stat(ctx context.Context, name string) (FileInfo, error) {

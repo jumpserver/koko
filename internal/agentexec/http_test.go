@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -41,6 +42,12 @@ func httpTestEndpoint(t *testing.T, scheme string) (*Runtime, *HTTP, *atomic.Int
 				return errors.New("missing principal")
 			}
 			return respond(out, map[string]any{"results": []any{map[string]any{"id": "asset"}}})
+		case "sessions/get/":
+			return respond(out, map[string]any{"session_id": "session", "session_token": "private", "approval_url": "/core/approve/"})
+		case "sessions/list/", "actions/list/":
+			return respond(out, map[string]any{"results": []any{map[string]any{"session_id": "session", "action_id": "approval", "audit_url": "/core/audit/"}}})
+		case "actions/lookup/":
+			return respond(out, Action{ID: "approval", ActionID: "approval"})
 		case "sessions/":
 			remote <- values["remote_addr"].(string)
 			return respond(out, Session{ID: "session", ActionID: "connect", SessionToken: "capability"})
@@ -128,6 +135,9 @@ func testHTTPMCPNativeSDKAndAbsolutePublicLinks(t *testing.T, scheme string) {
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
 		names[tool.Name] = true
+		if tool.OutputSchema == nil || tool.Annotations == nil {
+			t.Fatalf("%s omitted its result schema or annotations", tool.Name)
+		}
 		if tool.Name == "cancel_action" {
 			var schema struct{ Properties map[string]json.RawMessage }
 			encoded, err := json.Marshal(tool.InputSchema)
@@ -139,7 +149,7 @@ func testHTTPMCPNativeSDKAndAbsolutePublicLinks(t *testing.T, scheme string) {
 			}
 		}
 	}
-	if !names["search_assets"] || !names["connect_asset"] || !names["get_action"] || !names["cancel_action"] || !names["upload_file"] {
+	if !names["search_assets"] || !names["connect_asset"] || !names["get_action"] || !names["cancel_action"] || !names["upload_file"] || !names["get_session"] || !names["list_sessions"] || !names["list_actions"] {
 		t.Fatal("native tools/list lost required tools")
 	}
 	call := func(name string, args map[string]any) map[string]any {
@@ -166,6 +176,18 @@ func testHTTPMCPNativeSDKAndAbsolutePublicLinks(t *testing.T, scheme string) {
 	}
 	if value["result"].(map[string]any)["handoff_url"] != issuer+"/core/handoff/" {
 		t.Fatal("action result handoff remained relative")
+	}
+	if value := call("get_action", map[string]any{"idempotency_key": "original-key"}); value["action_id"] != "approval" {
+		t.Fatal("action recovery lost its ID", value)
+	}
+	if value := call("get_session", map[string]any{"idempotency_key": "connect-key"}); value["session_token"] != nil || value["connection_status"] != "ready" {
+		t.Fatal("unsafe or inconsistent session recovery", value)
+	}
+	for _, name := range []string{"list_sessions", "list_actions"} {
+		value := call(name, map[string]any{})
+		if value["results"].([]any)[0].(map[string]any)["audit_url"] != issuer+"/core/audit/" {
+			t.Fatal("recovery audit link remained relative", name)
+		}
 	}
 	value = call("connect_asset", map[string]any{"asset_id": "asset", "account": "root", "protocol": "ssh", "idempotency_key": "connect-key"})
 	if value["approval_url"] != issuer+"/core/approve/" {
@@ -210,7 +232,7 @@ func TestHTTPFileToolSchemasRequireExplicitContent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fields := map[string]string{"list_files": "limit", "write_file": "content overwrite", "rename_file": "destination", "stat_file": "", "read_file": "", "make_directory": "", "remove_file": ""}
+	fields := map[string]string{"list_files": "limit cursor", "write_file": "content overwrite", "rename_file": "destination", "stat_file": "", "read_file": "", "make_directory": "", "remove_file": ""}
 	for _, tool := range listed.Tools {
 		extra, ok := fields[tool.Name]
 		if !ok {
@@ -252,6 +274,9 @@ func TestHTTPFileToolSchemasRequireExplicitContent(t *testing.T) {
 		if err != nil || result == nil || !result.IsError || actions.Load() != 0 {
 			t.Fatalf("invalid %s arguments reached an action: result=%v err=%v actions=%d", test.name, result, err, actions.Load())
 		}
+		if result.StructuredContent == nil {
+			t.Fatal("argument error omitted its structured contract")
+		}
 	}
 	if _, err = r.journal.Action("file-action"); !errors.Is(err, os.ErrNotExist) || len(r.jobs) != 0 {
 		t.Fatal("invalid file arguments created local execution work")
@@ -262,6 +287,22 @@ func TestHTTPFileToolSchemasRequireExplicitContent(t *testing.T) {
 	}
 	if request := <-submitted; request["content"] != "" {
 		t.Fatal("explicit empty content was not preserved")
+	}
+	for i, content := range []string{strings.Repeat("a", 65536), strings.Repeat("\x00", 65536), strings.Repeat("中", 21846)} {
+		before := actions.Load()
+		result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "write_file", Arguments: map[string]any{
+			"session_id": "session", "path": "/file", "content": content, "idempotency_key": "boundary-" + strconv.Itoa(i),
+		}})
+		if err != nil || result == nil || result.IsError != (i == 2) {
+			t.Fatalf("incorrect UTF-8 content boundary: %v %v", result, err)
+		}
+		if i == 2 {
+			if actions.Load() != before {
+				t.Fatal("oversized UTF-8 content reached Core")
+			}
+		} else if request := <-submitted; request["content"] != content {
+			t.Fatal("boundary content changed")
+		}
 	}
 }
 
@@ -411,7 +452,7 @@ func testHTTPAuthenticationMetadataOriginAndMCPBodyLimit(t *testing.T, scheme st
 	if metadata.Code != 200 || json.Unmarshal(metadata.Body.Bytes(), &result) != nil || result["resource"] != endpoint.Resource || result["authorization_servers"].([]any)[0] != issuer {
 		t.Fatal("public protected resource metadata is invalid")
 	}
-	oversized := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"padding":"` + strings.Repeat("x", 128<<10) + `"}}`
+	oversized := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"padding":"` + strings.Repeat("x", 512<<10) + `"}}`
 	if response := httpTestRequest(t, endpoint, "POST", endpoint.Path, oversized, "valid", "org", ""); response.Code != 413 {
 		t.Fatalf("MCP body limit returned HTTP %d", response.Code)
 	}

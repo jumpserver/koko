@@ -188,3 +188,18 @@ func TestFileResultsFitEncodedAuditEnvelope(t *testing.T) {
 		t.Fatalf("bounded payload did not fit real audit event: %v", err)
 	}
 }
+
+func TestDirectoryCursorIsBoundToSessionAndPath(t *testing.T) {
+	cursor := directoryCursor("session", "/dir", 200)
+	if offset, err := readDirectoryCursor(cursor, "session", "/dir"); err != nil || offset != 200 {
+		t.Fatal("directory continuation lost position", offset, err)
+	}
+	for _, scope := range [][2]string{{"other", "/dir"}, {"session", "/other"}} {
+		if _, err := readDirectoryCursor(cursor, scope[0], scope[1]); err == nil {
+			t.Fatal("accepted another directory's cursor")
+		}
+	}
+	if _, err := readDirectoryCursor(directoryCursor("session", "/dir", 10000), "session", "/dir"); err == nil {
+		t.Fatal("accepted an unbounded directory scan")
+	}
+}
