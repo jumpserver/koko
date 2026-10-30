@@ -15,6 +15,7 @@ import (
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
+	"github.com/jumpserver/koko/internal/sessiontools"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
@@ -30,6 +31,8 @@ var (
 var protocolModes = map[string]string{
 	srvconn.ProtocolSSH: "shell", srvconn.ProtocolSFTP: "files",
 	srvconn.ProtocolMySQL: "database", srvconn.ProtocolMariadb: "database", srvconn.ProtocolPostgresql: "database",
+	srvconn.ProtocolSQLServer: "database", srvconn.ProtocolOracle: "database", srvconn.ProtocolClickHouse: "database",
+	srvconn.ProtocolRedis: "database", srvconn.ProtocolMongoDB: "database",
 }
 
 func ProtocolModes() map[string]string    { return maps.Clone(protocolModes) }
@@ -73,6 +76,7 @@ type Connection struct {
 	closed    atomic.Bool
 	closeOnce sync.Once
 	ssh       *srvconn.SSHClient
+	executor  sessiontools.CommandExecutor
 	sftp      *srvconn.UserSftpConn
 	sqlConn   *sql.Conn
 	dbState   *databaseState
@@ -174,6 +178,9 @@ func (c *Connection) Execute(ctx context.Context, request Request, emit Emit) (R
 		if request.Cwd != "" || len(request.Env) != 0 {
 			return Result{}, errors.New("cwd and env apply only to SSH")
 		}
+		if c.protocol == srvconn.ProtocolRedis || c.protocol == srvconn.ProtocolMongoDB {
+			return c.executeDatabaseCommand(ctx, request.Command, emit)
+		}
 		return c.executeSQL(ctx, request.Command, emit)
 	default:
 		return Result{}, ErrUnsupported
@@ -191,6 +198,10 @@ func (c *Connection) Close() error {
 		}
 		if c.ssh != nil {
 			c.closeErr = c.ssh.Close()
+		}
+		if c.executor != nil {
+			c.dbState.transport.Close()
+			c.closeErr = c.executor.Close()
 		}
 		if c.sqlConn != nil {
 			c.closeErr = c.closeDatabase()

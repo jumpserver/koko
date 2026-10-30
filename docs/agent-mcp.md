@@ -1,6 +1,6 @@
 # Agent 资产执行与 MCP 接入
 
-Koko 提供标准 MCP Streamable HTTP 服务，使 Agent 通过 JumpServer 操作授权资产。支持 SSH、SFTP、MySQL/MariaDB 和 PostgreSQL。Codex 使用原生远程 MCP；DSH（DeepSeek Harness）通过独立插件适配同一服务端契约。
+Koko 提供标准 MCP Streamable HTTP 服务，使 Agent 通过 JumpServer 操作授权资产。支持 SSH、SFTP、MySQL/MariaDB、PostgreSQL、SQL Server、Oracle、ClickHouse、Redis 和 MongoDB。Codex 使用原生远程 MCP；DSH（DeepSeek Harness）通过独立插件适配同一服务端契约。
 
 | 组件 | 职责 |
 | --- | --- |
@@ -10,7 +10,7 @@ Koko 提供标准 MCP Streamable HTTP 服务，使 Agent 通过 JumpServer 操�
 | docker-web / Nginx | 外部 HTTP/HTTPS 入口、TLS 终止与反向代理 |
 | Codex / DSH 插件 | 浏览器授权、客户端令牌管理、工具调用、结果查询和审批链接呈现；按需实现 PC 文件传输 |
 
-MCP 数据库执行使用 Go 原生驱动：MySQL/MariaDB 使用 `go-sql-driver/mysql`，PostgreSQL 使用 `pgx`。该路径不需要 `usql`、`mysql` 或 `psql` 命令行程序。`open_terminal` 打开的人工数据库终端使用现有终端实现，完整 Koko 部署须保留其 `usql` 等依赖。
+MCP 数据库执行复用 Go 原生驱动：MySQL/MariaDB 使用 `go-sql-driver/mysql`，PostgreSQL 使用 `pgx`，SQL Server、Oracle、ClickHouse、Redis 和 MongoDB 使用现有对应驱动。该路径不需要数据库命令行程序。`open_terminal` 打开的人工数据库终端使用现有终端实现，完整 Koko 部署须保留其 `usql` 等依赖。
 
 ## 首次部署
 
@@ -122,7 +122,7 @@ DSH 插件使用同一套发现、登记、浏览器授权、令牌管理、工�
 | `connect_asset` | 创建或复用显式资产会话，返回 `session_id` 和连接 `action_id` |
 | `query_sessions` | `operation=get` 按会话 ID 或原连接幂等键找回会话；`operation=list` 分页列出当前授权范围内的会话；不重连 |
 | `disconnect_asset` | 拒绝新操作，等待已接受操作排空后释放连接 |
-| `execute_command` | 提交 SSH 独立命令或数据库语句，返回 `action_id` |
+| `execute_command` | 提交 SSH 独立命令、SQL、Redis 命令或 MongoDB `db.runCommand`，返回 `action_id` |
 | `query_actions` | `operation=get` 查询状态、结果、分页输出及审计交付状态；`operation=list` 分页找回操作，可按 `session_id` 筛选 |
 | `cancel_action` | 请求取消；远端未确认停止时结果可能仍不确定 |
 | `file_read` | `operation=list/stat/read/download`：SFTP 目录分页、元信息、小文本读取、下载登记，均返回 `action_id` |
@@ -147,7 +147,9 @@ DSH 插件使用同一套发现、登记、浏览器授权、令牌管理、工�
 
 资产搜索每页最多 100 项，每个资产的账号也分页返回。指定 `asset_id` 后，将该资产的 `accounts_next_offset` 作为下一次请求的 `account_offset` 继续查询。
 
-SSH 复用传输连接，每条命令开启独立 exec。需要工作目录或环境变量时显式传入 `cwd` 和 `env`；一次调用中的 `cd`、`export` 不影响下一次。包装 `cwd`/`env` 要求目标提供 POSIX Shell、`/bin/sh` 和 `/usr/bin/env`，不传时原样提交命令。数据库会话保持同一物理连接，支持事务和连接内状态，不跨会话共享；断开时尝试回滚未提交事务。取消或网络故障导致 `context_lost` 后须新建会话。
+SSH 复用传输连接，每条命令开启独立 exec。需要工作目录或环境变量时显式传入 `cwd` 和 `env`；一次调用中的 `cd`、`export` 不影响下一次。包装 `cwd`/`env` 要求目标提供 POSIX Shell、`/bin/sh` 和 `/usr/bin/env`，不传时原样提交命令。`cwd` 和 `env` 仅适用于 SSH。
+
+SQL 会话保持同一物理连接，执行一条完整语句并保留协议支持的连接内状态；除 ClickHouse 外，断开时尝试回滚未提交事务。ClickHouse 使用原生 TCP 协议及其对应端口，结果最多 1000 行和 8 MiB。Redis 使用单条 Redis 命令语法；MongoDB 使用包含严格 Extended JSON 的 `db.runCommand`，带 BSON 类型时使用 `EJSON.deserialize` 包装。Redis 的事务、切库、订阅和阻塞命令，以及 MongoDB 的后续游标读取和事务控制等依赖交互状态的操作，使用 `open_terminal`。两者复用现有执行器，文本输出最多 100 KiB 并标记截断；Redis 集群根据槽位信息路由，收到重定向或网络错误后不自动重试。MongoDB 禁用驱动自动读写重试。网关连接下的集群发现流量仍经同一网关转发。取消或网络故障导致 `context_lost` 后须新建会话，不自动重放命令。
 
 有命令过滤规则时，非空 `cwd` 或 `env` 必须命中审核规则并通过完整请求审批；仅命令文本匹配放行、告警放行或未匹配规则都不能自动执行带上下文的请求。Core 在派发认领时再次校验，拒绝结果和原始请求保留审计；可使用 `open_terminal` 进入受控人工终端，或去掉上下文后按原规则提交新操作。没有命令过滤规则时继续支持显式上下文。
 

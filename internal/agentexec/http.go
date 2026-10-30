@@ -261,7 +261,7 @@ type searchInput struct {
 type connectInput struct {
 	AssetID        string `json:"asset_id" jsonschema:"Exact results[].id from a current search_assets response; refresh after a stale-reference error."`
 	Account        string `json:"account" jsonschema:"Exact accounts[].id from search_assets, including virtual aliases such as @INPUT; never use the display name or username."`
-	Protocol       string `json:"protocol" jsonschema:"Choose from the selected account's protocols: ssh for commands, sftp for file tools, or the authorized database protocol."`
+	Protocol       string `json:"protocol" jsonschema:"Choose from the selected account's protocols: ssh, sftp (files), mysql, mariadb, postgresql, sqlserver, oracle, clickhouse, redis, or mongodb."`
 	IdempotencyKey string `json:"idempotency_key"`
 }
 type commandInput struct {
@@ -346,7 +346,7 @@ func (r *Runtime) registerTools(server *mcp.Server, issuer string) {
 		}
 		return r.Search(ctx, p, in.Query, in.AssetID, in.Offset, in.Limit, in.AccountOffset)
 	})
-	registerTool(server, issuer, "connect_asset", "Connect using exact asset/account IDs from search_assets, never display names. Choose protocol=sftp for file tools or ssh for commands. Poll the connection action_id for completion or human approval. Reuse a key only for an identical request; refresh assets after 404.", func(ctx context.Context, p Principal, in connectInput) (any, error) {
+	registerTool(server, issuer, "connect_asset", "Connect using exact asset/account IDs and an authorized protocol from search_assets, never display names. Choose sftp for file tools, ssh for host commands, or the asset's database protocol. Poll the connection action_id for completion or human approval. Reuse a key only for an identical request; refresh assets after 404.", func(ctx context.Context, p Principal, in connectInput) (any, error) {
 		return r.Connect(ctx, p, in.AssetID, in.Account, in.Protocol, in.IdempotencyKey, p.RemoteAddr)
 	})
 	registerToolGroup(server, issuer, "query_sessions", "Query this user's sessions in the authorized client, node and organizations. operation=get requires session_id or the original connection idempotency_key; operation=list pages with next_offset. Reports current permissions and connection availability; never reconnects or executes.",
@@ -360,7 +360,7 @@ func (r *Runtime) registerTools(server *mcp.Server, issuer string) {
 			return r.ListResources(ctx, p, true, "", in.Status, in.Offset, in.Limit)
 		}),
 	)
-	registerTool(server, issuer, "execute_command", "Submit an audited SSH command or database statement and return action_id. SSH calls do not inherit shell state. Under command filtering, nonempty cwd/env require full-request human approval; otherwise omit them or use open_terminal. Query query_actions(operation=get); never automatically repeat unknown or rejected results.", func(ctx context.Context, p Principal, in commandInput) (any, error) {
+	registerTool(server, issuer, "execute_command", "Submit an audited SSH command, SQL statement, Redis command, or MongoDB db.runCommand with strict Extended JSON, and return action_id. SSH calls do not inherit shell state. cwd/env apply only to SSH and require full-request human approval under command filtering. Session-dependent or blocking Redis/MongoDB commands require open_terminal. Query query_actions(operation=get); never automatically repeat unknown or rejected results.", func(ctx context.Context, p Principal, in commandInput) (any, error) {
 		if in.TimeoutSeconds == 0 {
 			in.TimeoutSeconds = 120
 		}

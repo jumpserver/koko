@@ -30,8 +30,13 @@ func TestIntrospectionDeclaresExecutorCapabilities(t *testing.T) {
 		values := body.(map[string]any)
 		capabilities := values["capabilities"].(map[string]any)
 		protocols := capabilities["protocols"].(map[string]string)
-		if path != "introspect/" || capabilities["version"] != 1 || protocols["ssh"] != "shell" || protocols["sftp"] != "files" || protocols["postgresql"] != "database" || len(protocols) != 5 {
+		if path != "introspect/" || capabilities["version"] != 1 || protocols["ssh"] != "shell" || protocols["winrm"] != "" || protocols["sftp"] != "files" || len(protocols) != 10 {
 			t.Fatalf("invalid executor capabilities: %v", capabilities)
+		}
+		for _, protocol := range []string{"mysql", "mariadb", "postgresql", "sqlserver", "oracle", "clickhouse", "redis", "mongodb"} {
+			if protocols[protocol] != "database" {
+				t.Fatalf("missing database executor capability: %s", protocol)
+			}
 		}
 		delete(protocols, "ssh")
 		return respond(out, Principal{ContextToken: "context", UserID: "user", OrgID: "org", ClientID: "client", Resource: "https://mcp.example/mcp", AllOrganizations: true})

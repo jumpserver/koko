@@ -11,11 +11,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	mysql "github.com/go-sql-driver/mysql"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/internal/sessiontools"
 	"github.com/jumpserver/koko/pkg/srvconn"
+	mssql "github.com/microsoft/go-mssqldb"
+	oracle "github.com/sijms/go-ora/v2/network"
 )
 
 type databaseState struct {
@@ -46,11 +49,38 @@ func (c *Connection) openDatabase(ctx context.Context, token *model.ConnectToken
 		UseSSL: asset.SpecInfo.UseSSL, PGSSLMode: asset.SpecInfo.PgSSLMode,
 		CACert: asset.SecretInfo.CaCert, ClientCert: asset.SecretInfo.ClientCert, ClientKey: asset.SecretInfo.ClientKey,
 		AllowInvalidCert: asset.SpecInfo.AllowInvalidCert,
+		DataMaskingRules: token.DataMaskingRules,
+	}
+	if setting, ok := token.Platform.GetProtocolSetting(token.Protocol); ok {
+		options := setting.GetSetting()
+		config.Encrypt = options.Encrypt
+		config.DisableEncrypt = token.Protocol == srvconn.ProtocolSQLServer && !options.Encrypt
+		config.ClusterMode = options.EnableClusterMode
+		config.AuthSource, config.ConnectionOpts = options.AuthSource, options.ConnectionOpts
+		if token.Protocol == srvconn.ProtocolRedis {
+			if raw, exists := setting.Setting["enable_cluster_mode"]; exists {
+				config.ClusterMode, _ = strconv.ParseBool(fmt.Sprint(raw))
+			}
+			if token.Account.IsNull() || !options.AuthUsername {
+				config.Username = ""
+			}
+		}
+	}
+	if tunnel != nil && (token.Protocol == srvconn.ProtocolRedis || token.Protocol == srvconn.ProtocolMongoDB) {
+		// Discovery may return cluster members. Keep every driver connection on
+		// the authorized gateway instead of dialing those members directly.
+		config.Host, config.Port = asset.Address, asset.ProtocolPort(token.Protocol)
+		config.DialContext = tunnel.client.DialContext
 	}
 	var cleanup func() error
 	var err error
 	c.dbState = &databaseState{sanitizer: sessiontools.NewMySQLSanitizer(token.DataMaskingRules)}
-	c.sqlConn, c.dbState.transport, cleanup, err = sessiontools.OpenAgentSQLConnection(ctx, config)
+	if token.Protocol == srvconn.ProtocolRedis || token.Protocol == srvconn.ProtocolMongoDB {
+		c.executor, c.dbState.transport, err = sessiontools.OpenAgentDatabaseExecutor(ctx, config)
+		cleanup = func() error { return nil }
+	} else {
+		c.sqlConn, c.dbState.transport, cleanup, err = sessiontools.OpenAgentSQLConnection(ctx, config)
+	}
 	if err != nil {
 		if tunnel != nil {
 			tunnel.Close()
@@ -185,9 +215,13 @@ func (c *Connection) executeSQL(ctx context.Context, command string, emit Emit) 
 func (c *Connection) databaseError(ctx context.Context, result Result, err error) (Result, error) {
 	var mysqlErr *mysql.MySQLError
 	var pgErr *pgconn.PgError
+	var mssqlErr mssql.Error
+	var oracleErr *oracle.OracleError
+	var clickhouseErr *clickhouse.Exception
 	// A database error response proves the server handled the statement. A
 	// network/cancellation error does not establish whether a write committed.
-	if errors.As(err, &mysqlErr) || errors.As(err, &pgErr) {
+	if errors.As(err, &mysqlErr) || errors.As(err, &pgErr) || errors.As(err, &mssqlErr) ||
+		(errors.As(err, &oracleErr) && !oracleErr.Bad()) || errors.As(err, &clickhouseErr) {
 		result.Completed = true
 	}
 	if ctx.Err() != nil {
@@ -219,7 +253,10 @@ func (c *Connection) closeDatabase() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.dbState.transport.ResetReadLimit()
-	_, rollbackErr := c.sqlConn.ExecContext(ctx, "ROLLBACK")
+	var rollbackErr error
+	if c.protocol != srvconn.ProtocolClickHouse {
+		_, rollbackErr = c.sqlConn.ExecContext(ctx, "ROLLBACK")
+	}
 	c.dbState.transport.Close()
 	return errors.Join(rollbackErr, c.sqlConn.Close())
 }

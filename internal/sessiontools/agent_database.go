@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	mysql "github.com/go-sql-driver/mysql"
 	"github.com/jackc/pgx/v5"
@@ -21,33 +22,64 @@ import (
 // AgentSQLTransport bounds protocol input before a driver allocates rows and
 // allows a close deadline to interrupt driver I/O even while sql.Conn is busy.
 type AgentSQLTransport struct {
-	mu        sync.Mutex
-	conn      net.Conn
-	remaining atomic.Int64
+	mu          sync.Mutex
+	connections map[net.Conn]struct{}
+	dialContext databaseDialer
+	closed      bool
+	dialing     int
+	remaining   atomic.Int64
 }
 
 func (t *AgentSQLTransport) ResetReadLimit() { t.remaining.Store(16 << 20) }
 func (t *AgentSQLTransport) Close() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if t.conn != nil {
-		_ = t.conn.Close()
+	t.closed = true
+	for conn := range t.connections {
+		_ = conn.Close()
 	}
 }
 func (t *AgentSQLTransport) dial(ctx context.Context, network, address string) (net.Conn, error) {
-	conn, err := (&net.Dialer{}).DialContext(ctx, network, address)
+	t.mu.Lock()
+	if t.closed || len(t.connections)+t.dialing >= 16 {
+		t.mu.Unlock()
+		return nil, errors.New("agent database transport is closed or at capacity")
+	}
+	t.dialing++
+	t.mu.Unlock()
+	dial := t.dialContext
+	if dial == nil {
+		dial = (&net.Dialer{Timeout: 10 * time.Second}).DialContext
+	}
+	conn, err := dial(ctx, network, address)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.dialing--
 	if err != nil {
 		return nil, err
 	}
-	t.mu.Lock()
-	t.conn = conn
-	t.mu.Unlock()
+	if t.closed {
+		_ = conn.Close()
+		return nil, errors.New("agent database transport is closed")
+	}
+	if t.connections == nil {
+		t.connections = make(map[net.Conn]struct{})
+	}
+	t.connections[conn] = struct{}{}
 	return &agentSQLWireConn{Conn: conn, guard: t}, nil
 }
 
 type agentSQLWireConn struct {
 	net.Conn
 	guard *AgentSQLTransport
+}
+
+func (c *agentSQLWireConn) Close() error {
+	err := c.Conn.Close()
+	c.guard.mu.Lock()
+	delete(c.guard.connections, c.Conn)
+	c.guard.mu.Unlock()
+	return err
 }
 
 func (c *agentSQLWireConn) Read(p []byte) (int, error) {
@@ -68,8 +100,9 @@ func (c *agentSQLWireConn) Read(p []byte) (int, error) {
 // connection. A reconnect can never silently replace its transaction/context.
 // The caller closes the reserved connection before cleanup releases its pool.
 func OpenAgentSQLConnection(ctx context.Context, config DatabaseConfig) (*sql.Conn, *AgentSQLTransport, func() error, error) {
-	guard := &AgentSQLTransport{}
+	guard := &AgentSQLTransport{dialContext: config.DialContext}
 	guard.ResetReadLimit()
+	config.DialContext = guard.dial
 	var db *sql.DB
 	switch config.Protocol {
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
@@ -117,6 +150,13 @@ func OpenAgentSQLConnection(ctx context.Context, config DatabaseConfig) (*sql.Co
 		pgConfig.DescriptionCacheCapacity = 0
 		pgConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
 		db = stdlib.OpenDB(*pgConfig)
+	case srvconn.ProtocolSQLServer, srvconn.ProtocolOracle, srvconn.ProtocolClickHouse:
+		var err error
+		db, err = newNativeSQLDatabase(config)
+		if err != nil {
+			guard.Close()
+			return nil, nil, nil, err
+		}
 	default:
 		return nil, nil, nil, errors.New("native agent SQL connection is unsupported")
 	}
@@ -131,6 +171,20 @@ func OpenAgentSQLConnection(ctx context.Context, config DatabaseConfig) (*sql.Co
 		return nil, nil, nil, errors.Join(err, conn.Close(), cleanup())
 	}
 	return conn, guard, cleanup, nil
+}
+
+// OpenAgentDatabaseExecutor reuses the bounded, stateless Redis/MongoDB tools.
+// Automatic command retries are disabled for the agent dispatch contract.
+func OpenAgentDatabaseExecutor(ctx context.Context, config DatabaseConfig) (CommandExecutor, *AgentSQLTransport, error) {
+	guard := &AgentSQLTransport{dialContext: config.DialContext}
+	guard.ResetReadLimit()
+	config.DialContext, config.agent = guard.dial, true
+	executor, err := NewDatabaseExecutor(ctx, config)
+	if err != nil {
+		guard.Close()
+		return nil, nil, err
+	}
+	return executor, guard, nil
 }
 
 // AgentSQLReturnsRows validates a single SQL statement without imposing the
@@ -148,8 +202,8 @@ func AgentSQLReturnsRows(command, protocol string) (bool, error) {
 		return false, errors.New("one complete supported SQL statement is required")
 	}
 	switch analysis.keyword {
-	case "SELECT", "SHOW", "DESC", "DESCRIBE", "EXPLAIN", "VALUES", "TABLE", "EXECUTE", "FETCH", "CALL":
+	case "SELECT", "SHOW", "DESC", "DESCRIBE", "EXPLAIN", "VALUES", "TABLE", "EXEC", "EXECUTE", "FETCH", "CALL", "EXISTS", "CHECK":
 		return true, nil
 	}
-	return containsTopLevelSQLWord(analysis.words, analysis.depths, "RETURNING"), nil
+	return containsTopLevelSQLWord(analysis.words, analysis.depths, "RETURNING") || containsTopLevelSQLWord(analysis.words, analysis.depths, "OUTPUT"), nil
 }
