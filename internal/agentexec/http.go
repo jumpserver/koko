@@ -285,7 +285,7 @@ type terminalInput struct {
 }
 
 func (r *Runtime) registerTools(server *mcp.Server, issuer string) {
-	registerTool(server, issuer, "search_assets", "Find authorized assets and accounts/protocols. Follow next_offset for assets; use asset_id and accounts_next_offset as account_offset for more accounts on one asset.", func(ctx context.Context, p Principal, in searchInput) (any, error) {
+	registerTool(server, issuer, "search_assets", "Find authorized assets and accounts/protocols across the organizations included in this authorization. Results identify each asset's organization; no organization selection is required. Follow next_offset for assets; use asset_id and accounts_next_offset as account_offset for more accounts on one asset.", func(ctx context.Context, p Principal, in searchInput) (any, error) {
 		if in.Limit == 0 {
 			in.Limit = 20
 		}

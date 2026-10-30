@@ -86,4 +86,14 @@ func TestIntrospectionRequiresCoreOrganization(t *testing.T) {
 	if _, err := r.Introspect(context.Background(), "token", "", resource); err == nil {
 		t.Fatal("identity without Core-authorized organization was accepted")
 	}
+	r.core = coreFunc(func(_ context.Context, _ string, body, out any) error {
+		if body.(map[string]any)["org_id"] != "" {
+			t.Fatal("client must not select an organization for discovery")
+		}
+		return respond(out, Principal{ContextToken: "context", UserID: "user", ClientID: "client", Resource: resource,
+			OrgID: "00000000-0000-0000-0000-000000000000", AllOrganizations: true})
+	})
+	if p, err := r.Introspect(context.Background(), "token", "", resource); err != nil || !p.AllOrganizations {
+		t.Fatalf("Core-issued multi-organization scope was lost: %v", err)
+	}
 }

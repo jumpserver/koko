@@ -65,7 +65,7 @@ Koko 启动时即通过现有组件配置接口获取 MCP 开关和地址，此�
 
 1. 向管理员取得 Core 中保存的完整 `MCP_PUBLIC_URL`，确认客户端能访问该地址，浏览器能访问 Core 网站地址。下文命令中的 `<MCP_PUBLIC_URL>` 须连同尖括号替换为实际地址，保留引号。
 2. 首次自动登记客户端时，管理员须同时启用 `MCP_ENABLED` 和 `MCP_DCR_ENABLED`。关闭 DCR 后，已登记且授权有效的客户端仍可使用；新客户端不能自动登记。
-3. 客户端选择 **Streamable HTTP / HTTP** 和浏览器 OAuth 授权。无需填写资产密码、client secret 或组织 header；组织在 JumpServer 授权页面选择。
+3. 客户端选择 **Streamable HTTP / HTTP** 和浏览器 OAuth 授权。无需填写资产密码、client secret 或组织 header；新授权默认覆盖本人当前可访问的全部组织，无需选择组织。
 4. 使用本机 CLI 时，在同一台电脑的浏览器完成授权。SSH、容器或远程开发环境中的客户端须另外确保浏览器回调能到达客户端监听端口。
 
 ### 客户端接入要求
@@ -77,9 +77,9 @@ Koko 启动时即通过现有组件配置接口获取 MCP 开关和地址，此�
 ### Codex CLI / IDE
 
 1. 在终端执行 `codex mcp add jumpserver --url "<MCP_PUBLIC_URL>"`，添加远程服务。
-2. 执行 `codex mcp login jumpserver --scopes agent:access`，按浏览器提示登录 JumpServer、选择组织并确认授权。Codex 从 MCP 元数据发现 Core，自动登记 public OAuth 客户端及本机回调地址。
+2. 执行 `codex mcp login jumpserver --scopes agent:access`，按浏览器提示登录 JumpServer 并确认授权。Codex 从 MCP 元数据发现 Core，自动登记 public OAuth 客户端及本机回调地址。
 3. 执行 `codex mcp list` 确认配置已保存，再启动或重新打开 Codex 会话，通过 `/mcp` 检查服务与工具是否可用。
-4. 按下述统一流程验证 `search_assets`。切换组织时先执行 `codex mcp logout jumpserver`，再重新登录授权。
+4. 按下述统一流程验证 `search_assets`。已有单组织授权需要先执行 `codex mcp logout jumpserver`，再重新登录授权，才能使用全部已授权组织的范围。
 
 配置默认保存在 `~/.codex/config.toml`；同一 Codex 主机的 CLI 与 IDE 扩展共享配置。参见 [Codex 官方 MCP 文档](https://learn.chatgpt.com/docs/extend/mcp)。
 
@@ -87,13 +87,15 @@ Koko 启动时即通过现有组件配置接口获取 MCP 开关和地址，此�
 
 首次验证时，让 Agent 使用 `jumpserver` 的 `search_assets` 查询本人获准访问的资产、账号和协议，暂不连接资产或执行命令。展开工具调用，确认结果来自该服务且没有认证或连接错误；成功返回空列表时，再核对当前授权组织及资产权限。
 
-1. 在浏览器登录 JumpServer，选择可用组织并确认授权。只有一个组织时可自动选中，多个组织须明确选择。
-2. Agent 通过 `initialize`、`tools/list` 发现工具，用 `search_assets` 查询获准访问的资产、账号和协议。
+1. 在浏览器登录 JumpServer 并确认授权，无需选择组织。没有可访问组织的用户不能授权。
+2. Agent 通过 `initialize`、`tools/list` 发现工具，用 `search_assets` 查询本人在全部可访问组织中获准使用的资产、账号和协议。结果携带组织名称和 ID，按统一顺序分页。
 3. 调用 `connect_asset`，保存返回的 `session_id` 和连接 `action_id`，通过 `get_action` 查询连接或审批状态。
 4. 遇到审批、MFA、原因填写或个人凭据要求，用户打开返回的 JumpServer 页面完成流程，再回到 Agent 查询或继续操作。Agent 的工具确认不能代替 Core 审批。
 5. 连接就绪后提交命令、SQL 或 SFTP 操作，保存 `action_id` 并查询到终态。结束后调用 `disconnect_asset` 释放连接。
 
-OAuth 使用 authorization code、PKCE S256、`agent:access` scope 和精确的 MCP resource。组织绑定到每次授权及后续刷新，不能通过 header 更改；`X-JMS-ORG` 无需发送，发送时必须与授权组织一致。所有 Agent 授权均须具备组织绑定。切换组织需要重新授权。
+OAuth 使用 authorization code、PKCE S256、`agent:access` scope 和精确的 MCP resource。授权范围绑定到每次授权及后续刷新，不能通过 header 扩大；无需发送 `X-JMS-ORG`。新授权覆盖本人当前可访问的全部组织，每次请求重新校验组织资格；组织成员关系移除后，旧上下文也不能继续访问该组织。旧单组织授权及其刷新保持原范围，重新授权后才升级为多组织范围。连接根据资产 ID 自动定位实际组织，账号、协议、审批和操作权限仍在该组织内校验，会话和操作审计也归属该组织。
+
+Lina 的“个人设置 → Agent / MCP”提供“我的客户端”和“接入文档”。客户端列表跨组织汇总本人授权，不受页面当前组织影响；撤销操作只撤销本人对该客户端的全部授权，保留历史审计。系统设置中的客户端管理继续由管理员管理全站登记。
 
 客户端保存并复用自动登记的 client ID，管理访问令牌刷新与撤销。资产密码、私钥和内部执行 capability 不返回 PC。客户端类型不改变资产权限、审批、幂等与审计规则。
 
@@ -177,4 +179,4 @@ SSH 复用传输连接，每条命令开启独立 exec。需要工作目录或�
 集中审计页面位于 `/core/auth/agent/audit/sessions/` 和 `/core/auth/agent/audit/actions/`，按本人及现有组织审计权限访问。
 返回的审计链接携带操作所属组织，页内导航保留组织参数；浏览器当前组织不同不影响获准访问的记录定位。
 
-构建沿用项目流程，包括 libghostty-vt。基础回归运行 `GOMAXPROCS=2 GOMEMLIMIT=512MiB go test -race -p 1 ./internal/agentexec ./internal/assetexec ./pkg/httpd`。数据库及 Core 贯通测试仅在显式提供隔离 fixture 时执行。部署验收使用隔离资产与账户，覆盖浏览器登录、组织选择、资产连接、审批、结果与审计查询，以及反向代理和文件传输。
+构建沿用项目流程，包括 libghostty-vt。基础回归运行 `GOMAXPROCS=2 GOMEMLIMIT=512MiB go test -race -p 1 ./internal/agentexec ./internal/assetexec ./pkg/httpd`。数据库及 Core 贯通测试仅在显式提供隔离 fixture 时执行。部署验收使用隔离资产与账户，覆盖浏览器登录、多组织授权、资产连接、审批、结果与审计查询，以及反向代理和文件传输。

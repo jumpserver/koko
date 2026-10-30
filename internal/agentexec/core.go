@@ -25,14 +25,15 @@ var identifier = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,128}$`)
 // Principal is issued by Core after validating a resource-bound OAuth token.
 // ContextToken must never be returned to an MCP client or included in logs.
 type Principal struct {
-	UserID       string    `json:"user_id"`
-	OrgID        string    `json:"org_id"`
-	ClientID     string    `json:"client_id"`
-	ContextToken string    `json:"context_token"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	Resource     string    `json:"resource"`
-	Scopes       []string  `json:"scopes"`
-	RemoteAddr   string    `json:"-"`
+	UserID           string    `json:"user_id"`
+	OrgID            string    `json:"org_id"`
+	AllOrganizations bool      `json:"all_organizations,omitempty"`
+	ClientID         string    `json:"client_id"`
+	ContextToken     string    `json:"context_token"`
+	ExpiresAt        time.Time `json:"expires_at"`
+	Resource         string    `json:"resource"`
+	Scopes           []string  `json:"scopes"`
+	RemoteAddr       string    `json:"-"`
 }
 
 type Session struct {
