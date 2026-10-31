@@ -26,8 +26,8 @@ var identifier = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,128}$`)
 // Only translate public Core codes; never reflect credential error bodies.
 var publicErrorHints = map[string]string{
 	"sftp_session_required":  "Use a separate connect_asset session with protocol=sftp and virtual paths rooted at /.",
-	"shell_session_required": "execute_command requires a shell or database session.",
-	"shell_context_required": "cwd and env require a shell session.",
+	"shell_session_required": "execute_command requires a command session.",
+	"shell_context_required": "cwd and env apply only to SSH sessions.",
 	"connection_not_ready":   "Query the connection action_id and complete any returned approval before submitting operations.",
 	"file_content_too_large": "Use file_write(operation=upload) for content larger than 64 KiB.",
 	"request_too_large":      "The encoded request exceeds its size limit; use file transfer for large content.",

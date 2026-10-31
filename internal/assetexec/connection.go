@@ -29,7 +29,7 @@ var (
 // These are execution effects, not grants. Core still authorizes each asset,
 // account, protocol and action before the node can execute it.
 var protocolModes = map[string]string{
-	srvconn.ProtocolSSH: "shell", srvconn.ProtocolWinRM: "shell", srvconn.ProtocolSFTP: "files",
+	srvconn.ProtocolSSH: "shell", srvconn.ProtocolWinRM: "pipeline", srvconn.ProtocolSFTP: "files",
 	srvconn.ProtocolMySQL: "database", srvconn.ProtocolMariadb: "database", srvconn.ProtocolPostgresql: "database",
 	srvconn.ProtocolSQLServer: "database", srvconn.ProtocolOracle: "database", srvconn.ProtocolClickHouse: "database",
 	srvconn.ProtocolRedis: "database", srvconn.ProtocolMongoDB: "database",
