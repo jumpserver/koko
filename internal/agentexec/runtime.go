@@ -217,7 +217,7 @@ func (r *Runtime) Connect(ctx context.Context, p Principal, asset, account, prot
 			return nil, errors.New("session does not belong to this authorization")
 		}
 		existing.lastUsed = time.Now()
-		existing.info.Capabilities = info.Capabilities
+		existing.info.Capabilities = executionCapabilities(info.Capabilities, existing.connection)
 		existing.info.AuthorizationStatus = info.AuthorizationStatus
 		return r.publicSession(existing.info), nil
 	}
@@ -430,6 +430,7 @@ func (r *Runtime) openSession(ctx context.Context, s *liveSession, remoteAddr st
 		}
 		info.TerminalSessionID = id
 	}
+	info.Capabilities = executionCapabilities(info.Capabilities, connection)
 	if err = r.journal.SaveSession(info); err != nil {
 		_ = connection.Close()
 		if managedTerminal {
@@ -438,13 +439,14 @@ func (r *Runtime) openSession(ctx context.Context, s *liveSession, remoteAddr st
 		fail(err)
 		return
 	}
-	if err = r.journal.Append(info.ActionID, "succeeded", map[string]any{"session_id": info.ID, "terminal_session_ids": ids}); err != nil {
+	if err = r.journal.Append(info.ActionID, "succeeded", map[string]any{"session_id": info.ID, "terminal_session_ids": ids, "capabilities": info.Capabilities}); err != nil {
 		_ = connection.Close()
 		fail(err)
 		return
 	}
 	s.mu.Lock()
 	s.connection = connection
+	s.info.Capabilities = info.Capabilities
 	s.info.TerminalSessionID = info.TerminalSessionID
 	s.info.Status = "active"
 	s.lastUsed = time.Now()
@@ -511,7 +513,7 @@ func (r *Runtime) Submit(ctx context.Context, p Principal, sessionID, kind, key 
 		}
 		protocol := s.connection.Protocol()
 		s.mu.Unlock()
-		if assetexec.ProtocolMode(protocol) != "shell" && (command.Cwd != "" || len(command.Env) != 0) {
+		if protocol != "ssh" && (command.Cwd != "" || len(command.Env) != 0) {
 			return Action{}, errors.New("cwd and env apply only to SSH")
 		}
 		prepared, prepareErr := assetexec.PrepareCommand(command)
@@ -810,6 +812,9 @@ func (r *Runtime) execute(ctx context.Context, action Action, s *liveSession) (m
 		s.mu.Unlock()
 	}
 	payload := map[string]any{"exit_code": result.ExitCode, "rows_affected": result.RowsAffected, "output_truncated": result.Truncated || errors.Is(err, ErrEvidenceLimit), "stop_confirmed": result.StopConfirmed, "context_lost": result.ContextLost}
+	if result.PipelineState != "" {
+		payload["pipeline_state"], payload["had_errors"] = result.PipelineState, result.HadErrors
+	}
 	if err != nil {
 		payload["error"] = err.Error()
 		if result.Dispatched && !result.Completed {

@@ -24,7 +24,7 @@ func inputSchema[T any]() *jsonschema.Schema {
 			property.MaxLength = new(512)
 		case "command":
 			property.MinLength, property.MaxLength = new(1), new(4096)
-			property.Description = "SSH command, SQL statement, Redis command, or MongoDB db.runCommand with strict Extended JSON, at most 4096 UTF-8 bytes."
+			property.Description = "SSH command, WinRM PowerShell command, SQL statement, Redis command, or MongoDB db.runCommand with strict Extended JSON, at most 4096 UTF-8 bytes."
 		case "path", "remote_path", "destination":
 			property.MinLength, property.MaxLength, property.Pattern = new(1), new(4096), "^/"
 		case "content":

@@ -25,26 +25,44 @@ func TestAgentSQLAllowsSessionStatementsButNotBatches(t *testing.T) {
 }
 
 func TestAgentNativeSQLUsesBoundedDialer(t *testing.T) {
-	for _, protocol := range []string{"sqlserver", "oracle", "clickhouse"} {
-		t.Run(protocol, func(t *testing.T) {
+	for _, config := range []DatabaseConfig{
+		{Protocol: "sqlserver"}, {Protocol: "oracle"}, {Protocol: "clickhouse"},
+		{Protocol: "mysql", PlatformType: "oceanbase", TenantMode: "mysql"},
+		{Protocol: "mysql", PlatformType: "oceanbase", TenantMode: "oracle"},
+	} {
+		t.Run(config.Protocol+config.PlatformType+config.TenantMode, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
 			called := false
-			_, _, _, err := OpenAgentSQLConnection(ctx, DatabaseConfig{
-				Protocol: protocol, Host: "asset.private.invalid", Port: 1234, ServerName: "asset.example",
-				Username: "agent", Password: "test", Database: "agent",
-				DialContext: func(_ context.Context, _, address string) (net.Conn, error) {
-					called = true
-					if address != "asset.private.invalid:1234" {
-						t.Errorf("dialed outside configured endpoint: %s", address)
-					}
-					return nil, errors.New("test connection refused")
-				},
-			})
+			config.Host, config.Port, config.ServerName = "asset.private.invalid", 1234, "asset.example"
+			config.Username, config.Password, config.Database = "agent", "test", "agent"
+			config.DialContext = func(_ context.Context, _, address string) (net.Conn, error) {
+				called = true
+				if address != "asset.private.invalid:1234" {
+					t.Errorf("dialed outside configured endpoint: %s", address)
+				}
+				return nil, errors.New("test connection refused")
+			}
+			_, _, _, err := OpenAgentSQLConnection(ctx, config)
 			if err == nil || !called {
 				t.Fatalf("native protocol did not use its transport: %v", err)
 			}
 		})
+	}
+}
+
+func TestAgentOceanBaseRejectsUnknownTenantBeforeDial(t *testing.T) {
+	for _, mode := range []string{"", "unknown"} {
+		_, _, _, err := OpenAgentSQLConnection(context.Background(), DatabaseConfig{
+			Protocol: "mysql", PlatformType: "oceanbase", TenantMode: mode,
+			DialContext: func(context.Context, string, string) (net.Conn, error) {
+				t.Fatal("unknown OceanBase tenant reached the network")
+				return nil, nil
+			},
+		})
+		if err == nil {
+			t.Fatal("unknown tenant was accepted")
+		}
 	}
 }
 

@@ -103,9 +103,18 @@ func OpenAgentSQLConnection(ctx context.Context, config DatabaseConfig) (*sql.Co
 	guard := &AgentSQLTransport{dialContext: config.DialContext}
 	guard.ResetReadLimit()
 	config.DialContext = guard.dial
+	config.agent = true
 	var db *sql.DB
 	switch config.Protocol {
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
+		if config.PlatformType == "oceanbase" {
+			var err error
+			db, err = newOceanBaseDatabase(config)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			break
+		}
 		driverConfig := mysql.NewConfig()
 		driverConfig.Net = "tcp"
 		driverConfig.Addr = net.JoinHostPort(config.Host, strconv.Itoa(config.Port))

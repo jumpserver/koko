@@ -1,6 +1,6 @@
 # Agent 资产执行与 MCP 接入
 
-Koko 提供标准 MCP Streamable HTTP 服务，使 Agent 通过 JumpServer 操作授权资产。支持 SSH、SFTP、MySQL/MariaDB、PostgreSQL、SQL Server、Oracle、ClickHouse、Redis 和 MongoDB。Codex 使用原生远程 MCP；DSH（DeepSeek Harness）通过独立插件适配同一服务端契约。
+Koko 提供标准 MCP Streamable HTTP 服务，使 Agent 通过 JumpServer 操作授权资产。支持 SSH、WinRM、SFTP、MySQL/MariaDB、OceanBase MySQL/Oracle 租户、PostgreSQL、SQL Server、Oracle、ClickHouse、Redis 和 MongoDB。Codex 使用原生远程 MCP；DSH（DeepSeek Harness）通过独立插件适配同一服务端契约。
 
 | 组件 | 职责 |
 | --- | --- |
@@ -10,7 +10,7 @@ Koko 提供标准 MCP Streamable HTTP 服务，使 Agent 通过 JumpServer 操�
 | docker-web / Nginx | 外部 HTTP/HTTPS 入口、TLS 终止与反向代理 |
 | Codex / DSH 插件 | 浏览器授权、客户端令牌管理、工具调用、结果查询和审批链接呈现；按需实现 PC 文件传输 |
 
-MCP 数据库执行复用 Go 原生驱动：MySQL/MariaDB 使用 `go-sql-driver/mysql`，PostgreSQL 使用 `pgx`，SQL Server、Oracle、ClickHouse、Redis 和 MongoDB 使用现有对应驱动。该路径不需要数据库命令行程序。`open_terminal` 打开的人工数据库终端使用现有终端实现，完整 Koko 部署须保留其 `usql` 等依赖。
+MCP 数据库执行复用 Go 原生驱动：MySQL/MariaDB 使用 `go-sql-driver/mysql`，OceanBase 使用现有 OceanBase 驱动，PostgreSQL 使用 `pgx`，SQL Server、Oracle、ClickHouse、Redis 和 MongoDB 使用现有对应驱动。该路径不需要数据库命令行程序。WinRM 复用现有 PSRP/NTLM 通信与 TLS 配置。`open_terminal` 打开的人工数据库终端使用现有终端实现，完整 Koko 部署须保留其 `usql` 等依赖。
 
 ## 首次部署
 
@@ -122,7 +122,7 @@ DSH 插件使用同一套发现、登记、浏览器授权、令牌管理、工�
 | `connect_asset` | 创建或复用显式资产会话，返回 `session_id` 和连接 `action_id` |
 | `query_sessions` | `operation=get` 按会话 ID 或原连接幂等键找回会话；`operation=list` 分页列出当前授权范围内的会话；不重连 |
 | `disconnect_asset` | 拒绝新操作，等待已接受操作排空后释放连接 |
-| `execute_command` | 提交 SSH 独立命令、SQL、Redis 命令或 MongoDB `db.runCommand`，返回 `action_id` |
+| `execute_command` | 提交 SSH 独立命令、WinRM PowerShell 命令、SQL、Redis 命令或 MongoDB `db.runCommand`，返回 `action_id` |
 | `query_actions` | `operation=get` 查询状态、结果、分页输出及审计交付状态；`operation=list` 分页找回操作，可按 `session_id` 筛选 |
 | `cancel_action` | 请求取消；远端未确认停止时结果可能仍不确定 |
 | `file_read` | `operation=list/stat/read/download`：SFTP 目录分页、元信息、小文本读取、下载登记，均返回 `action_id` |
@@ -149,7 +149,13 @@ DSH 插件使用同一套发现、登记、浏览器授权、令牌管理、工�
 
 SSH 复用传输连接，每条命令开启独立 exec。需要工作目录或环境变量时显式传入 `cwd` 和 `env`；一次调用中的 `cd`、`export` 不影响下一次。包装 `cwd`/`env` 要求目标提供 POSIX Shell、`/bin/sh` 和 `/usr/bin/env`，不传时原样提交命令。`cwd` 和 `env` 仅适用于 SSH。
 
+连接就绪后，`capabilities.command_language`、`dialect`（SQL）与 `stateful` 说明实际执行语言、SQL 方言和是否保留连接内状态。连接操作完成的 `result.capabilities` 与 `query_sessions(operation=get)` 均返回这些提示，无需为确认语言额外发起一次查询；提示由 Koko 根据已建立连接生成。
+
+WinRM 每个 MCP 资产会话独占一个 PowerShell Runspace，同一会话内串行执行并保留变量和工作目录，不与其他 MCP 会话或 Web 终端共享。拒绝 `cwd/env`，需要修改目录或环境时使用经审核的 PowerShell 命令。输出与错误流分别纳入现有审计；`pipeline_state` 记录明确收到的 PSRP 终态，PowerShell 错误流会使操作失败。原生程序的 `exit_code` 仅来自本次执行，纯 PowerShell 操作不伪造退出码。超时、取消、网络中断或输出超限时关闭本会话；没有确认终态的已派发操作保留为 `unknown`，不自动重放。交互式 Host 输入仍不支持；人工审批与终端使用现有入口，但不会继承 MCP Runspace。
+
 SQL 会话保持同一物理连接，执行一条完整语句并保留协议支持的连接内状态；除 ClickHouse 外，断开时尝试回滚未提交事务。ClickHouse 使用原生 TCP 协议及其对应端口，结果最多 1000 行和 8 MiB。SQL Server 使用网关时，首次连接、服务端路由重定向及其主机名解析均经同一网关。
+
+OceanBase 两种租户都使用资产的 `mysql` 连接协议，由平台的 `tenant_mode=mysql/oracle` 决定 SQL 方言；缺失或未知模式会在连接前拒绝。驱动、网络预算和事务生命周期沿用受控 SQL 连接，明确的 OceanBase SQL 错误记录为失败，网络故障或取消导致的结果不确定不自动重放。
 
 Redis 使用单条 Redis 命令语法。事务、切库、订阅、连接状态控制和阻塞操作使用 `open_terminal`；`CLIENT` 仅接受只读信息查询子命令。MCP 在驱动解码前校验每条 RESP 响应，最多 10 MiB、8 KiB 响应头行、100,000 个数组元素、64 层嵌套，超限中断本会话。Redis 集群根据槽位信息路由，收到重定向或网络错误后不自动重试。
 

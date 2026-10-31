@@ -19,10 +19,11 @@ func TestNativeDatabaseTransactionsAndCancellation(t *testing.T) {
 		t.Skip("isolated database fixture not configured")
 	}
 	var config struct {
-		MySQLPort    int    `json:"mysql_port"`
-		PostgresPort int    `json:"postgres_port"`
-		Password     string `json:"password"`
-		Database     string `json:"database"`
+		MySQLPort     int    `json:"mysql_port"`
+		PostgresPort  int    `json:"postgres_port"`
+		OceanBasePort int    `json:"oceanbase_mysql_port"`
+		Password      string `json:"password"`
+		Database      string `json:"database"`
 	}
 	data, err := os.ReadFile(fixture)
 	if err != nil {
@@ -33,18 +34,27 @@ func TestNativeDatabaseTransactionsAndCancellation(t *testing.T) {
 	}
 	for _, database := range []struct {
 		protocol, username, prepare, deallocate, sleep string
+		platformType, tenantMode                       string
 		port                                           int
 	}{
-		{"mysql", "root", "PREPARE agent_stmt FROM 'SELECT 41 AS n'", "DEALLOCATE PREPARE agent_stmt", "SELECT SLEEP(5)", config.MySQLPort},
-		{"postgresql", "agent_test", "PREPARE agent_stmt AS SELECT 41 AS n", "DEALLOCATE agent_stmt", "SELECT pg_sleep(5)", config.PostgresPort},
+		{"mysql", "root", "PREPARE agent_stmt FROM 'SELECT 41 AS n'", "DEALLOCATE PREPARE agent_stmt", "SELECT SLEEP(5)", "", "", config.MySQLPort},
+		{"postgresql", "agent_test", "PREPARE agent_stmt AS SELECT 41 AS n", "DEALLOCATE agent_stmt", "SELECT pg_sleep(5)", "", "", config.PostgresPort},
+		{"mysql", "root@test", "PREPARE agent_stmt FROM 'SELECT 41 AS n'", "DEALLOCATE PREPARE agent_stmt", "SELECT SLEEP(5)", "oceanbase", "mysql", config.OceanBasePort},
 	} {
-		t.Run(database.protocol, func(t *testing.T) {
+		t.Run(database.protocol+database.platformType, func(t *testing.T) {
+			if database.port == 0 {
+				t.Skip("isolated OceanBase MySQL fixture not configured")
+			}
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 			token := &model.ConnectToken{Id: "isolated-test", User: model.User{ID: "test-user"}, Protocol: database.protocol,
 				Actions: model.Actions{{Value: model.ActionConnect}},
 				Account: model.Account{BaseAccount: model.BaseAccount{Username: database.username, Secret: config.Password}},
 				Asset:   model.Asset{ID: "test-asset", Address: "127.0.0.1", Protocols: []model.Protocol{{Name: database.protocol, Port: database.port}}, SpecInfo: model.SpecInfo{DBName: config.Database}}}
+			if database.platformType != "" {
+				token.Platform.Type.Value = database.platformType
+				token.Platform.Protocols = model.PlatformProtocols{{Protocol: model.Protocol{Name: database.protocol}, Setting: map[string]any{"tenant_mode": database.tenantMode}}}
+			}
 			conn, err := Open(ctx, token, Options{ConnectTimeout: 3 * time.Second, MaxRows: 10, MaxOutputBytes: 4096})
 			if err != nil {
 				t.Fatal(err)
@@ -63,6 +73,9 @@ func TestNativeDatabaseTransactionsAndCancellation(t *testing.T) {
 				t.Fatalf("unexpected query output: %q", output)
 			}
 			execute("CREATE TEMPORARY TABLE assetexec_txn (id INTEGER)")
+			if result, err := conn.Execute(ctx, Request{Command: "INSERT INTO assetexec_missing_table VALUES (1)"}, func(string, []byte) error { return nil }); err == nil || !result.Completed || result.ContextLost {
+				t.Fatalf("SQL server rejection was treated as an uncertain operation: %+v %v", result, err)
+			}
 			execute("BEGIN")
 			execute("INSERT INTO assetexec_txn VALUES (1)")
 			execute("ROLLBACK")

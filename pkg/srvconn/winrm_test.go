@@ -77,7 +77,8 @@ func TestWinRMFragmentedOutput(t *testing.T) {
 			wire.Write(encoded)
 		}
 	}
-	if err := receiveWinRMPipeline(&wire, pl); err != nil {
+	var result WinRMResult
+	if err := receiveWinRMPipeline(&wire, pl, &result); err != nil {
 		t.Fatal(err)
 	}
 	streams := []<-chan *messages.Message{pl.Output(), pl.Error(), pl.Warning(), pl.Verbose(), pl.Debug(), pl.Progress(), pl.Information()}
@@ -85,8 +86,51 @@ func TestWinRMFragmentedOutput(t *testing.T) {
 	if err := consumeWinRMStreams(ctx, streams, &output, locationPrefix, func(_ context.Context, path string) { location = path }); err != nil {
 		t.Fatal(err)
 	}
-	if output.String() != "\n"+text+"\n\nnext line\n\n" || pl.Wait() != nil || location != `C:\Windows` {
+	if output.String() != "\n"+text+"\n\nnext line\n\n" || pl.Wait() != nil || location != `C:\Windows` || !result.Completed || result.PipelineState != "Completed" {
 		t.Fatalf("unexpected PowerShell output: %q", output.String())
+	}
+}
+
+func TestWinRMAgentOutputPreservesErrorsAndExitCode(t *testing.T) {
+	out, errs := make(chan *messages.Message, 2), make(chan *messages.Message, 1)
+	serializer := serialization.NewSerializer()
+	defer serializer.Close()
+	for _, item := range []struct {
+		stream chan *messages.Message
+		text   string
+	}{{out, "result"}, {out, "__JMS_EXIT_test__7"}, {errs, "PowerShell error"}} {
+		data, err := serializer.Serialize(item.text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		item.stream <- &messages.Message{Data: data}
+	}
+	close(out)
+	close(errs)
+	streams := make([]<-chan *messages.Message, 7)
+	streams[0], streams[1] = out, errs
+	var stdout, stderr bytes.Buffer
+	var result WinRMResult
+	output := &winRMCommandOutput{Writer: &stdout, stderr: &stderr, result: &result, statusPrefix: "__JMS_EXIT_test__"}
+	if err := consumeWinRMStreams(context.Background(), streams, output, "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if !result.HadErrors || result.ExitCode == nil || *result.ExitCode != 7 || !output.statusSeen ||
+		strings.Contains(stdout.String(), "PowerShell error") || strings.Contains(stdout.String(), "__JMS_EXIT_") || !strings.Contains(stderr.String(), "PowerShell error") {
+		t.Fatalf("PowerShell evidence lost: %+v stdout=%q stderr=%q", result, stdout.String(), stderr.String())
+	}
+}
+
+func TestWinRMAgentRejectsAmbiguousPipelineState(t *testing.T) {
+	for _, data := range []string{`<S>Completed</S>`, `<I32>99</I32>`, `<Obj RefId="0"><MS /></Obj>`} {
+		if _, err := winRMPipelineState([]byte(data)); err == nil {
+			t.Fatal("invalid remote state was accepted as execution success")
+		}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := NewWinRMClientContext(ctx, WinRMConfig{}); !errors.Is(err, context.Canceled) {
+		t.Fatal("WinRM handshake ignored its connection context")
 	}
 }
 
@@ -130,7 +174,7 @@ func TestWinRMRejectsOversizedFragment(t *testing.T) {
 	defer pl.Cancel()
 	header := make([]byte, 21)
 	binary.BigEndian.PutUint32(header[17:], 1024*1024+1)
-	if err := receiveWinRMPipeline(bytes.NewReader(header), pl); err == nil || !strings.Contains(err.Error(), "exceeds") {
+	if err := receiveWinRMPipeline(bytes.NewReader(header), pl, nil); err == nil || !strings.Contains(err.Error(), "exceeds") {
 		t.Fatalf("expected bounded decode failure, got %v", err)
 	}
 }

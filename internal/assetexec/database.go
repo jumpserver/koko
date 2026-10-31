@@ -18,6 +18,7 @@ import (
 	"github.com/jumpserver/koko/internal/sessiontools"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	mssql "github.com/microsoft/go-mssqldb"
+	obDriver "github.com/oceanbase/go-oceanbase-driver"
 	oracle "github.com/sijms/go-ora/v2/network"
 )
 
@@ -26,25 +27,16 @@ type databaseState struct {
 	cancel    context.CancelFunc
 	sanitizer sessiontools.ValueSanitizer
 	transport *sessiontools.AgentSQLTransport
+	dialect   string
 }
 
 func (c *Connection) openDatabase(ctx context.Context, token *model.ConnectToken) error {
 	ctx, cancel := context.WithTimeout(ctx, c.opts.ConnectTimeout)
 	defer cancel()
 	asset := token.Asset
-	host, port := asset.Address, asset.ProtocolPort(token.Protocol)
-	var tunnel *databaseTunnel
-	if token.Gateway != nil {
-		var err error
-		tunnel, err = openDatabaseTunnel(ctx, token.Gateway, net.JoinHostPort(host, strconv.Itoa(port)), c.opts.ConnectTimeout)
-		if err != nil {
-			return err
-		}
-		host = "127.0.0.1"
-		port = tunnel.listener.Addr().(*net.TCPAddr).Port
-	}
 	config := sessiontools.DatabaseConfig{
-		Protocol: token.Protocol, Host: host, Port: port, ServerName: asset.Address,
+		Protocol: token.Protocol, PlatformType: token.Platform.Type.Value,
+		Host: asset.Address, Port: asset.ProtocolPort(token.Protocol), ServerName: asset.Address,
 		Username: token.Account.Username, Password: token.Account.Secret, Database: asset.SpecInfo.DBName,
 		UseSSL: asset.SpecInfo.UseSSL, PGSSLMode: asset.SpecInfo.PgSSLMode,
 		CACert: asset.SecretInfo.CaCert, ClientCert: asset.SecretInfo.ClientCert, ClientKey: asset.SecretInfo.ClientKey,
@@ -57,6 +49,9 @@ func (c *Connection) openDatabase(ctx context.Context, token *model.ConnectToken
 		config.DisableEncrypt = token.Protocol == srvconn.ProtocolSQLServer && !options.Encrypt
 		config.ClusterMode = options.EnableClusterMode
 		config.AuthSource, config.ConnectionOpts = options.AuthSource, options.ConnectionOpts
+		if config.PlatformType == "oceanbase" {
+			config.TenantMode, _ = setting.Setting["tenant_mode"].(string)
+		}
 		if token.Protocol == srvconn.ProtocolRedis {
 			if raw, exists := setting.Setting["enable_cluster_mode"]; exists {
 				config.ClusterMode, _ = strconv.ParseBool(fmt.Sprint(raw))
@@ -66,6 +61,18 @@ func (c *Connection) openDatabase(ctx context.Context, token *model.ConnectToken
 			}
 		}
 	}
+	dialect, err := sessiontools.DatabaseDialect(config)
+	if err != nil {
+		return err
+	}
+	var tunnel *gatewayTunnel
+	if token.Gateway != nil {
+		tunnel, err = openGatewayTunnel(ctx, token.Gateway, net.JoinHostPort(config.Host, strconv.Itoa(config.Port)), c.opts.ConnectTimeout)
+		if err != nil {
+			return err
+		}
+		config.Host, config.Port = "127.0.0.1", tunnel.listener.Addr().(*net.TCPAddr).Port
+	}
 	if tunnel != nil && (token.Protocol == srvconn.ProtocolSQLServer || token.Protocol == srvconn.ProtocolRedis || token.Protocol == srvconn.ProtocolMongoDB) {
 		// Routing and discovery may return other hosts. Keep every driver
 		// connection on the authorized gateway, including redirected logins.
@@ -73,8 +80,7 @@ func (c *Connection) openDatabase(ctx context.Context, token *model.ConnectToken
 		config.DialContext = tunnel.client.DialContext
 	}
 	var cleanup func() error
-	var err error
-	c.dbState = &databaseState{sanitizer: sessiontools.NewMySQLSanitizer(token.DataMaskingRules)}
+	c.dbState = &databaseState{dialect: dialect, sanitizer: sessiontools.NewMySQLSanitizer(token.DataMaskingRules)}
 	if token.Protocol == srvconn.ProtocolRedis || token.Protocol == srvconn.ProtocolMongoDB {
 		c.executor, c.dbState.transport, err = sessiontools.OpenAgentDatabaseExecutor(ctx, config)
 		cleanup = func() error { return nil }
@@ -98,7 +104,7 @@ func (c *Connection) openDatabase(ctx context.Context, token *model.ConnectToken
 }
 
 func (c *Connection) executeSQL(ctx context.Context, command string, emit Emit) (result Result, returnedErr error) {
-	query, err := sessiontools.AgentSQLReturnsRows(command, c.protocol)
+	query, err := sessiontools.AgentSQLReturnsRows(command, c.dbState.dialect)
 	if err != nil {
 		return Result{}, err
 	}
@@ -214,13 +220,14 @@ func (c *Connection) executeSQL(ctx context.Context, command string, emit Emit) 
 
 func (c *Connection) databaseError(ctx context.Context, result Result, err error) (Result, error) {
 	var mysqlErr *mysql.MySQLError
+	var oceanBaseErr *obDriver.MySQLError
 	var pgErr *pgconn.PgError
 	var mssqlErr mssql.Error
 	var oracleErr *oracle.OracleError
 	var clickhouseErr *clickhouse.Exception
 	// A database error response proves the server handled the statement. A
 	// network/cancellation error does not establish whether a write committed.
-	if errors.As(err, &mysqlErr) || errors.As(err, &pgErr) || errors.As(err, &mssqlErr) ||
+	if errors.As(err, &mysqlErr) || errors.As(err, &oceanBaseErr) || errors.As(err, &pgErr) || errors.As(err, &mssqlErr) ||
 		(errors.As(err, &oracleErr) && !oracleErr.Bad()) || errors.As(err, &clickhouseErr) {
 		result.Completed = true
 	}
@@ -261,9 +268,9 @@ func (c *Connection) closeDatabase() error {
 	return errors.Join(rollbackErr, c.sqlConn.Close())
 }
 
-// databaseTunnel is a bounded, single-consumer SSH forwarding listener. It
+// gatewayTunnel is a bounded, single-asset SSH forwarding listener. It
 // never exposes a proxy to the caller or accepts a destination from tool input.
-type databaseTunnel struct {
+type gatewayTunnel struct {
 	listener    net.Listener
 	client      *srvconn.SSHClient
 	destination string
@@ -275,7 +282,7 @@ type databaseTunnel struct {
 	cancel      context.CancelFunc
 }
 
-func openDatabaseTunnel(ctx context.Context, gateway *model.Gateway, destination string, timeout time.Duration) (*databaseTunnel, error) {
+func openGatewayTunnel(ctx context.Context, gateway *model.Gateway, destination string, timeout time.Duration) (*gatewayTunnel, error) {
 	account := gateway.Account
 	opts := []srvconn.SSHClientOption{srvconn.SSHClientContext(ctx), srvconn.SSHClientHost(gateway.Address), srvconn.SSHClientPort(gateway.Protocols.GetProtocolPort(model.ProtocolSSH)), srvconn.SSHClientUsername(account.Username), srvconn.SSHClientTimeout(int(timeout / time.Second))}
 	if account.IsSSHKey() {
@@ -293,7 +300,7 @@ func openDatabaseTunnel(ctx context.Context, gateway *model.Gateway, destination
 		return nil, err
 	}
 	lifetime, cancel := context.WithCancel(context.Background())
-	tunnel := &databaseTunnel{listener: listener, client: client, destination: destination, connections: make(map[net.Conn]struct{}), slots: make(chan struct{}, 2), ctx: lifetime, cancel: cancel}
+	tunnel := &gatewayTunnel{listener: listener, client: client, destination: destination, connections: make(map[net.Conn]struct{}), slots: make(chan struct{}, 2), ctx: lifetime, cancel: cancel}
 	go tunnel.serve()
 	if err = ctx.Err(); err != nil {
 		tunnel.Close()
@@ -302,7 +309,7 @@ func openDatabaseTunnel(ctx context.Context, gateway *model.Gateway, destination
 	return tunnel, nil
 }
 
-func (t *databaseTunnel) serve() {
+func (t *gatewayTunnel) serve() {
 	for {
 		conn, err := t.listener.Accept()
 		if err != nil {
@@ -327,7 +334,7 @@ func (t *databaseTunnel) serve() {
 	}
 }
 
-func (t *databaseTunnel) forward(local net.Conn) {
+func (t *gatewayTunnel) forward(local net.Conn) {
 	defer func() { _ = local.Close(); t.mu.Lock(); delete(t.connections, local); t.mu.Unlock(); <-t.slots }()
 	ctx, cancel := context.WithTimeout(t.ctx, 20*time.Second)
 	defer cancel()
@@ -343,7 +350,7 @@ func (t *databaseTunnel) forward(local net.Conn) {
 	<-done
 }
 
-func (t *databaseTunnel) Close() {
+func (t *gatewayTunnel) Close() {
 	t.once.Do(func() {
 		t.cancel()
 		_ = t.listener.Close()

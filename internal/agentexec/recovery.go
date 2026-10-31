@@ -3,8 +3,25 @@ package agentexec
 import (
 	"context"
 	"errors"
+	"maps"
 	"time"
+
+	"github.com/jumpserver/koko/internal/assetexec"
 )
+
+func executionCapabilities(capabilities map[string]any, connection *assetexec.Connection) map[string]any {
+	if connection == nil {
+		return capabilities
+	}
+	result := maps.Clone(capabilities)
+	if result == nil {
+		result = make(map[string]any)
+	}
+	for key, value := range connection.ExecutionHints() {
+		result[key] = value
+	}
+	return result
+}
 
 func (r *Runtime) query(ctx context.Context, p Principal, path string, values map[string]any) (map[string]any, error) {
 	values["context_token"] = p.ContextToken
@@ -42,6 +59,8 @@ func (r *Runtime) sessionAvailability(p Principal, result map[string]any) {
 	}
 	if s.connection != nil && s.info.Status == "active" {
 		result["native_connection_available"] = true
+		capabilities, _ := result["capabilities"].(map[string]any)
+		result["capabilities"] = executionCapabilities(capabilities, s.connection)
 		if hints, ok := result["capabilities"].(map[string]any); ok {
 			if actions, ok := hints["allowed_actions"].([]any); ok && len(actions) == 0 {
 				result["next_step"] = "check_permissions"

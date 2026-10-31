@@ -29,7 +29,7 @@ var (
 // These are execution effects, not grants. Core still authorizes each asset,
 // account, protocol and action before the node can execute it.
 var protocolModes = map[string]string{
-	srvconn.ProtocolSSH: "shell", srvconn.ProtocolSFTP: "files",
+	srvconn.ProtocolSSH: "shell", srvconn.ProtocolWinRM: "shell", srvconn.ProtocolSFTP: "files",
 	srvconn.ProtocolMySQL: "database", srvconn.ProtocolMariadb: "database", srvconn.ProtocolPostgresql: "database",
 	srvconn.ProtocolSQLServer: "database", srvconn.ProtocolOracle: "database", srvconn.ProtocolClickHouse: "database",
 	srvconn.ProtocolRedis: "database", srvconn.ProtocolMongoDB: "database",
@@ -66,6 +66,8 @@ type Result struct {
 	Truncated     bool   `json:"truncated,omitempty"`
 	StopConfirmed bool   `json:"stop_confirmed,omitempty"`
 	ContextLost   bool   `json:"context_lost,omitempty"`
+	PipelineState string `json:"pipeline_state,omitempty"`
+	HadErrors     bool   `json:"had_errors,omitempty"`
 }
 
 type Connection struct {
@@ -76,6 +78,7 @@ type Connection struct {
 	closed    atomic.Bool
 	closeOnce sync.Once
 	ssh       *srvconn.SSHClient
+	winRM     winRMConnection
 	executor  sessiontools.CommandExecutor
 	sftp      *srvconn.UserSftpConn
 	sqlConn   *sql.Conn
@@ -132,6 +135,8 @@ func Open(ctx context.Context, token *model.ConnectToken, opts Options) (*Connec
 		cancel()
 	case srvconn.ProtocolSFTP:
 		err = c.openSFTP(ctx, token)
+	case srvconn.ProtocolWinRM:
+		err = c.openWinRM(ctx, token)
 	default:
 		if ProtocolMode(c.protocol) == "database" {
 			err = c.openDatabase(ctx, token)
@@ -152,6 +157,25 @@ func Open(ctx context.Context, token *model.ConnectToken, opts Options) (*Connec
 
 func (c *Connection) Protocol() string { return c.protocol }
 
+// ExecutionHints describe the established adapter, not client-selected options
+// or permission grants. In particular, an OceanBase tenant may speak mysql
+// while accepting Oracle SQL.
+func (c *Connection) ExecutionHints() map[string]any {
+	switch c.protocol {
+	case srvconn.ProtocolSSH:
+		return map[string]any{"command_language": "shell", "stateful": false}
+	case srvconn.ProtocolWinRM:
+		return map[string]any{"command_language": "powershell", "stateful": true}
+	case srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
+		return map[string]any{"command_language": c.protocol, "stateful": false}
+	default:
+		if c.dbState != nil && c.dbState.dialect != "" {
+			return map[string]any{"command_language": "sql", "dialect": c.dbState.dialect, "stateful": true}
+		}
+		return nil
+	}
+}
+
 func supportedCredential(kind string, ssh bool) error {
 	if kind == "" || kind == "password" || (ssh && (kind == "ssh_key" || kind == "ssh_certificate")) {
 		return nil
@@ -171,10 +195,15 @@ func (c *Connection) Execute(ctx context.Context, request Request, emit Emit) (R
 	if emit == nil {
 		return Result{}, errors.New("durable output consumer is required")
 	}
-	switch ProtocolMode(c.protocol) {
-	case "shell":
+	switch c.protocol {
+	case srvconn.ProtocolSSH:
 		return c.executeSSH(ctx, request, emit)
-	case "database":
+	case srvconn.ProtocolWinRM:
+		return c.executeWinRM(ctx, request, emit)
+	default:
+		if ProtocolMode(c.protocol) != "database" {
+			return Result{}, ErrUnsupported
+		}
 		if request.Cwd != "" || len(request.Env) != 0 {
 			return Result{}, errors.New("cwd and env apply only to SSH")
 		}
@@ -182,8 +211,6 @@ func (c *Connection) Execute(ctx context.Context, request Request, emit Emit) (R
 			return c.executeDatabaseCommand(ctx, request.Command, emit)
 		}
 		return c.executeSQL(ctx, request.Command, emit)
-	default:
-		return Result{}, ErrUnsupported
 	}
 }
 
@@ -198,6 +225,9 @@ func (c *Connection) Close() error {
 		}
 		if c.ssh != nil {
 			c.closeErr = c.ssh.Close()
+		}
+		if c.winRM != nil {
+			c.closeErr = c.winRM.Close()
 		}
 		if c.executor != nil {
 			c.dbState.transport.Close()
