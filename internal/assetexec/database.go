@@ -66,9 +66,9 @@ func (c *Connection) openDatabase(ctx context.Context, token *model.ConnectToken
 			}
 		}
 	}
-	if tunnel != nil && (token.Protocol == srvconn.ProtocolRedis || token.Protocol == srvconn.ProtocolMongoDB) {
-		// Discovery may return cluster members. Keep every driver connection on
-		// the authorized gateway instead of dialing those members directly.
+	if tunnel != nil && (token.Protocol == srvconn.ProtocolSQLServer || token.Protocol == srvconn.ProtocolRedis || token.Protocol == srvconn.ProtocolMongoDB) {
+		// Routing and discovery may return other hosts. Keep every driver
+		// connection on the authorized gateway, including redirected logins.
 		config.Host, config.Port = asset.Address, asset.ProtocolPort(token.Protocol)
 		config.DialContext = tunnel.client.DialContext
 	}

@@ -13,11 +13,11 @@ func (c *Connection) executeDatabaseCommand(ctx context.Context, command string,
 	if _, err := PrepareCommand(Request{Command: command}); err != nil {
 		return Result{}, err
 	}
-	constraints, err := sessiontools.ProtocolCommandValidator(c.protocol)(command)
+	eligible, err := sessiontools.AgentDatabaseCommandEligible(c.protocol, command)
 	if err != nil {
 		return Result{}, err
 	}
-	if !constraints.BackgroundEligible {
+	if !eligible {
 		return Result{}, fmt.Errorf("%w: session-dependent or blocking commands require open_terminal", ErrUnsupported)
 	}
 	ctx, cancel := context.WithCancel(ctx)
@@ -30,6 +30,12 @@ func (c *Connection) executeDatabaseCommand(ctx context.Context, command string,
 	var redisErr interface{ RedisError() }
 	var mongoErr mongo.CommandError
 	result.Completed = err == nil || errors.As(err, &redisErr) || errors.As(err, &mongoErr)
+	var writeErr mongo.WriteException
+	if errors.As(err, &writeErr) {
+		// A write rejection is a known failure. A write concern error does
+		// not establish whether the write reached its required durability.
+		result.Completed = writeErr.WriteConcernError == nil && len(writeErr.WriteErrors) != 0
+	}
 	if observer, ok := c.executor.(interface{ OutputTruncated() bool }); ok {
 		result.Truncated = observer.OutputTruncated()
 	}

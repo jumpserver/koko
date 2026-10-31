@@ -31,11 +31,11 @@ func TestAgentNativeSQLUsesBoundedDialer(t *testing.T) {
 			defer cancel()
 			called := false
 			_, _, _, err := OpenAgentSQLConnection(ctx, DatabaseConfig{
-				Protocol: protocol, Host: "127.0.0.1", Port: 1234, ServerName: "asset.example",
+				Protocol: protocol, Host: "asset.private.invalid", Port: 1234, ServerName: "asset.example",
 				Username: "agent", Password: "test", Database: "agent",
 				DialContext: func(_ context.Context, _, address string) (net.Conn, error) {
 					called = true
-					if address != "127.0.0.1:1234" {
+					if address != "asset.private.invalid:1234" {
 						t.Errorf("dialed outside configured endpoint: %s", address)
 					}
 					return nil, errors.New("test connection refused")

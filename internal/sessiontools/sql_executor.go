@@ -299,10 +299,19 @@ func newSQLServerDatabase(config DatabaseConfig) (*sql.DB, error) {
 		return nil, fmt.Errorf("configure SQL Server background connection: %w", err)
 	}
 	if config.DialContext != nil {
-		connector.Dialer = databaseDialer(config.DialContext)
+		connector.Dialer = sqlServerHostDialer{databaseDialer: config.DialContext, host: config.Host}
 	}
 	return sql.OpenDB(connector), nil
 }
+
+// HostDialer makes mssql pass hostnames through unchanged, so gateway DNS and
+// routing redirects use the same controlled dialer as the initial connection.
+type sqlServerHostDialer struct {
+	databaseDialer
+	host string
+}
+
+func (d sqlServerHostDialer) HostName() string { return d.host }
 
 func buildSQLServerDSN(config DatabaseConfig) (string, func(), error) {
 	dsn := url.URL{

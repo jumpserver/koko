@@ -1,6 +1,7 @@
 package sessiontools
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -77,6 +78,21 @@ func newRedisClient(config DatabaseConfig) (redisExecutorClient, error) {
 	}
 	address := net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
 	dial := databaseTLSDialer(config.DialContext, tlsConfig)
+	if config.agent {
+		if dial == nil {
+			dial = databaseTLSDialer((&net.Dialer{Timeout: 10 * time.Second}).DialContext, tlsConfig)
+		}
+		baseDial := dial
+		dial = func(ctx context.Context, network, address string) (net.Conn, error) {
+			conn, err := baseDial(ctx, network, address)
+			if err != nil {
+				return nil, err
+			}
+			// Validate plaintext RESP before go-redis sees lengths that it
+			// uses to allocate bulk strings and nested arrays.
+			return &agentRedisConn{Conn: conn, reader: bufio.NewReaderSize(conn, 8<<10)}, nil
+		}
+	}
 	if config.ClusterMode {
 		redirects := 0
 		if config.agent {
