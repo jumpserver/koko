@@ -14,6 +14,7 @@ Koko is implemented using Golang, and the name comes from a Dota hero [Kunkka](h
 - SFTP
 - Web Terminal
 - Web File Management
+- [Agent MCP setup, common client configuration and troubleshooting (Chinese)](./docs/agent-mcp.md#用户接入与操作流程)
 
 ## Windows PowerShell over WinRM
 

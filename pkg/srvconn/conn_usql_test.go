@@ -115,6 +115,9 @@ func TestUSQLCloseUnblocksPTYWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer command.Close()
+	if err = command.SetWinSize(80, 24); err != nil {
+		t.Fatal(err)
+	}
 	ready := make(chan error, 1)
 	go func() { _, err := io.ReadFull(command, make([]byte, 5)); ready <- err }()
 	select {

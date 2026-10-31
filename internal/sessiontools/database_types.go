@@ -1,6 +1,9 @@
 package sessiontools
 
 import (
+	"context"
+	"crypto/tls"
+	"net"
 	"strings"
 	"unicode/utf8"
 
@@ -30,6 +33,33 @@ type DatabaseConfig struct {
 	ConnectionOpts   string
 	ProxyURL         string
 	DataMaskingRules []model.DataMaskingRule
+	// DialContext keeps database discovery traffic on the authorized gateway.
+	DialContext func(context.Context, string, string) (net.Conn, error)
+	agent       bool
+}
+
+type databaseDialer func(context.Context, string, string) (net.Conn, error)
+
+func (d databaseDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	return d(ctx, network, address)
+}
+
+func databaseTLSDialer(dial databaseDialer, config *tls.Config) databaseDialer {
+	if dial == nil || config == nil {
+		return dial
+	}
+	return func(ctx context.Context, network, address string) (net.Conn, error) {
+		conn, err := dial(ctx, network, address)
+		if err != nil {
+			return nil, err
+		}
+		secured := tls.Client(conn, config)
+		if err := secured.HandshakeContext(ctx); err != nil {
+			_ = conn.Close()
+			return nil, err
+		}
+		return secured, nil
+	}
 }
 
 type SQLSchemaLookupRequest struct {

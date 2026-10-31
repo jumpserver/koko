@@ -14,6 +14,7 @@ Koko 使用 Golang 来实现，名字来自 Dota 英雄 [Kunkka](https://www.dot
 - SFTP
 - web terminal
 - web文件管理
+- [Agent MCP 接入、常用客户端配置与排障](./docs/agent-mcp.md#用户接入与操作流程)
 
 ## 通过 WinRM 连接 Windows PowerShell
 

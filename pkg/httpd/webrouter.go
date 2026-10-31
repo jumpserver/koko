@@ -69,5 +69,6 @@ func createRouter(
 		debugGroup.GET("/mutex", gin.WrapF(pprof.Handler("mutex").ServeHTTP))
 		debugGroup.GET("/threadcreate", gin.WrapF(pprof.Handler("threadcreate").ServeHTTP))
 	}
+	webSrv.registerAgentRoutes(eng)
 	return eng
 }

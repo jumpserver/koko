@@ -17,8 +17,6 @@ import (
 	"unicode/utf8"
 
 	mysqlDriver "github.com/go-sql-driver/mysql"
-	"github.com/jumpserver/koko/pkg/srvconn"
-	obDriver "github.com/oceanbase/go-oceanbase-driver"
 )
 
 const (
@@ -84,34 +82,14 @@ func NewMySQLExecutor(ctx context.Context, config MySQLConfig) (*MySQLExecutor, 
 }
 
 func newOceanBaseExecutor(config MySQLConfig) (*MySQLExecutor, error) {
-	protocol := srvconn.ProtocolMySQL
-	switch config.TenantMode {
-	case "mysql":
-	case "oracle":
-		protocol = srvconn.ProtocolOracle
-	default:
-		return nil, fmt.Errorf("unsupported OceanBase tenant mode %q", config.TenantMode)
-	}
-	driverConfig := obDriver.NewConfig()
-	driverConfig.Net = "tcp"
-	driverConfig.Addr = net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
-	driverConfig.User = config.Username
-	driverConfig.Passwd = config.Password
-	driverConfig.DBName = config.Database
-	driverConfig.ParseTime = true
-	driverConfig.MultiStatements = false
-	if config.UseSSL {
-		tlsConfig, err := buildMySQLTLSConfig(config)
-		if err != nil {
-			return nil, err
-		}
-		driverConfig.TLS = tlsConfig
-	}
-	connector, err := obDriver.NewConnector(driverConfig)
+	protocol, err := DatabaseDialect(config)
 	if err != nil {
-		return nil, fmt.Errorf("create OceanBase connector: %w", err)
+		return nil, err
 	}
-	db := sql.OpenDB(connector)
+	db, err := newOceanBaseDatabase(config)
+	if err != nil {
+		return nil, err
+	}
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 	db.SetConnMaxLifetime(30 * time.Minute)

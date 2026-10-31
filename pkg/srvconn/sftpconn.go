@@ -1,6 +1,7 @@
 package srvconn
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -33,6 +34,21 @@ type UserSftpConn struct {
 	opts *userSftpOption
 
 	assetDir *AssetDir
+}
+
+// SessionIDs returns the actual asset audit sessions created by this connection.
+// Agent adapters use these IDs instead of inventing duplicate terminal sessions.
+func (u *UserSftpConn) SessionIDs() []string {
+	var result []string
+	if u.assetDir != nil {
+		u.assetDir.sftpSessions.Range(func(_, value any) bool {
+			if session, ok := value.(*SftpSession); ok && session.sess != nil {
+				result = append(result, session.sess.ID)
+			}
+			return true
+		})
+	}
+	return result
 }
 
 func (u *UserSftpConn) SetOnSessionClosed(fn func()) {
@@ -577,11 +593,12 @@ func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.PermAsset) ma
 }
 
 type userSftpOption struct {
-	user       *model.User
-	RemoteAddr string
-	loginFrom  model.LabelField
-	assets     []model.PermAsset
-	token      *model.ConnectToken
+	connectContext context.Context
+	user           *model.User
+	RemoteAddr     string
+	loginFrom      model.LabelField
+	assets         []model.PermAsset
+	token          *model.ConnectToken
 
 	accountUsername string
 
@@ -589,6 +606,11 @@ type userSftpOption struct {
 }
 
 type UserSftpOption func(*userSftpOption)
+
+// WithConnectContext bounds token-based connection setup, including SFTP startup.
+func WithConnectContext(ctx context.Context) UserSftpOption {
+	return func(o *userSftpOption) { o.connectContext = ctx }
+}
 
 func WithUser(user *model.User) UserSftpOption {
 	return func(o *userSftpOption) {
@@ -655,6 +677,9 @@ func NewUserSftpConn(jmsService *service.JMService, opts ...UserSftpOption) *Use
 		u.Dirs = u.generateSubFoldersFromAssets(sftpOpts.assets)
 	default:
 		u.Dirs = u.generateSubFoldersFromRootTree()
+	}
+	if u.assetDir != nil {
+		u.assetDir.connectContext = sftpOpts.connectContext
 	}
 	go u.run()
 	return &u
