@@ -1,6 +1,6 @@
 # Agent 资产执行与 MCP 接入
 
-Koko 提供标准 MCP Streamable HTTP 服务，使 Agent 通过 JumpServer 操作授权资产。支持 SSH、WinRM、SFTP、MySQL/MariaDB、OceanBase MySQL/Oracle 租户、PostgreSQL、SQL Server、Oracle、ClickHouse、Redis 和 MongoDB。Codex 使用原生远程 MCP；DSH（DeepSeek Harness）通过独立插件适配同一服务端契约。
+Koko 提供标准 MCP Streamable HTTP 服务，使 Agent 通过 JumpServer 操作授权资产。支持 SSH、WinRM、Kubernetes（资源查询、详情和有限日志）、SFTP、MySQL/MariaDB、OceanBase MySQL/Oracle 租户、PostgreSQL、SQL Server、Oracle、ClickHouse、Redis 和 MongoDB。Codex 使用原生远程 MCP；DSH（DeepSeek Harness）通过独立插件适配同一服务端契约。
 
 | 组件 | 职责 |
 | --- | --- |
@@ -122,7 +122,7 @@ DSH 插件使用同一套发现、登记、浏览器授权、令牌管理、工�
 | `connect_asset` | 创建或复用显式资产会话，返回 `session_id` 和连接 `action_id` |
 | `query_sessions` | `operation=get` 按会话 ID 或原连接幂等键找回会话；`operation=list` 分页列出当前授权范围内的会话；不重连 |
 | `disconnect_asset` | 拒绝新操作，等待已接受操作排空后释放连接 |
-| `execute_command` | 提交 SSH 独立命令、WinRM PowerShell 命令、SQL、Redis 命令或 MongoDB `db.runCommand`，返回 `action_id` |
+| `execute_command` | 提交 SSH 独立命令、WinRM PowerShell 命令、有限 kubectl 查询、SQL、Redis 命令或 MongoDB `db.runCommand`，返回 `action_id` |
 | `query_actions` | `operation=get` 查询状态、结果、分页输出及审计交付状态；`operation=list` 分页找回操作，可按 `session_id` 筛选 |
 | `cancel_action` | 请求取消；远端未确认停止时结果可能仍不确定 |
 | `file_read` | `operation=list/stat/read/download`：SFTP 目录分页、元信息、小文本读取、下载登记，均返回 `action_id` |
@@ -153,6 +153,12 @@ SSH 复用传输连接，每条命令开启独立 exec。需要工作目录或�
 
 WinRM 每个 MCP 资产会话独占一个 PowerShell Runspace，同一会话内串行执行并保留变量和工作目录，不与其他 MCP 会话或 Web 终端共享。拒绝 `cwd/env`，需要修改目录或环境时使用经审核的 PowerShell 命令。输出与错误流分别纳入现有审计；`pipeline_state` 记录明确收到的 PSRP 终态，PowerShell 错误流会使操作失败。原生程序的 `exit_code` 仅来自本次执行，纯 PowerShell 操作不伪造退出码。超时、取消、网络中断或输出超限时关闭本会话；没有确认终态的已派发操作保留为 `unknown`，不自动重放。交互式 Host 输入仍不支持；人工审批与终端使用现有入口，但不会继承 MCP Runspace。
 
+Kubernetes 使用已有 `k8s` 资产协议和 token 账号，经现有 10 个工具完成发现、连接、`execute_command` 和结果查询。自动执行仅接受 `kubectl get`、`describe`、有限 `logs`；支持命名空间、选择器、容器、JSON/YAML 等输出及日志时间范围。日志默认最近 200 行、256 KiB，最多 10,000 行、1 MiB；资源查询分页大小默认为 100、最多 500。拒绝 Shell 组合、连接/凭据覆盖、本地文件、插件、watch/follow、exec、写操作和文件复制；其他操作使用 `open_terminal`。命令先规范化并补齐日志/分页限制，再交给 Core 审核和审计，实际执行使用同一组参数，不经过 Shell。
+
+K8s 默认命名空间来自平台配置，未配置时使用 `default`，连接能力提示返回 `default_namespace` 和 `supported_commands`。命名空间是默认值，跨命名空间及敏感资源访问由该账号的集群 RBAC 控制，Core 仍逐次检查资产、账号、协议、审批和命令 ACL。连接使用 Core 下发的集群地址与 token，复用网关；临时 kubeconfig 权限为 0600，关闭或连接失败时删除。提供 CA 时验证服务端证书，否则沿用现有 K8s 自签名证书行为。
+
+K8s 执行要求部署已有的 `kubectl` 和 `prlimit`，每节点最多同时运行一个 kubectl；每进程限制 CPU 时间 15 秒、可写数据段 128 MiB、虚拟地址空间 2 GiB，并沿用操作时限和输出预算。禁用 kuberc、插件环境和继承的代理/凭据配置。只有确认 kubectl 整数退出码 0 才成功；API 拒绝产生明确非零退出码。超时、取消或输出超限会结束本地客户端，未确认完成的操作保持 `unknown`，不会把本地客户端退出当成远端停止证据。该路径不改变现有 Web Kubernetes 终端。
+
 SQL 会话保持同一物理连接，执行一条完整语句并保留协议支持的连接内状态；除 ClickHouse 外，断开时尝试回滚未提交事务。ClickHouse 使用原生 TCP 协议及其对应端口，结果最多 1000 行和 8 MiB。SQL Server 使用网关时，首次连接、服务端路由重定向及其主机名解析均经同一网关。
 
 OceanBase 两种租户都使用资产的 `mysql` 连接协议，由平台的 `tenant_mode=mysql/oracle` 决定 SQL 方言；缺失或未知模式会在连接前拒绝。驱动、网络预算和事务生命周期沿用受控 SQL 连接，明确的 OceanBase SQL 错误记录为失败，网络故障或取消导致的结果不确定不自动重放。
@@ -167,7 +173,7 @@ Redis 和 MongoDB 复用现有执行器，文本输出最多 100 KiB 并标记�
 
 ### 扩展执行能力
 
-Koko 的资产执行器统一维护协议与执行模式，在组件鉴权的 `introspect/` 请求中声明版本 `1` 的能力，模式限于 `shell`、`pipeline`、`database`、`files`。SSH 声明 `shell`，成功证据必须包含整数退出码 0；WinRM 声明 `pipeline`，成功证据必须包含 `pipeline_state=Completed`、`had_errors=false`，且原生程序退出码为空或整数 0。声明不来自 MCP 客户端参数。Core 将能力绑定到节点签名上下文，发现和连接均取节点能力与用户资产、账号、协议权限的交集，并在既有会话 JSON 中固定执行模式，不能通过上报字段切换成功证据类型。
+Koko 的资产执行器统一维护协议与执行模式，在组件鉴权的 `introspect/` 请求中声明版本 `1` 的能力，模式限于 `shell`、`process`、`pipeline`、`database`、`files`。SSH 声明 `shell`、K8s 声明 `process`，成功证据必须包含整数退出码 0；WinRM 声明 `pipeline`，成功证据必须包含 `pipeline_state=Completed`、`had_errors=false`，且原生程序退出码为空或整数 0。声明不来自 MCP 客户端参数。Core 将能力绑定到节点签名上下文，发现和连接均取节点能力与用户资产、账号、协议权限的交集，并在既有会话 JSON 中固定执行模式，不能通过上报字段切换成功证据类型。
 
 工具名称、工具参数结构和驱动实现由 Koko 管理；Core 集中维护稳定操作的权限、审批、请求绑定和审计。新增已有安全语义内的工具，或为 Core 已支持的资产协议增加驱动，无需再修改 Core 的执行器协议白名单；新增权限效果仍须定义 Core 策略，未知操作和能力版本默认拒绝。节点必须声明执行能力，会话必须包含执行模式；缺失或不受支持的值会被拒绝，Core 不保留协议驱动兜底名单。
 
@@ -211,4 +217,4 @@ Koko 的资产执行器统一维护协议与执行模式，在组件鉴权的 `i
 集中审计页面位于 `/core/auth/agent/audit/sessions/` 和 `/core/auth/agent/audit/actions/`，按本人及现有组织审计权限访问。
 返回的审计链接携带操作所属组织，页内导航保留组织参数；浏览器当前组织不同不影响获准访问的记录定位。
 
-构建沿用项目流程，包括 libghostty-vt。基础回归运行 `GOMAXPROCS=2 GOMEMLIMIT=512MiB go test -race -p 1 ./internal/agentexec ./internal/assetexec ./pkg/httpd`。数据库及 Core 贯通测试仅在显式提供隔离 fixture 时执行。部署验收使用隔离资产与账户，覆盖浏览器登录、多组织授权、资产连接、审批、结果与审计查询，以及反向代理和文件传输。
+构建沿用项目流程，包括 libghostty-vt。基础回归运行 `GOMAXPROCS=2 GOMEMLIMIT=512MiB go test -race -p 1 ./internal/agentexec ./internal/assetexec ./pkg/httpd`。数据库、K8s 及 Core 贯通测试仅在显式提供隔离 fixture 时执行。`KOKO_AGENT_KUBERNETES_TEST_CONFIG` 指向仅含隔离 API 地址、token、CA、默认及禁止访问命名空间的私有 JSON 文件；测试命名空间须有 `mcp-execution` ConfigMap，其 `message` 为 `bounded-kubernetes-output`，账号仅能读取本命名空间的 ConfigMap、Pod 和日志。部署验收使用隔离资产与账户，覆盖浏览器登录、多组织授权、资产连接、审批、结果与审计查询，以及反向代理和文件传输。

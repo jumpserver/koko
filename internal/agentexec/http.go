@@ -261,12 +261,12 @@ type searchInput struct {
 type connectInput struct {
 	AssetID        string `json:"asset_id" jsonschema:"Exact results[].id from a current search_assets response; refresh after a stale-reference error."`
 	Account        string `json:"account" jsonschema:"Exact accounts[].id from search_assets, including virtual aliases such as @INPUT; never use the display name or username."`
-	Protocol       string `json:"protocol" jsonschema:"Choose from the selected account's protocols: ssh, winrm (PowerShell), sftp (files), mysql (including OceanBase tenants), mariadb, postgresql, sqlserver, oracle, clickhouse, redis, or mongodb."`
+	Protocol       string `json:"protocol" jsonschema:"Choose from the selected account's protocols: ssh, winrm (PowerShell), k8s (bounded kubectl get/describe/logs), sftp (files), mysql (including OceanBase tenants), mariadb, postgresql, sqlserver, oracle, clickhouse, redis, or mongodb."`
 	IdempotencyKey string `json:"idempotency_key"`
 }
 type commandInput struct {
 	SessionID      string            `json:"session_id"`
-	Command        string            `json:"command" jsonschema:"Use this session's command_language and SQL dialect: SSH shell, WinRM PowerShell, or one database statement/command."`
+	Command        string            `json:"command" jsonschema:"Use this session's command_language and SQL dialect: SSH shell, WinRM PowerShell, bounded kubectl get/describe/logs, or one database statement/command."`
 	Cwd            string            `json:"cwd,omitempty" jsonschema:"SSH only: absolute POSIX working directory for this command."`
 	Env            map[string]string `json:"env,omitempty" jsonschema:"SSH only: environment variables for this command."`
 	TimeoutSeconds int               `json:"timeout_seconds,omitempty"`
@@ -360,7 +360,7 @@ func (r *Runtime) registerTools(server *mcp.Server, issuer string) {
 			return r.ListResources(ctx, p, true, "", in.Status, in.Offset, in.Limit)
 		}),
 	)
-	registerTool(server, issuer, "execute_command", "Submit an audited shell/PowerShell command, SQL statement, Redis command, or MongoDB db.runCommand with strict Extended JSON. Follow the session's command_language/dialect. WinRM retains its own runspace; SSH calls are independent and alone support cwd/env, requiring full-request approval under filtering. Session-dependent Redis/MongoDB commands require open_terminal. Query query_actions(operation=get); never replay unknown results.", func(ctx context.Context, p Principal, in commandInput) (any, error) {
+	registerTool(server, issuer, "execute_command", "Submit an audited shell/PowerShell command, bounded kubectl get/describe/logs, SQL statement, Redis command, or MongoDB db.runCommand with strict Extended JSON. Follow the session's command_language/dialect. Kubernetes rejects shell syntax, connection overrides, files and streaming commands. WinRM retains its own runspace; SSH calls are independent and alone support cwd/env, requiring full-request approval under filtering. Session-dependent Redis/MongoDB commands require open_terminal. Query query_actions(operation=get); never replay unknown results.", func(ctx context.Context, p Principal, in commandInput) (any, error) {
 		if in.TimeoutSeconds == 0 {
 			in.TimeoutSeconds = 120
 		}

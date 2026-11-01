@@ -35,6 +35,7 @@ ARG DEPENDENCIES="                    \
         less                          \
         openssl                       \
         redis-tools                   \
+        util-linux                    \
         xz-utils                      \
         ca-certificates"
 

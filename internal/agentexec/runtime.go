@@ -516,6 +516,13 @@ func (r *Runtime) Submit(ctx context.Context, p Principal, sessionID, kind, key 
 		if protocol != "ssh" && (command.Cwd != "" || len(command.Env) != 0) {
 			return Action{}, errors.New("cwd and env apply only to SSH")
 		}
+		if protocol == "k8s" {
+			command.Command, err = assetexec.PrepareKubernetesCommand(command.Command)
+			if err != nil {
+				return Action{}, err
+			}
+			request["command"] = command.Command
+		}
 		prepared, prepareErr := assetexec.PrepareCommand(command)
 		if prepareErr != nil {
 			return Action{}, prepareErr

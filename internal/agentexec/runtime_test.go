@@ -30,7 +30,7 @@ func TestIntrospectionDeclaresExecutorCapabilities(t *testing.T) {
 		values := body.(map[string]any)
 		capabilities := values["capabilities"].(map[string]any)
 		protocols := capabilities["protocols"].(map[string]string)
-		if path != "introspect/" || capabilities["version"] != 1 || protocols["ssh"] != "shell" || protocols["winrm"] != "pipeline" || protocols["sftp"] != "files" || len(protocols) != 11 {
+		if path != "introspect/" || capabilities["version"] != 1 || protocols["ssh"] != "shell" || protocols["winrm"] != "pipeline" || protocols["k8s"] != "process" || protocols["sftp"] != "files" || len(protocols) != 12 {
 			t.Fatalf("invalid executor capabilities: %v", capabilities)
 		}
 		for _, protocol := range []string{"mysql", "mariadb", "postgresql", "sqlserver", "oracle", "clickhouse", "redis", "mongodb"} {

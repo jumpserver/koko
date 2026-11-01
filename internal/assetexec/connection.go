@@ -30,6 +30,7 @@ var (
 // account, protocol and action before the node can execute it.
 var protocolModes = map[string]string{
 	srvconn.ProtocolSSH: "shell", srvconn.ProtocolWinRM: "pipeline", srvconn.ProtocolSFTP: "files",
+	srvconn.ProtocolK8s:   "process",
 	srvconn.ProtocolMySQL: "database", srvconn.ProtocolMariadb: "database", srvconn.ProtocolPostgresql: "database",
 	srvconn.ProtocolSQLServer: "database", srvconn.ProtocolOracle: "database", srvconn.ProtocolClickHouse: "database",
 	srvconn.ProtocolRedis: "database", srvconn.ProtocolMongoDB: "database",
@@ -71,20 +72,21 @@ type Result struct {
 }
 
 type Connection struct {
-	protocol  string
-	opts      Options
-	actions   model.Actions
-	mu        sync.Mutex
-	closed    atomic.Bool
-	closeOnce sync.Once
-	ssh       *srvconn.SSHClient
-	winRM     winRMConnection
-	executor  sessiontools.CommandExecutor
-	sftp      *srvconn.UserSftpConn
-	sqlConn   *sql.Conn
-	dbState   *databaseState
-	cleanup   func() error
-	closeErr  error
+	protocol   string
+	opts       Options
+	actions    model.Actions
+	mu         sync.Mutex
+	closed     atomic.Bool
+	closeOnce  sync.Once
+	ssh        *srvconn.SSHClient
+	winRM      winRMConnection
+	kubernetes *kubernetesConnection
+	executor   sessiontools.CommandExecutor
+	sftp       *srvconn.UserSftpConn
+	sqlConn    *sql.Conn
+	dbState    *databaseState
+	cleanup    func() error
+	closeErr   error
 }
 
 func Open(ctx context.Context, token *model.ConnectToken, opts Options) (*Connection, error) {
@@ -103,7 +105,11 @@ func Open(ctx context.Context, token *model.ConnectToken, opts Options) (*Connec
 	if !token.Asset.IsSupportProtocol(token.Protocol) {
 		return nil, ErrPermission
 	}
-	if err := supportedCredential(token.Account.SecretType.Value, token.Protocol == srvconn.ProtocolSSH || token.Protocol == srvconn.ProtocolSFTP); err != nil {
+	if token.Protocol == srvconn.ProtocolK8s {
+		if token.Account.SecretType.Value != "token" || token.Account.Secret == "" {
+			return nil, fmt.Errorf("%w: Kubernetes requires an account token", ErrUnsupported)
+		}
+	} else if err := supportedCredential(token.Account.SecretType.Value, token.Protocol == srvconn.ProtocolSSH || token.Protocol == srvconn.ProtocolSFTP); err != nil {
 		return nil, err
 	}
 	if token.Gateway != nil {
@@ -137,6 +143,8 @@ func Open(ctx context.Context, token *model.ConnectToken, opts Options) (*Connec
 		err = c.openSFTP(ctx, token)
 	case srvconn.ProtocolWinRM:
 		err = c.openWinRM(ctx, token)
+	case srvconn.ProtocolK8s:
+		err = c.openKubernetes(ctx, token)
 	default:
 		if ProtocolMode(c.protocol) == "database" {
 			err = c.openDatabase(ctx, token)
@@ -166,6 +174,9 @@ func (c *Connection) ExecutionHints() map[string]any {
 		return map[string]any{"command_language": "shell", "stateful": false}
 	case srvconn.ProtocolWinRM:
 		return map[string]any{"command_language": "powershell", "stateful": true}
+	case srvconn.ProtocolK8s:
+		return map[string]any{"command_language": "kubectl", "stateful": false,
+			"default_namespace": c.kubernetes.namespace, "supported_commands": []string{"get", "describe", "logs"}}
 	case srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
 		return map[string]any{"command_language": c.protocol, "stateful": false}
 	default:
@@ -200,6 +211,8 @@ func (c *Connection) Execute(ctx context.Context, request Request, emit Emit) (R
 		return c.executeSSH(ctx, request, emit)
 	case srvconn.ProtocolWinRM:
 		return c.executeWinRM(ctx, request, emit)
+	case srvconn.ProtocolK8s:
+		return c.executeKubernetes(ctx, request, emit)
 	default:
 		if ProtocolMode(c.protocol) != "database" {
 			return Result{}, ErrUnsupported
@@ -228,6 +241,9 @@ func (c *Connection) Close() error {
 		}
 		if c.winRM != nil {
 			c.closeErr = c.winRM.Close()
+		}
+		if c.kubernetes != nil {
+			c.kubernetes.close()
 		}
 		if c.executor != nil {
 			c.dbState.transport.Close()
