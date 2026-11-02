@@ -356,6 +356,7 @@ func (r *Runtime) executeFile(ctx context.Context, action Action, s *liveSession
 		if readErr != nil {
 			return map[string]any{"error": readErr.Error()}, "failed"
 		}
+		connection.RecordFile(value, bytes.NewReader(data.Bytes()))
 		result, err = textFileResult(value, data.Bytes(), payloadLimit)
 	case "file_write":
 		if len(req.Content) > 64<<10 {
@@ -363,6 +364,9 @@ func (r *Runtime) executeFile(ctx context.Context, action Action, s *liveSession
 		}
 		hash := sha256.Sum256([]byte(req.Content))
 		value, writeErr := connection.WriteFile(ctx, req.Path, strings.NewReader(req.Content), int64(len(req.Content)), hex.EncodeToString(hash[:]), req.Overwrite)
+		if writeErr == nil {
+			connection.RecordFile(value, strings.NewReader(req.Content))
+		}
 		err = writeErr
 		result = map[string]any{"file": value}
 	case "file_upload":
@@ -380,6 +384,9 @@ func (r *Runtime) executeFile(ctx context.Context, action Action, s *liveSession
 		}
 		defer f.Close()
 		value, writeErr := connection.WriteFile(ctx, req.Path, f, req.Size, req.SHA256, req.Overwrite)
+		if writeErr == nil {
+			connection.RecordFile(value, f)
+		}
 		err = writeErr
 		result = map[string]any{"file": value}
 	case "file_download":
@@ -405,6 +412,7 @@ func (r *Runtime) executeFile(ctx context.Context, action Action, s *liveSession
 		if err = ctx.Err(); err != nil {
 			return map[string]any{"error": err.Error()}, "failed"
 		}
+		connection.RecordFile(value, f)
 		if err = r.persistArtifact(action.ID, f, written, digest); err != nil {
 			return map[string]any{"error": "could not record download evidence"}, "failed"
 		}

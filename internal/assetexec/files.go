@@ -15,6 +15,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
@@ -28,9 +30,10 @@ type FileInfo struct {
 }
 
 type FileResult struct {
-	Path   string `json:"path"`
-	Size   int64  `json:"size"`
-	SHA256 string `json:"sha256,omitempty"`
+	Path    string `json:"path"`
+	Size    int64  `json:"size"`
+	SHA256  string `json:"sha256,omitempty"`
+	fileLog *model.FTPLog
 }
 
 func (c *Connection) openSFTP(ctx context.Context, token *model.ConnectToken) error {
@@ -52,7 +55,31 @@ func (c *Connection) openSFTP(ctx context.Context, token *model.ConnectToken) er
 		srvconn.WithRemoteAddr(c.opts.RemoteAddr), srvconn.WithTerminalCfg(&cfg),
 		srvconn.WithLoginFrom(model.LabelField(c.opts.LoginFrom)),
 	)
+	if cfg.MaxStoreFTPFileSize > 0 {
+		c.recorder = proxy.NewFTPFileRecord(c.opts.JMS, proxy.NewFTPFileStorage(c.opts.JMS, &cfg), int64(cfg.MaxStoreFTPFileSize)*1024*1024)
+	}
 	return c.sftp.ValidateAgentToolConfinement()
+}
+
+// RecordFile archives the validated local snapshot, without reading the asset
+// again. Retention failures do not change the asset operation's result.
+func (c *Connection) RecordFile(result FileResult, source io.ReaderAt) {
+	if c.recorder == nil || result.fileLog == nil || result.Size < 0 || result.Size >= c.recorder.MaxFileSize {
+		return
+	}
+	for offset := int64(0); ; {
+		length := min(int64(64<<10), result.Size-offset)
+		if err := c.recorder.ChunkedRecord(result.fileLog, io.NewSectionReader(source, offset, length), offset, length); err != nil {
+			c.recorder.DiscardFTPFile(result.fileLog.ID)
+			logger.Errorf("Agent FTP file %s retention failed: %v", result.fileLog.ID, err)
+			return
+		}
+		offset += length
+		if offset == result.Size {
+			break
+		}
+	}
+	c.recorder.FinishFTPFile(result.fileLog.ID)
 }
 
 func (c *Connection) TerminalSessionIDs() []string {
@@ -175,7 +202,7 @@ func (c *Connection) ReadFile(ctx context.Context, name string, dst io.Writer) (
 	defer stop()
 	hash := sha256.New()
 	n, err := io.CopyBuffer(io.MultiWriter(dst, hash), io.LimitReader(file, c.opts.MaxFileBytes+1), make([]byte, 64<<10))
-	result := FileResult{Path: resolved, Size: n, SHA256: hex.EncodeToString(hash.Sum(nil))}
+	result := FileResult{Path: resolved, Size: n, SHA256: hex.EncodeToString(hash.Sum(nil)), fileLog: file.FTPLog}
 	if n > c.opts.MaxFileBytes {
 		return result, errors.New("file grew beyond the transfer limit")
 	}
@@ -266,10 +293,11 @@ func (c *Connection) WriteFile(ctx context.Context, name string, src io.Reader, 
 	if again, resolveErr := c.mutationPath(ctx, name); resolveErr != nil || again != resolved {
 		return FileResult{}, errors.New("upload destination changed")
 	}
-	if _, err = c.sftp.CommitUploadTemp(temp, resolved, overwrite); err != nil {
+	fileLog, err := c.sftp.CommitUploadTemp(temp, resolved, overwrite)
+	if err != nil {
 		return FileResult{}, err
 	}
-	return FileResult{Path: resolved, Size: copied, SHA256: actual}, nil
+	return FileResult{Path: resolved, Size: copied, SHA256: actual, fileLog: fileLog}, nil
 }
 
 func (c *Connection) Mkdir(ctx context.Context, name string) error {

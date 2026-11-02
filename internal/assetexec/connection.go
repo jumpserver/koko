@@ -16,6 +16,7 @@ import (
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/internal/sessiontools"
+	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
@@ -83,6 +84,7 @@ type Connection struct {
 	kubernetes *kubernetesConnection
 	executor   sessiontools.CommandExecutor
 	sftp       *srvconn.UserSftpConn
+	recorder   *proxy.FTPFileRecorder
 	sqlConn    *sql.Conn
 	dbState    *databaseState
 	cleanup    func() error
