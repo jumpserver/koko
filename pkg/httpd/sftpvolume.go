@@ -469,6 +469,9 @@ func (u *UserVolume) RootFileDir() elfinder.FileDir {
 	}
 	var rest elfinder.FileDir
 	rest.Name = u.HomeName
+	if rootPath := u.UserSftp.GetRootPath(); rootPath != "" {
+		rest.Name = rootPath
+	}
 	rest.Hash = hashPath(u.Uuid, "/")
 	rest.Size = size
 	rest.Volumeid = u.Uuid
