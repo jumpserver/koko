@@ -43,6 +43,28 @@ func (u *UserSftpConn) GetCurrentPath() string {
 	return ""
 }
 
+// GetRootPath returns the effective root of an initialized token-bound session.
+// It does not open connections or select accounts for virtual asset trees.
+func (u *UserSftpConn) GetRootPath() string {
+	if u.assetDir == nil {
+		return ""
+	}
+	folderName, ok := u.assetDir.IsUniqueSu()
+	if !ok {
+		return ""
+	}
+	su := u.assetDir.suMaps[folderName]
+	value, ok := u.assetDir.sftpSessions.Load(su.String())
+	if !ok {
+		return ""
+	}
+	sftpSession := value.(*SftpSession)
+	if sftpSession.isClosed {
+		return ""
+	}
+	return u.assetDir.GetRealPath(sftpSession, "")
+}
+
 func (u *UserSftpConn) ReadDir(path string) (res []os.FileInfo, err error) {
 	if u.assetDir != nil {
 		return u.assetDir.ReadDir(path)
