@@ -7,12 +7,20 @@ RUN set -ex \
         build-essential pkg-config nasm libx264-dev xz-utils ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Debian mirrors the byte-identical upstream archive on its CDN.
 RUN set -ex \
-    && curl --fail --location --retry 5 --retry-all-errors \
-        --connect-timeout 30 --max-time 180 --retry-max-time 600 \
-        --output /tmp/ffmpeg.tar.xz https://ffmpeg.org/releases/ffmpeg-7.1.5.tar.xz \
-    && echo 'de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f  /tmp/ffmpeg.tar.xz' \
-        | sha256sum -c -
+    && for url in \
+        https://deb.debian.org/debian/pool/main/f/ffmpeg/ffmpeg_7.1.5.orig.tar.xz \
+        https://ffmpeg.org/releases/ffmpeg-7.1.5.tar.xz; do \
+        if curl --fail --location --retry 5 --retry-all-errors \
+            --connect-timeout 30 --max-time 180 --retry-max-time 600 \
+            --output /tmp/ffmpeg.tar.xz "${url}" \
+            && echo 'de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f  /tmp/ffmpeg.tar.xz' \
+                | sha256sum -c -; then \
+            exit 0; \
+        fi; \
+    done \
+    && exit 1
 
 # Web recordings only need JPEG frames, scaling, H.264 encoding and MP4 output.
 # FFmpeg libraries are static; libx264, libc and libm remain dynamic.
