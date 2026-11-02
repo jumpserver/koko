@@ -22,6 +22,7 @@ import (
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
+	"github.com/jumpserver/koko/pkg/zmodem"
 )
 
 const (
@@ -90,6 +91,7 @@ type assetTUIMultiSessionManager struct {
 	closed             bool
 	width              int
 	height             int
+	zmodemSession      *assetTUIMultiSession
 }
 
 type assetTUIMultiSession struct {
@@ -103,6 +105,9 @@ type assetTUIMultiSession struct {
 	initialOutputRendered bool
 	done                  bool
 	failed                bool
+	zmodemParser          *zmodem.ZmodemParser
+	zmodemStartBuf        []byte
+	zmodemAborting        bool
 }
 
 type assetTUIMultiScreen struct {
@@ -253,6 +258,9 @@ func (m *assetTUIMultiSessionManager) hasSession(session *assetTUIMultiSession) 
 }
 
 func (m *assetTUIMultiSessionManager) finish(session *assetTUIMultiSession, failed bool) {
+	m.outputMu.Lock()
+	m.finishZmodemLocked(session)
+	m.outputMu.Unlock()
 	showConfirmation := m.markFinished(session, failed)
 	if showConfirmation && m.isImmersive() {
 		m.exitImmersiveMode()
@@ -296,7 +304,7 @@ func (m *assetTUIMultiSessionManager) Run(startInCommandMode bool) error {
 	buffer := make([]byte, 8192)
 	for {
 		n, err := m.physical.Read(buffer)
-		if n > 0 {
+		if n > 0 && !m.forwardZmodemInput(buffer[:n]) {
 			pending := make([]byte, 0, n)
 			flush := func() {
 				if len(pending) == 0 {
@@ -1627,6 +1635,13 @@ func assetTUIMultiClearTail(data []byte) []byte {
 func (m *assetTUIMultiSessionManager) appendOutput(session *assetTUIMultiSession, data []byte) {
 	m.outputMu.Lock()
 	defer m.outputMu.Unlock()
+	m.appendZmodemOutputLocked(session, data)
+}
+
+func (m *assetTUIMultiSessionManager) appendTerminalOutputLocked(session *assetTUIMultiSession, data []byte) {
+	if len(data) == 0 {
+		return
+	}
 
 	m.mu.RLock()
 	wasScrolled := session.scrollOffset > 0
@@ -1656,7 +1671,7 @@ func (m *assetTUIMultiSessionManager) appendOutput(session *assetTUIMultiSession
 		m.mu.Unlock()
 	}
 	m.mu.RLock()
-	active := m.viewActive && !m.helpVisible && !m.sessionListVisible &&
+	active := m.zmodemSession == nil && m.viewActive && !m.helpVisible && !m.sessionListVisible &&
 		m.confirmAction == assetTUIMultiConfirmNone && m.notice == "" && session.scrollOffset == 0 &&
 		len(m.sessions) > 0 && m.sessions[m.active] == session
 	m.mu.RUnlock()
@@ -1707,7 +1722,7 @@ func (m *assetTUIMultiSessionManager) redrawChrome() {
 
 func (m *assetTUIMultiSessionManager) renderCurrentLocked() {
 	m.mu.RLock()
-	if len(m.sessions) == 0 {
+	if m.zmodemSession != nil || len(m.sessions) == 0 {
 		m.mu.RUnlock()
 		return
 	}
@@ -1776,7 +1791,7 @@ func (m *assetTUIMultiSessionManager) renderCurrentLocked() {
 
 func (m *assetTUIMultiSessionManager) renderImmersiveHintLocked(preserveCursor bool) {
 	m.mu.RLock()
-	if !m.immersive || !m.immersiveHint || len(m.sessions) == 0 {
+	if m.zmodemSession != nil || !m.immersive || !m.immersiveHint || len(m.sessions) == 0 {
 		m.mu.RUnlock()
 		return
 	}
@@ -1814,7 +1829,7 @@ func (m *assetTUIMultiSessionManager) renderImmersiveHintLocked(preserveCursor b
 
 func (m *assetTUIMultiSessionManager) restoreImmersiveHintLocked() {
 	m.mu.RLock()
-	if !m.immersive || len(m.sessions) == 0 {
+	if m.zmodemSession != nil || !m.immersive || len(m.sessions) == 0 {
 		m.mu.RUnlock()
 		return
 	}
@@ -1885,6 +1900,10 @@ func (m *assetTUIMultiSessionManager) mouseTracking(commandMode bool) string {
 
 func (m *assetTUIMultiSessionManager) renderChromeLocked(preserveCursor bool) {
 	m.mu.RLock()
+	if m.zmodemSession != nil {
+		m.mu.RUnlock()
+		return
+	}
 	sessions := append([]*assetTUIMultiSession(nil), m.sessions...)
 	active, width, height := m.active, m.width, m.height
 	commandMode := m.commandMode
@@ -2563,6 +2582,9 @@ func (c *assetTUIMultiUserConnection) Context() context.Context {
 }
 
 func (c *assetTUIMultiUserConnection) HandleRoomEvent(event string, message *exchange.RoomMessage) {
+	if event == exchange.ActionEvent && string(message.Body) == exchange.ZmodemAbortEvent {
+		c.manager.abortZmodem(c.session)
+	}
 	c.parent.HandleRoomEvent(event, message)
 }
 
