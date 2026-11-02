@@ -109,7 +109,7 @@ func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err e
 	tmpWorkDir := os.TempDir()
 	opts = append(opts, localcommand.WithWorkDir(tmpWorkDir))
 	opts = append(opts, envOpt)
-	lcmd, err = localcommand.New("usql", cmd, opts...)
+	lcmd, err = localcommand.New("mongosh", cmd, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -193,13 +193,7 @@ func (opt *sqlOption) MongoDBCommandArgs() []string {
 		MongoParams(params),
 	)
 	uriParams := []string{
-		"--mongo", uri, "--norc",
-	}
-	if opt.Username != "" {
-		uriParams = append(uriParams, "--username", opt.Username)
-	}
-	if opt.Password == "" {
-		uriParams = append(uriParams, "--no-password")
+		uri, "--username", opt.Username,
 	}
 	return uriParams
 }

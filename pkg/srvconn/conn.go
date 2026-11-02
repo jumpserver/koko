@@ -199,7 +199,16 @@ func redisSupported() error {
 }
 
 func mongoDBSupported() error {
-	return CheckUSQLDriver(ProtocolMongoDB)
+	checkLine := "mongosh --version"
+	cmd := exec.Command("bash", "-c", checkLine)
+	out, err := cmd.CombinedOutput()
+	if err != nil && len(out) == 0 {
+		return fmt.Errorf("%w: %s", ErrRedisClient, err)
+	}
+	if !bytes.HasSuffix(out, []byte("command not found")) {
+		return nil
+	}
+	return ErrMongoDBClient
 }
 
 var usqlSupportedProtocols string
