@@ -906,6 +906,8 @@ func (s *Server) getSSHKeySigner(account *model.BaseAccount) (gossh.Signer, erro
 
 	s.setKeyBoardMode()
 	defer s.resetKeyboardMode()
+	// Give the connecting message time to finish before displaying the passphrase prompt.
+	time.Sleep(300 * time.Millisecond)
 	utils.IgnoreErrWriteString(s.UserConn, "\r\n")
 	vt := term.NewTerminal(s.UserConn, "")
 	prompt := fmt.Sprintf(s.connOpts.getLang().T("Enter passphrase for %s: "), account.String())
