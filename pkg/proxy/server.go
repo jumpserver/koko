@@ -903,11 +903,6 @@ func (s *Server) getSSHKeySigner(account *model.BaseAccount) (gossh.Signer, erro
 	if !errors.As(err, &missingPassphrase) {
 		return nil, fmt.Errorf("parse SSH private key: %w", err)
 	}
-	if guard := s.connOpts.passwordInputGuard; guard != nil {
-		if err := guard(); err != nil {
-			return nil, &passwordInputRejectedError{err: err}
-		}
-	}
 
 	s.setKeyBoardMode()
 	defer s.resetKeyboardMode()
