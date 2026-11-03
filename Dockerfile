@@ -1,4 +1,4 @@
-FROM jumpserver/koko-base:20261102_083035 AS stage-build
+FROM jumpserver/koko-base:20261103_104205 AS stage-build
 WORKDIR /opt/koko
 ARG TARGETARCH
 
