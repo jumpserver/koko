@@ -18,7 +18,7 @@ func Initial() {
 }
 
 func setupLangMap(localePath string) {
-	for _, code := range allLangCodes {
+	for _, code := range AllCodes {
 		enLocal := gotext.NewLocale(localePath, code.String())
 		enLocal.AddDomain("koko")
 		langMap[code] = enLocal
