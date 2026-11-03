@@ -9,6 +9,7 @@ import (
 const (
 	ZH     LanguageCode = "zh"
 	EN     LanguageCode = "en"
+	FR     LanguageCode = "fr"
 	JA     LanguageCode = "ja"
 	ZHHant LanguageCode = "zh_Hant"
 	PtBr   LanguageCode = "pt_BR"
@@ -21,15 +22,14 @@ const (
 var (
 	langMap = make(map[LanguageCode]*gotext.Locale)
 
-	allLangCodes = []LanguageCode{ZH, EN, JA, ZHHant, PtBr, Ko, Ru, Es, Vi}
-
-	AllLangCodesStr = []string{"English", "简体中文", "繁體中文", "日本語", "Português", "한국어", "Русский", "Español", "Tiếng Việt"}
-	AllCodes        = []LanguageCode{EN, ZH, ZHHant, JA, PtBr, Ko, Ru, Es, Vi}
+	AllLangCodesStr = []string{"English", "中文（简体）", "中文（繁體）", "Français", "日本語", "Português (Brasil)", "Español", "Русский", "한국어", "Tiếng Việt"}
+	AllCodes        = []LanguageCode{EN, ZH, ZHHant, FR, JA, PtBr, Es, Ru, Ko, Vi}
 )
 
 var i18nCodeMap = map[string]LanguageCode{
 	"zh":      ZH,
 	"en":      EN,
+	"fr":      FR,
 	"ja":      JA,
 	"pt-br":   PtBr,
 	"pt_br":   PtBr,
