@@ -73,8 +73,7 @@ func (s *Server) SFTPHandler(sess ssh.Session) {
 			logger.Errorf("Get matched assets failed: %s", err)
 			return
 		}
-		if directRequest.IsToken() && config.GetConf().ConnectionTokenReusable &&
-			cache.CanCacheConnectToken(s.jmsService, directRequest.ConnectToken.Id) {
+		if directRequest.IsToken() && config.GetConf().ConnectionTokenReusable {
 			tokenInfo := directRequest.ConnectToken
 			key := cache.CreateAddrCacheKey(sess.RemoteAddr(), tokenInfo.Id)
 			// 缓存 token 信息

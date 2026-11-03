@@ -3,7 +3,6 @@ package handler
 import (
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 	"time"
 
@@ -75,6 +74,8 @@ func (h *InteractiveHandler) dispatchClassicHelp(line string, idleState chan boo
 			h.selectHandler.DisplayCurrentResult()
 			return true
 		}
+		h.warnClassicInvalidCommand()
+		return true
 	case "p":
 		h.showAllClassicAssets()
 		return true
@@ -103,11 +104,11 @@ func (h *InteractiveHandler) dispatchClassicHelp(line string, idleState chan boo
 		logger.Infof("user %s enter %s to exit", h.user.Name, shortcut)
 		return false
 	}
-	if strings.HasPrefix(line, "/") && !strings.HasPrefix(line, "//") {
-		h.searchClassicAssets(line[1:])
+	if strings.HasPrefix(line, "//") {
+		h.warnClassicInvalidCommand()
 		return true
 	}
-	h.warnClassicInvalidCommand()
+	h.searchClassicAssets(strings.TrimPrefix(line, "/"))
 	return true
 }
 
@@ -157,13 +158,19 @@ func (h *InteractiveHandler) dispatchClassicList(line string, idleState chan boo
 	case "p":
 		if h.selectHandler.HasPrev() {
 			h.selectHandler.MovePrePage()
-			return true
+		} else {
+			h.warnClassicInvalidCommand()
 		}
+		return true
 	case "n":
 		if h.selectHandler.HasNext() {
 			h.selectHandler.MoveNextPage()
-			return true
+		} else {
+			h.warnClassicInvalidCommand()
 		}
+		return true
+	case "t", "g", "c", "f", "s", "q":
+		return h.dispatchClassicHelp(line, idleState)
 	}
 	if strings.HasPrefix(line, "//") {
 		if term := strings.TrimSpace(line[2:]); term != "" {
@@ -181,11 +188,7 @@ func (h *InteractiveHandler) dispatchClassicList(line string, idleState chan boo
 		return true
 	}
 	if !h.selectHandler.SelectResult(line) {
-		if _, err := strconv.Atoi(line); err == nil {
-			utils.IgnoreErrWriteString(h.term, utils.WrapperWarn(i18n.NewLang(h.i18nLang).T("Choose a number on this page.")))
-		} else {
-			h.warnClassicInvalidCommand()
-		}
+		h.searchClassicAssets(line)
 	}
 	return true
 }

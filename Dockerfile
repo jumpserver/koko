@@ -1,4 +1,4 @@
-FROM jumpserver/koko-base:20261101_003257 AS stage-build
+FROM jumpserver/koko-base:20261102_083035 AS stage-build
 WORKDIR /opt/koko
 ARG TARGETARCH
 
@@ -8,7 +8,7 @@ ARG VERSION
 ENV VERSION=$VERSION
 
 WORKDIR /opt/koko
-RUN make build -s \
+RUN GOMAXPROCS=2 GOFLAGS=-p=2 make build -s \
     && set -x && ls -al . \
     && mv /opt/koko/build/koko /opt/koko/koko
 
@@ -30,7 +30,7 @@ USER root
 
 ARG DEPENDENCIES="                    \
         bash-completion               \
-        ffmpeg                        \
+        libx264-164                   \
         ghostscript                   \
         less                          \
         openssl                       \
@@ -67,7 +67,8 @@ COPY s6-overlay/services.d/ /etc/services.d/
 RUN chmod +x /etc/cont-init.d/10-koko-init \
     /etc/services.d/koko/run \
     /etc/services.d/guacd/run \
-    /etc/services.d/guacd/log/run
+    /etc/services.d/guacd/log/run \
+    && ffmpeg -hide_banner -version
 
 ARG VERSION
 ENV VERSION=${VERSION}

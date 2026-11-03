@@ -1,0 +1,1403 @@
+msgid ""
+msgstr ""
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"X-Generator: JumpServer i18n migration\n"
+
+msgid "End session"
+msgstr "Terminer la session"
+
+msgid "[number] Switch language"
+msgstr "[numéro] Changer de langue"
+
+msgid "[number] Select an account"
+msgstr "[numéro] Sélectionner un compte"
+
+msgid "[number] Select a protocol"
+msgstr "[numéro] Sélectionner un protocole"
+
+msgid "Back to account list"
+msgstr "Retour à la liste des comptes"
+
+msgid "Back to language selection"
+msgstr "Retour au choix de la langue"
+
+msgid "Koko session ended."
+msgstr "La session Koko est terminée."
+
+msgid "Previous page"
+msgstr "Page précédente"
+
+msgid "Next page"
+msgstr "Page suivante"
+
+msgid "No permitted connection protocol is available for asset %s. Check its protocols and authorization rules."
+msgstr "Aucun protocole de connexion autorisé n'est disponible pour l'actif %s. Vérifiez ses protocoles et ses règles d'autorisation."
+
+msgid "Connection failed"
+msgstr "Échec de la connexion"
+
+msgid "Search condition already included: %s"
+msgstr "Critère de recherche déjà inclus : %s"
+
+msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
+msgstr "\t%2d) Saisissez {{.GreenBoldColor}}%s{{.ColorEnd}} pour %s%s"
+
+msgid "%s approved"
+msgstr "%s a approuvé"
+
+msgid "%s protocol client not installed."
+msgstr "Le client du protocole %s n'est pas installé."
+
+msgid "%s rejected"
+msgstr "%s a refusé"
+
+msgid "/ + IP, Hostname, Comment"
+msgstr "/ + IP, nom d'hôte, description"
+
+msgid "ACL reject"
+msgstr "Cette connexion a été refusée par la politique de contrôle d'accès."
+
+msgid "Account <%s> and asset <%s> protocol are inconsistent."
+msgstr "Les protocoles du compte <%s> et de l'actif <%s> ne correspondent pas."
+
+msgid "ActionPerm"
+msgstr "Autorisation"
+
+msgid "Address"
+msgstr "Adresse"
+
+msgid "AlreadyExistsPleaseRename"
+msgstr "Le fichier existe déjà, veuillez le renommer"
+
+msgid "Announcement: "
+msgstr "Annonce : "
+
+msgid "Authentication failed"
+msgstr "Échec de l'authentification"
+
+msgid "AvailableShortcutKey"
+msgstr "Raccourcis clavier disponibles"
+
+msgid "Back: B/b"
+msgstr "Retour : B/b"
+
+msgid "Cancel confirm"
+msgstr "Annuler la vérification de connexion"
+
+msgid "Cancel to login asset or max 3 retry"
+msgstr "Connexion à l'actif annulée ou limite de 3 tentatives atteinte"
+
+msgid "CancelFileUpload"
+msgstr "Annuler l'envoi du fichier"
+
+msgid "CaseSensitive"
+msgstr "Respecter la casse"
+
+msgid "Clone Connect"
+msgstr "Dupliquer la connexion"
+
+msgid "Close All Tabs"
+msgstr "Fermer tous les onglets"
+
+msgid "Close Current Tab"
+msgstr "Fermer l'onglet actuel"
+
+msgid "Command `%s` is forbidden"
+msgstr "La commande `%s` est interdite"
+
+msgid "Comment"
+msgstr "Description"
+
+msgid "ConfirmBtn"
+msgstr "Confirmer"
+
+msgid "ConfirmDelete"
+msgstr "Voulez-vous vraiment supprimer ce fichier ?"
+
+msgid "Connect idle more than %d minutes, disconnect"
+msgstr "Inactivité supérieure à %d minutes, déconnexion"
+
+msgid "Connect with api server failed"
+msgstr "Échec de la connexion au service API"
+
+msgid "Connecting to %s@%s"
+msgstr "Connexion à %s@%s"
+
+msgid "Connecting to Database %s"
+msgstr "Connexion à la base de données %s"
+
+msgid "Connecting to Kubernetes %s"
+msgstr "Connexion à Kubernetes %s"
+
+msgid "Connecting to Kubernetes %s container %s"
+msgstr "Connexion à Kubernetes %s, conteneur %s"
+
+msgid "Connection refused"
+msgstr "Connexion refusée"
+
+msgid "CopyLink"
+msgstr "Copier le lien"
+
+msgid "CopyShareURLSuccess"
+msgstr "Lien de partage copié"
+
+msgid "Core API failed"
+msgstr "Erreur de l'API Core"
+
+msgid "Could copy website URL to notify reviewers: %s"
+msgstr "Copiez l'adresse d'approbation pour prévenir les approbateurs : %s"
+
+msgid "Create k8s client err: %s"
+msgstr "Échec de la création du client Kubernetes : %s"
+
+msgid "CreateFolder"
+msgstr "Créer un dossier"
+
+msgid "CreateLink"
+msgstr "Créer un lien"
+
+msgid "CreateSuccess"
+msgstr "Création réussie"
+
+msgid "CurrentUser"
+msgstr "Utilisateur actuel"
+
+msgid "Custom Setting"
+msgstr "Paramètres personnalisés"
+
+msgid "DangerWarning"
+msgstr "Cette action est dangereuse"
+
+msgid "Delete"
+msgstr "Supprimer"
+
+msgid "DownArrow"
+msgstr "Flèche vers le bas"
+
+msgid "Download"
+msgstr "Télécharger"
+
+msgid "DownloadProgress"
+msgstr "Progression du téléchargement"
+
+msgid "DownloadSuccess"
+msgstr "Téléchargement réussi"
+
+msgid "Downloading"
+msgstr "Téléchargement en cours"
+
+msgid "Dynamic"
+msgstr "Compte dynamique"
+
+msgid "EndFileTransfer"
+msgstr "Transfert de fichiers terminé"
+
+msgid "Enter ID number directly login, multiple search use // + field, such as: //16"
+msgstr "Saisissez le numéro de l'actif pour vous connecter ; utilisez // + critère pour affiner la recherche, par exemple //16"
+
+msgid "ExceedTransferSize"
+msgstr "La taille maximale de transfert est dépassée"
+
+msgid "Expand"
+msgstr "Développer"
+
+msgid "ExpiredTime"
+msgstr "Date d'expiration"
+
+msgid "Face ACL is not supported yet. Please use the WebTerminal to connect the asset."
+msgstr "Ce terminal ne prend pas en charge les règles d'accès par reconnaissance faciale. Utilisez le terminal web pour vous connecter à l'actif."
+
+msgid "Face verification is not supported yet. Please use the WebTerminal to connect the asset."
+msgstr "Ce terminal ne prend pas en charge la vérification faciale. Utilisez le terminal web pour vous connecter à l'actif."
+
+msgid "FailedCreateConnection"
+msgstr "Échec de la création de la connexion"
+
+msgid "File transfer error, file transfer interrupted"
+msgstr "Erreur de transfert de fichiers, transfert interrompu"
+
+msgid "FileAlreadyExists"
+msgstr "Le fichier existe déjà"
+
+msgid "FileListError"
+msgstr "Impossible de récupérer la liste des fichiers"
+
+msgid "FileManagement"
+msgstr "Gestionnaire de fichiers"
+
+msgid "FileManagementExpired"
+msgstr "La session de gestion des fichiers a expiré."
+
+msgid "FileManagerTokenTimeout"
+msgstr "Le délai d'obtention du jeton du gestionnaire de fichiers a expiré"
+
+msgid "FileTransferInterrupted"
+msgstr "Transfert de fichiers interrompu"
+
+msgid "FileUploadInterrupted"
+msgstr "Envoi du fichier interrompu"
+
+msgid "Format"
+msgstr "Format"
+
+msgid "General"
+msgstr "Général"
+
+msgid "Get auth password failed"
+msgstr "Impossible d'obtenir le jeton d'authentification"
+
+msgid "GetFileManagerTokenTimeOut"
+msgstr "Le délai d'obtention du jeton du gestionnaire de fichiers a expiré"
+
+msgid "GetShareUser"
+msgstr "Saisissez le nom d'utilisateur"
+
+msgid "HandleTask does not support protocol %s, please use web terminal to access"
+msgstr "Ce terminal ne prend pas en charge le protocole %s. Utilisez le terminal web pour vous connecter"
+
+msgid "Hostname"
+msgstr "Nom d'hôte"
+
+msgid "Hotkeys"
+msgstr "Raccourcis clavier"
+
+msgid "ID"
+msgstr "ID"
+
+msgid "Number"
+msgstr "N°"
+
+msgid "Sequence"
+msgstr "Numéro"
+
+msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
+msgstr "Recherche affinée : // + IP, nom d'hôte ou description, par exemple //192"
+
+msgid "Connect asset: enter number and press Enter"
+msgstr "Connexion à un actif : saisissez son numéro et appuyez sur Entrée"
+
+msgid "Show help: enter ? and press Enter"
+msgstr "Aide : saisissez ? et appuyez sur Entrée"
+
+msgid "Asset range: %s  [b] Previous page  [n/Enter] Next page"
+msgstr "Actifs : %s  [b] Page précédente  [n/Enter] Page suivante"
+
+msgid "Node path: %s"
+msgstr "Chemin du nœud : %s"
+
+msgid "Asset type: %s"
+msgstr "Type d'actif : %s"
+
+msgid "Favorite path: %s"
+msgstr "Chemin des favoris : %s"
+
+msgid "Search guide: //keyword (refine) · /keyword (new global search) · IP/hostname/comment"
+msgstr "Recherche : //mot-clé (affiner) · /mot-clé (globale) · IP/hôte/description"
+
+msgid "Current search: %s"
+msgstr "Recherche actuelle : %s"
+
+msgid "Current asset: %s"
+msgstr "Actif actuel : %s"
+
+msgid "Select account: enter number and press Enter"
+msgstr "Choix du compte : saisissez son numéro et appuyez sur Entrée"
+
+msgid "Back: [b] + Enter"
+msgstr "Retour : [b] + Entrée"
+
+msgid "Select language: enter number and press Enter; the choice is saved"
+msgstr "Choix de la langue : saisissez son numéro et appuyez sur Entrée ; le choix est enregistré"
+
+msgid "Select protocol: enter number and press Enter"
+msgstr "Choix du protocole : saisissez son numéro et appuyez sur Entrée"
+
+msgid "Tree progress: %d/%d"
+msgstr "Progression de l'arbre : %d/%d"
+
+msgid "Browse tree: [enter] next line · [space] next page"
+msgstr "Arbre : [enter] ligne suivante · [space] page suivante"
+
+msgid "View assets: [%c + number] + Enter"
+msgstr "Voir les actifs : [%c + numéro] + Entrée"
+
+msgid "Refresh authorization tree: [r] + Enter"
+msgstr "Actualiser l'arbre des autorisations : [r] + Entrée"
+
+msgid "// + IP, Hostname, Comment"
+msgstr "// + IP, nom d'hôte, description"
+
+msgid "search within the current tree scope"
+msgstr "rechercher dans le périmètre de l'arbre actuel"
+
+msgid "authorization tree"
+msgstr "afficher l'arbre des autorisations"
+
+msgid "type tree"
+msgstr "afficher l'arbre des types"
+
+msgid "favorite tree"
+msgstr "afficher l'arbre des favoris"
+
+msgid "Type: [ Number.Name(Asset amount) ]"
+msgstr "Type : [ Numéro.Nom(Nombre d'actifs) ]"
+
+msgid "Favorite: [ Number.Name(Asset amount) ]"
+msgstr "Favori : [ Numéro.Nom(Nombre d'actifs) ]"
+
+msgid "InputVerifyCode"
+msgstr "Saisissez le code de vérification"
+
+msgid "Invalid ID"
+msgstr "Identifiant invalide"
+
+msgid "JoinShare"
+msgstr "Rejoindre la session"
+
+msgid "JoinedWithSuccess"
+msgstr "Session rejointe avec succès"
+
+msgid "KubernetesManagement"
+msgstr "Gestion de Kubernetes"
+
+msgid "LastModified"
+msgstr "Dernière modification"
+
+msgid "LeaveShare"
+msgstr "Quitter la session"
+
+msgid "LeftArrow"
+msgstr "Flèche vers la gauche"
+
+msgid "LinkAddr"
+msgstr "Adresse du lien"
+
+msgid "List"
+msgstr "Liste"
+
+msgid "Manual"
+msgstr "Compte manuel"
+
+msgid "MatchWholeWords"
+msgstr "Mots entiers uniquement"
+
+msgid "Minute"
+msgstr "Minute"
+
+msgid "Minutes"
+msgstr "minutes"
+
+msgid "Must be auto login account for %s"
+msgstr "Un compte à connexion automatique est requis pour %s"
+
+msgid "Must be unique account for %s"
+msgstr "Un seul compte doit correspondre à %s"
+
+msgid "Must be unique asset for %s"
+msgstr "Un seul actif doit correspondre à %s"
+
+msgid "MustOneFile"
+msgstr "Un seul fichier peut être sélectionné"
+
+msgid "MustSelectOneFile"
+msgstr "Sélectionnez un fichier"
+
+msgid "Name"
+msgstr "Nom"
+
+msgid "Need ACL review, continue? (y/n): "
+msgstr "Approbation requise, continuer ? (y/n) : "
+
+msgid "Need ticket confirm to execute command, already send email to the reviewers"
+msgstr "L'exécution de la commande nécessite une approbation ; les approbateurs ont été prévenus par e-mail"
+
+msgid "Need ticket confirm to login, already send email to the reviewers"
+msgstr "La connexion nécessite une approbation ; les approbateurs ont été prévenus par e-mail"
+
+msgid "NewFolder"
+msgstr "Nouveau dossier"
+
+msgid "No Account found."
+msgstr "Aucun compte trouvé."
+
+msgid "No Assets"
+msgstr "Aucun actif"
+
+msgid "No Databases"
+msgstr "Aucune base de données"
+
+msgid "No account found."
+msgstr "Aucun compte trouvé."
+
+msgid "No found asset"
+msgstr "Aucun actif correspondant trouvé"
+
+msgid "No kubernetes"
+msgstr "Aucun cluster Kubernetes"
+
+msgid "No protocol found."
+msgstr "Aucun protocole trouvé."
+
+msgid "No route to host"
+msgstr "Aucune route vers l'hôte"
+
+msgid "NoActiveTerminalTabFound"
+msgstr "Aucun onglet de terminal actif trouvé"
+
+msgid "NoData"
+msgstr "Aucune donnée disponible"
+
+msgid "NoLink"
+msgstr "Aucun lien"
+
+msgid "NoRunningTerminalFound"
+msgstr "Aucun terminal en cours d'exécution trouvé"
+
+msgid "Node: [ Number.Name(Asset amount) ]"
+msgstr "Nœud : [ Numéro.Nom(Nombre d'actifs) ]"
+
+msgid "OnlineUser"
+msgstr "Utilisateurs en ligne"
+
+msgid "OperationSuccessful"
+msgstr "Opération réussie"
+
+msgid "Organization"
+msgstr "Organisation"
+
+msgid "Owner"
+msgstr "Propriétaire"
+
+msgid "Page up: b\tPage down: n"
+msgstr "Page précédente : b\tPage suivante : n"
+
+msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
+msgstr "Page : %d, Nombre : %d, Total des pages : %d, Total des éléments : %d"
+
+msgid "Paste"
+msgstr "Coller"
+
+msgid "PauseSession"
+msgstr "Suspendre la session"
+
+msgid "Permission has expired, disconnect"
+msgstr "L'autorisation a expiré, déconnexion"
+
+msgid "PermissionDenied"
+msgstr "Autorisation refusée"
+
+msgid "PermissionExpired"
+msgstr "Autorisation expirée"
+
+msgid "PermissionValid"
+msgstr "Autorisation valide"
+
+msgid "Platform"
+msgstr "Plateforme"
+
+msgid "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C or CTRL+D."
+msgstr "En attente d'approbation de la commande `%s`. Appuyez sur CTRL+C ou CTRL+D pour annuler."
+
+msgid "Please waiting for the reviewers to confirm, enter q to exit. "
+msgstr "En attente d'approbation. Saisissez q pour quitter. "
+
+msgid "PleaseInput"
+msgstr "Veuillez saisir"
+
+msgid "PleaseInputVerifyCode"
+msgstr "Saisissez le code de vérification"
+
+msgid "PrimaryUser"
+msgstr "Utilisateur principal"
+
+msgid "Protocol"
+msgstr "Protocole"
+
+msgid "ReadOnly"
+msgstr "Lecture seule"
+
+msgid "Reconnect"
+msgstr "Reconnecter"
+
+msgid "Refresh done"
+msgstr "Actualisation terminée"
+
+msgid "Remove"
+msgstr "Retirer"
+
+msgid "RemoveShareUser"
+msgstr "Vous avez été retiré de la session partagée."
+
+msgid "RemoveUser"
+msgstr "Retirer l'utilisateur"
+
+msgid "Rename"
+msgstr "Renommer"
+
+msgid "ResumeSession"
+msgstr "Reprendre la session"
+
+msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
+msgstr "Réutilisation de la connexion SSH (%s@%s) [Nombre de connexions : %d]"
+
+msgid "RightArrow"
+msgstr "Flèche vers la droite"
+
+msgid "Search: %s"
+msgstr "Recherche : %s"
+
+msgid "Search tip: %s"
+msgstr "Conseil de recherche : %s"
+
+msgid "Select account exceed max retry times."
+msgstr "Le nombre maximal de tentatives de sélection du compte est dépassé."
+
+msgid "Select protocol exceed max retry times."
+msgstr "Le nombre maximal de tentatives de sélection du protocole est dépassé."
+
+msgid "SelectAction"
+msgstr "Sélectionner"
+
+msgid "SelectTheme"
+msgstr "Choisir un thème"
+
+msgid "Self"
+msgstr "Moi-même"
+
+msgid "Session max time reached, disconnect"
+msgstr "La durée maximale de session est atteinte, déconnexion"
+
+msgid "SessionDetail"
+msgstr "Détails de la session"
+
+msgid "SessionShare"
+msgstr "Partage de session"
+
+msgid "Settings"
+msgstr "Paramètres"
+
+msgid "Share"
+msgstr "Partager"
+
+msgid "ShareLink"
+msgstr "Lien de partage"
+
+msgid "ShareUser"
+msgstr "Utilisateur du partage"
+
+msgid "ShareUserHelpText"
+msgstr "Si ce champ est vide, tout le monde peut rejoindre la session."
+
+msgid "Size"
+msgstr "Taille"
+
+msgid "Start domain gateway failed %s"
+msgstr "Échec du démarrage de la passerelle de domaine %s"
+
+msgid "Switch language successfully"
+msgstr "Langue changée avec succès"
+
+msgid "Switched to %s"
+msgstr "Passage à %s"
+
+msgid "Sync"
+msgstr "Synchroniser"
+
+msgid "SyncUserPreferenceFailed"
+msgstr "Échec de la synchronisation des préférences utilisateur"
+
+msgid "SyncUserPreferenceSuccess"
+msgstr "Préférences utilisateur synchronisées"
+
+msgid "Terminal does not support protocol %s, please use web terminal to access"
+msgstr "Ce terminal ne prend pas en charge le protocole %s. Utilisez le terminal web pour vous connecter"
+
+msgid "TerminalInstanceNotFound"
+msgstr "Instance de terminal introuvable pour l'onglet actuel"
+
+msgid "TerminalInstanceNotFoundForCurrentTab"
+msgstr "Instance de terminal introuvable pour l'onglet actuel"
+
+msgid "Terminated by admin %s"
+msgstr "Session terminée par l'administrateur %s"
+
+msgid "The command '%s' requires review. Continue or not [Y/n]?"
+msgstr "La commande '%s' nécessite une approbation. Continuer [Y/n] ?"
+
+msgid "The command you executed is risky and an alert notification will be sent to the administrator. Do you want to continue?[Y/N]"
+msgstr "Cette commande présente un risque. Une alerte sera envoyée à l'administrateur. Voulez-vous continuer ? [Y/N]"
+
+msgid "TheCurrentTerminalInstanceWasNotFound"
+msgstr "L'instance de terminal actuelle est introuvable"
+
+msgid "ThemeColors"
+msgstr "Couleurs du thème"
+
+msgid "ThemeConfig"
+msgstr "Thème"
+
+msgid "Ticket Reviewers: %s"
+msgstr "Approbateurs du ticket : %s"
+
+msgid "Tips: Enter asset[%s] account ID"
+msgstr "Saisissez le numéro du compte pour l'actif [%s]"
+
+msgid "Tips: Enter protocol ID"
+msgstr "Saisissez le numéro du protocole"
+
+msgid "Tips: To set a default language, go to Personal Settings → Preferences on Web"
+msgstr "Pour définir la langue par défaut, ouvrez Paramètres personnels → Préférences sur le Web"
+
+msgid "Tips: switch language by ID (Current session only)"
+msgstr "Saisissez le numéro de la langue à utiliser pour cette session"
+
+msgid "Transfer"
+msgstr "Transfert"
+
+msgid "Type"
+msgstr "Type"
+
+msgid "UnableToGenerateWebSocketURL"
+msgstr "Impossible de générer l'URL WebSocket : paramètres manquants"
+
+msgid "Unknown error code: %s, detail: %s"
+msgstr "Code d'erreur inconnu : %s, détails : %s"
+
+msgid "Unknown status"
+msgstr "État inconnu"
+
+msgid "UpArrow"
+msgstr "Flèche vers le haut"
+
+msgid "Upload"
+msgstr "Envoyer"
+
+msgid "UploadEnd"
+msgstr "Envoi terminé, veuillez patienter pendant le traitement"
+
+msgid "UploadProgress"
+msgstr "Progression de l'envoi"
+
+msgid "UploadStart"
+msgstr "Début de l'envoi"
+
+msgid "UploadSuccess"
+msgstr "Envoi réussi"
+
+msgid "UploadTips"
+msgstr "Déposez un fichier ici ou cliquez pour l'envoyer"
+
+msgid "UploadTitle"
+msgstr "Envoi de fichiers"
+
+msgid "User"
+msgstr "Utilisateur"
+
+msgid "Username"
+msgstr "Nom d'utilisateur"
+
+msgid "UsingRegularExpressions"
+msgstr "Utiliser des expressions régulières"
+
+msgid "VerifyCode"
+msgstr "Code de vérification"
+
+msgid "WaitFileTransfer"
+msgstr "Attendez la fin du transfert de fichiers"
+
+msgid "Warning"
+msgstr "Avertissement"
+
+msgid "WebSocketClosed"
+msgstr "Connexion WebSocket fermée"
+
+msgid "WebSocketConnectionIsClosedHelpText"
+msgstr "La connexion WebSocket est fermée. Actualisez la page ou reconnectez-vous."
+
+msgid "Welcome to use JumpServer open source fortress system"
+msgstr "Bienvenue dans JumpServer, le bastion open source"
+
+msgid "Writable"
+msgstr "Modifiable"
+
+msgid "You don't have permission login %s"
+msgstr "Vous n'avez pas l'autorisation de vous connecter à %s"
+
+msgid "You get auth token failed"
+msgstr "Impossible d'obtenir le jeton d'authentification"
+
+msgid "display the assets you have permission"
+msgstr "afficher les actifs auxquels vous avez accès"
+
+msgid "display the databases that you have permission"
+msgstr "afficher les bases de données auxquelles vous avez accès"
+
+msgid "display the hosts that you have permission"
+msgstr "afficher les hôtes auxquels vous avez accès"
+
+msgid "display the kubernetes that you have permission"
+msgstr "afficher les clusters Kubernetes auxquels vous avez accès"
+
+msgid "display the node that you have permission"
+msgstr "afficher les nœuds auxquels vous avez accès"
+
+msgid "exit"
+msgstr "Se déconnecter"
+
+msgid "get connect token err"
+msgstr "Impossible d'obtenir le jeton de connexion"
+
+msgid "have no permission to download file"
+msgstr "Vous n'avez pas l'autorisation de télécharger des fichiers"
+
+msgid "have no permission to upload file"
+msgstr "Vous n'avez pas l'autorisation d'envoyer des fichiers"
+
+msgid "i/o timeout"
+msgstr "Réseau inaccessible (délai de connexion dépassé)"
+
+msgid "language switch"
+msgstr "Changer de langue"
+
+msgid "network is unreachable"
+msgstr "Réseau inaccessible"
+
+msgid "not found matched username %s"
+msgstr "Aucun nom d'utilisateur correspondant à %s trouvé"
+
+msgid "part IP, Hostname, Comment"
+msgstr "IP partielle, nom d'hôte, description"
+
+msgid "part IP,, Hostname, Comment"
+msgstr "/ + IP, nom d'hôte, description"
+
+msgid "print help"
+msgstr "Afficher l'aide"
+
+msgid "refresh your assets and nodes"
+msgstr "actualiser les actifs et les nœuds"
+
+msgid "select one asset to login"
+msgstr "sélectionner un actif pour se connecter"
+
+msgid "to search login if unique"
+msgstr "rechercher et se connecter si le résultat est unique"
+
+msgid "Enter {key} to search, such as: /192.168"
+msgstr "Saisissez {key} pour rechercher, par exemple /192.168"
+
+msgid "Deployment permission denied"
+msgstr "Autorisation de déploiement refusée"
+
+msgid "File exceeds maximum transfer size: %s"
+msgstr "Le fichier dépasse la taille maximale de transfert : %s"
+
+msgid "Account"
+msgstr "Compte"
+
+msgid "Cancel"
+msgstr "Annuler"
+
+msgid "Clear"
+msgstr "Effacer"
+
+msgid "Connect"
+msgstr "Connecter"
+
+msgid "Confirm"
+msgstr "Confirmer"
+
+msgid "Double-click"
+msgstr "Double-clic"
+
+msgid "Language"
+msgstr "Langue"
+
+msgid "Page"
+msgstr "Page"
+
+msgid "Quit"
+msgstr "Quitter"
+
+msgid "Search"
+msgstr "Rechercher"
+
+msgid "Select"
+msgstr "Sélectionner"
+
+msgid "Text mode"
+msgstr "Mode texte"
+
+msgid "Interface control (mouse)"
+msgstr "Contrôle de l'interface (souris)"
+
+msgid "Text selection (mouse)"
+msgstr "Sélection de texte (souris)"
+
+msgid "Switch to interface control; Koko handles mouse clicks, scrolling, and UI actions"
+msgstr "Passer au contrôle de l'interface ; Koko gère les clics, le défilement et les actions de la souris"
+
+msgid "Switch to text selection; the local terminal handles dragging and copying text"
+msgstr "Passer à la sélection de texte ; le terminal local gère la sélection et la copie du texte"
+
+msgid "Asset tree"
+msgstr "Arbre des actifs"
+
+msgid "Clear node"
+msgstr "Effacer le nœud"
+
+msgid "Clear search"
+msgstr "Effacer la recherche"
+
+msgid "Authorization tree"
+msgstr "Arbre des autorisations"
+
+msgid "Type tree"
+msgstr "Arbre des types"
+
+msgid "Favorite tree"
+msgstr "Arbre des favoris"
+
+msgid "Refresh"
+msgstr "Actualiser"
+
+msgid "Switch tree"
+msgstr "Changer d'arbre"
+
+msgid "Switch language"
+msgstr "Changer de langue"
+
+msgid "Search assets in the current scope"
+msgstr "Rechercher des actifs dans le périmètre actuel"
+
+msgid "Clear the current asset search"
+msgstr "Effacer la recherche d'actifs actuelle"
+
+msgid "Move the selection up or down"
+msgstr "Déplacer la sélection vers le haut ou le bas"
+
+msgid "Go to the previous or next page"
+msgstr "Passer à la page précédente ou suivante"
+
+msgid "Connect to the selected asset"
+msgstr "Se connecter à l'actif sélectionné"
+
+msgid "Open the asset tree"
+msgstr "Ouvrir l'arbre des actifs"
+
+msgid "Clear the selected tree node"
+msgstr "Effacer le nœud sélectionné"
+
+msgid "Switch the interface language"
+msgstr "Changer la langue de l'interface"
+
+msgid "Switch to text mode"
+msgstr "Passer en mode texte"
+
+msgid "Exit the asset list"
+msgstr "Quitter la liste des actifs"
+
+msgid "Open shortcut help"
+msgstr "Afficher l'aide des raccourcis"
+
+msgid "Close shortcut help"
+msgstr "Fermer l'aide des raccourcis"
+
+msgid "View complete information for the selected item"
+msgstr "Voir toutes les informations de l'élément sélectionné"
+
+msgid "Protocols supported by the current terminal"
+msgstr "Protocoles pris en charge par le terminal actuel"
+
+msgid "Collapse or expand the selected node"
+msgstr "Réduire ou développer le nœud sélectionné"
+
+msgid "Use the selected node to filter assets"
+msgstr "Filtrer les actifs avec le nœud sélectionné"
+
+msgid "Switch the asset tree type"
+msgstr "Changer le type d'arbre des actifs"
+
+msgid "Reload the current asset tree"
+msgstr "Recharger l'arbre des actifs actuel"
+
+msgid "Apply the selected language"
+msgstr "Appliquer la langue sélectionnée"
+
+msgid "Select an authorized account"
+msgstr "Sélectionner un compte autorisé"
+
+msgid "Select a connection protocol"
+msgstr "Sélectionner un protocole de connexion"
+
+msgid "Search authorized accounts"
+msgstr "Rechercher des comptes autorisés"
+
+msgid "Connect using the selected account and protocol"
+msgstr "Se connecter avec le compte et le protocole sélectionnés"
+
+msgid "Path"
+msgstr "Chemin"
+
+msgid "Asset count"
+msgstr "Nombre d'actifs"
+
+msgid "Category"
+msgstr "Catégorie"
+
+msgid "Active"
+msgstr "Actif"
+
+msgid "Actions"
+msgstr "Actions"
+
+msgid "Key"
+msgstr "Clé"
+
+msgid "Details"
+msgstr "Détails"
+
+msgid "Refresh the current asset list and keep search and tree filters"
+msgstr "Actualiser la liste des actifs en conservant les filtres de recherche et d'arbre"
+
+msgid "Yes"
+msgstr "Oui"
+
+msgid "No"
+msgstr "Non"
+
+msgid "My Assets"
+msgstr "Mes actifs"
+
+msgid "Direct connect"
+msgstr "Connexion directe"
+
+msgid "Multi-session"
+msgstr "Sessions multiples"
+
+msgid "Sessions"
+msgstr "Sessions"
+
+msgid "Connect to the selected asset in a native single session"
+msgstr "Se connecter à l'actif sélectionné dans une session native unique"
+
+msgid "Open the selected asset in the multi-session workspace"
+msgstr "Ouvrir l'actif sélectionné dans l'espace de sessions multiples"
+
+msgid "Return to the multi-session workspace"
+msgstr "Retourner à l'espace de sessions multiples"
+
+msgid "Asset list"
+msgstr "Liste des actifs"
+
+msgid "Switch session"
+msgstr "Changer de session"
+
+msgid "Close session"
+msgstr "Fermer la session"
+
+msgid "Multi-session mode supports at most %d session windows"
+msgstr "Le mode sessions multiples prend en charge au maximum %d fenêtres de session"
+
+msgid "Failed to open multi-session"
+msgstr "Impossible d'ouvrir une session multiple"
+
+msgid "Multi-session workspace closed"
+msgstr "Espace de sessions multiples fermé"
+
+msgid "Activate shortcuts"
+msgstr "Activer les raccourcis"
+
+msgid "Next session"
+msgstr "Session suivante"
+
+msgid "Duplicate session"
+msgstr "Dupliquer la session"
+
+msgid "Reconnect session"
+msgstr "Reconnecter la session"
+
+msgid "Move to the next session"
+msgstr "Passer à la session suivante"
+
+msgid "Move to the previous session"
+msgstr "Passer à la session précédente"
+
+msgid "Switch directly to session 1-9"
+msgstr "Passer directement à la session 1-9"
+
+msgid "Close the current session"
+msgstr "Fermer la session actuelle"
+
+msgid "Duplicate the current session"
+msgstr "Dupliquer la session actuelle"
+
+msgid "Reconnect the current session"
+msgstr "Reconnecter la session actuelle"
+
+msgid "Return to the asset list"
+msgstr "Retourner à la liste des actifs"
+
+msgid "Send ctrl+b to the current session"
+msgstr "Envoyer ctrl+b à la session actuelle"
+
+msgid "Scroll content"
+msgstr "Faire défiler le contenu"
+
+msgid "Scroll the current session down or up"
+msgstr "Faire défiler la session actuelle vers le bas ou le haut"
+
+msgid "Enter session"
+msgstr "Entrer dans la session"
+
+msgid "Move to the previous or next session"
+msgstr "Passer à la session précédente ou suivante"
+
+msgid "Enter the current session"
+msgstr "Entrer dans la session actuelle"
+
+msgid "Close all sessions"
+msgstr "Fermer toutes les sessions"
+
+msgid "Close all sessions and return to the asset list"
+msgstr "Fermer toutes les sessions et revenir à la liste des actifs"
+
+msgid "Session list"
+msgstr "Liste des sessions"
+
+msgid "Open the session list"
+msgstr "Ouvrir la liste des sessions"
+
+msgid "Close"
+msgstr "Fermer"
+
+msgid "Immersive mode"
+msgstr "Mode immersif"
+
+msgid "Enter immersive mode"
+msgstr "Activer le mode immersif"
+
+msgid "Exit immersive mode"
+msgstr "Quitter le mode immersif"
+
+msgid "Close the current session?"
+msgstr "Fermer la session actuelle ?"
+
+msgid "Close all sessions and return to the asset list?"
+msgstr "Fermer toutes les sessions et revenir à la liste des actifs ?"
+
+msgid "Quit Koko"
+msgstr "Quitter Koko"
+
+msgid "Quit this SSH session?"
+msgstr "Quitter cette session SSH ?"
+
+msgid "%d multi-sessions are still active; quitting will end them."
+msgstr "%d sessions multiples sont encore actives ; quitter les terminera."
+
+msgid "Session ended"
+msgstr "Session terminée"
+
+msgid "The current session has ended. Close this tab?"
+msgstr "La session actuelle est terminée. Fermer cet onglet ?"
+
+msgid "Keep"
+msgstr "Conserver"
+
+msgid "Connection token expired"
+msgstr "Le jeton de connexion a expiré"
+
+msgid "Enroll MFA in the web console before connecting"
+msgstr "Configurez la MFA dans la console web avant de vous connecter"
+
+msgid "Connection reason: "
+msgstr "Motif de la connexion : "
+
+msgid "MFA code: "
+msgstr "Code MFA : "
+
+msgid "Task ID: %s"
+msgstr "ID de la tâche : %s"
+
+msgid "Account push failed. Contact an administrator."
+msgstr "La préparation du compte a échoué. Contactez un administrateur."
+
+msgid "Connection cancelled."
+msgstr "Connexion annulée."
+
+msgid "Enter y to continue or n to cancel."
+msgstr "Saisissez y pour continuer ou n pour annuler."
+
+msgid "Enter q and press Enter to cancel at any step."
+msgstr "Saisissez q puis appuyez sur Entrée pour annuler à n'importe quelle étape."
+
+msgid "Connection reason"
+msgstr "Motif de la connexion"
+
+msgid "MFA verification"
+msgstr "Vérification MFA"
+
+msgid "Face verification"
+msgstr "Vérification faciale"
+
+msgid "Connection approval"
+msgstr "Approbation de connexion"
+
+msgid "Account push"
+msgstr "Déploiement du compte"
+
+msgid "Connection is not ready. Start a new connection."
+msgstr "La connexion n'est pas prête. Démarrez une nouvelle connexion."
+
+msgid "Enter a connection reason (up to 4096 characters)."
+msgstr "Saisissez le motif de la connexion (4096 caractères maximum)."
+
+msgid "MFA method [1]: "
+msgstr "Méthode MFA [1] : "
+
+msgid "Select a listed MFA method."
+msgstr "Sélectionnez une méthode MFA dans la liste."
+
+msgid "MFA code sent."
+msgstr "Code MFA envoyé."
+
+msgid "Enter the MFA code."
+msgstr "Saisissez le code MFA."
+
+msgid "Approval is required. Submit a request? (y/n): "
+msgstr "Une approbation est requise. Envoyer une demande ? (y/n) : "
+
+msgid "Submitting approval request..."
+msgstr "Envoi de la demande d'approbation..."
+
+msgid "Approval granted."
+msgstr "Approbation accordée."
+
+msgid "Push the same-name account before connecting? (y/n): "
+msgstr "Déployer le compte portant le même nom avant la connexion ? (y/n) : "
+
+msgid "Starting account push..."
+msgstr "Démarrage du déploiement du compte..."
+
+msgid "Account is ready."
+msgstr "Le compte est prêt."
+
+msgid "Connection reason saved."
+msgstr "Motif de la connexion enregistré."
+
+msgid "MFA verification passed."
+msgstr "Vérification MFA réussie."
+
+msgid "Approval rejected. Connection cancelled."
+msgstr "Approbation refusée. Connexion annulée."
+
+msgid "Approval request closed. Connection cancelled."
+msgstr "Demande d'approbation fermée. Connexion annulée."
+
+msgid "Approval ticket: %s"
+msgstr "Ticket d'approbation : %s"
+
+msgid "Waiting for approval."
+msgstr "En attente d'approbation."
+
+msgid "Cancel connection (q + Enter): "
+msgstr "Annuler la connexion (q + Entrée) : "
+
+msgid "Account push is running."
+msgstr "Le déploiement du compte est en cours."
+
+msgid "Account push is queued."
+msgstr "Le déploiement du compte est en attente."
+
+msgid "Request failed (HTTP %d)."
+msgstr "Échec de la requête (HTTP %d)."
+
+msgid "Invalid response from server."
+msgstr "Réponse du serveur invalide."
+
+msgid "All favorites"
+msgstr "Tous les favoris"
+
+msgid "Asset %s has no available login account."
+msgstr "L'actif %s n'a aucun compte de connexion disponible."
+
+msgid "Asset details do not match the selected asset"
+msgstr "Les détails de l'actif ne correspondent pas à l'actif sélectionné"
+
+msgid "Assets unavailable. Return and retry."
+msgstr "Actifs indisponibles. Revenez en arrière et réessayez."
+
+msgid "Authorization tree unavailable. Type r to retry."
+msgstr "Arbre des autorisations indisponible. Saisissez r pour réessayer."
+
+msgid "Back to assets"
+msgstr "Retour aux actifs"
+
+msgid "Back to authorization tree"
+msgstr "Retour à l'arbre des autorisations"
+
+msgid "Back to favorites tree"
+msgstr "Retour à l'arbre des favoris"
+
+msgid "Back to help"
+msgstr "Retour à l'aide"
+
+msgid "Back to protocols"
+msgstr "Retour aux protocoles"
+
+msgid "Back to type tree"
+msgstr "Retour à l'arbre des types"
+
+msgid "Cannot connect to this asset."
+msgstr "Impossible de se connecter à cet actif."
+
+msgid "Cannot connect: asset disabled."
+msgstr "Connexion impossible : actif désactivé."
+
+msgid "Cannot connect: no supported protocol."
+msgstr "Connexion impossible : aucun protocole pris en charge."
+
+msgid "Cannot connect: unsupported protocol (%s)."
+msgstr "Connexion impossible : protocole non pris en charge (%s)."
+
+msgid "Connectable"
+msgstr "Connectables"
+
+msgid "Counts"
+msgstr "Compteurs"
+
+msgid "Enter a search term"
+msgstr "Saisissez un terme de recherche"
+
+msgid "Enter passphrase for %s: "
+msgstr "Phrase secrète pour %s : "
+
+msgid "Enter {key} to change the interface language"
+msgstr "Saisissez {key} pour changer la langue de l'interface"
+
+msgid "Enter {key} to end this session"
+msgstr "Saisissez {key} pour terminer cette session"
+
+msgid "Enter {key} to switch to TUI mode"
+msgstr "Saisissez {key} pour passer en mode TUI"
+
+msgid "Enter {key} to view all assets"
+msgstr "Saisissez {key} pour afficher tous les actifs"
+
+msgid "Enter {key} to view help"
+msgstr "Saisissez {key} pour afficher l'aide"
+
+msgid "Enter {key} to view the authorization tree"
+msgstr "Saisissez {key} pour afficher l'arbre des autorisations"
+
+msgid "Enter {key} to view the favorites tree"
+msgstr "Saisissez {key} pour afficher l'arbre des favoris"
+
+msgid "Enter {key} to view the type tree"
+msgstr "Saisissez {key} pour afficher l'arbre des types"
+
+msgid "Failed to load asset details"
+msgstr "Impossible de charger les détails de l'actif"
+
+msgid "Failed to load assets"
+msgstr "Impossible de charger les actifs"
+
+msgid "Failed to load connection options"
+msgstr "Impossible de charger les options de connexion"
+
+msgid "Failed to load favorites tree. Try again."
+msgstr "Impossible de charger l'arbre des favoris. Réessayez."
+
+msgid "Failed to load tree"
+msgstr "Impossible de charger l'arbre"
+
+msgid "Failed to load type tree. Try again."
+msgstr "Impossible de charger l'arbre des types. Réessayez."
+
+msgid "Invalid input."
+msgstr "Saisie invalide."
+
+msgid "Invalid number"
+msgstr "Numéro invalide"
+
+msgid "Loading accounts and protocols…"
+msgstr "Chargement des comptes et protocoles…"
+
+msgid "Loading asset details…"
+msgstr "Chargement des détails de l'actif…"
+
+msgid "Loading assets…"
+msgstr "Chargement des actifs…"
+
+msgid "Loading tree…"
+msgstr "Chargement de l'arbre…"
+
+msgid "Loading…"
+msgstr "Chargement…"
+
+msgid "Manual password can be entered at most %d times"
+msgstr "Le mot de passe manuel peut être saisi au maximum %d fois"
+
+msgid "Matched %d assets, %d connectable"
+msgstr "%d actifs trouvés, dont %d connectables"
+
+msgid "Matched %d assets; all are connectable"
+msgstr "%d actifs trouvés ; tous sont connectables"
+
+msgid "Matched %d assets; none are connectable"
+msgstr "%d actifs trouvés ; aucun n'est connectable"
+
+msgid "No assets in this node"
+msgstr "Aucun actif dans ce nœud"
+
+msgid "No assets match the current filters"
+msgstr "Aucun actif ne correspond aux filtres actuels"
+
+msgid "No matching accounts"
+msgstr "Aucun compte correspondant"
+
+msgid "No matching assets"
+msgstr "Aucun actif correspondant"
+
+msgid "No nodes"
+msgstr "Aucun nœud"
+
+msgid "No permitted accounts or terminal protocols"
+msgstr "Aucun compte ou protocole de terminal autorisé"
+
+msgid "Press any key to return to the asset list…"
+msgstr "Appuyez sur une touche pour revenir à la liste des actifs…"
+
+msgid "Range / Connectable / Total; counts follow the current filters. Connectable means enabled with a supported protocol."
+msgstr "Plage / Connectables / Total ; les compteurs suivent les filtres actuels. Un actif connectable est activé et utilise un protocole pris en charge."
+
+msgid "Refresh authorization tree"
+msgstr "Actualiser l'arbre des autorisations"
+
+msgid "Refreshing assets…"
+msgstr "Actualisation des actifs…"
+
+msgid "TUI is unavailable; switched to text mode."
+msgstr "Le mode TUI est indisponible ; passage en mode texte."
+
+msgid "The command is risky. Continue?"
+msgstr "Cette commande présente un risque. Continuer ?"
+
+msgid "The command requires review. Continue?"
+msgstr "Cette commande nécessite une approbation. Continuer ?"
+
+msgid "Total"
+msgstr "Total"
+
+msgid "View help"
+msgstr "Afficher l'aide"
+
+msgid "[number] Select an asset"
+msgstr "[numéro] Sélectionner un actif"
+
+msgid "[number] View assets in this node"
+msgstr "[numéro] Voir les actifs de ce nœud"
