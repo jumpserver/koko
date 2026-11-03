@@ -893,6 +893,38 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 	return
 }
 
+func (s *Server) getSSHKeySigner(account *model.BaseAccount) (gossh.Signer, error) {
+	privateKey := []byte(account.Secret)
+	signer, err := gossh.ParsePrivateKey(privateKey)
+	if err == nil {
+		return signer, nil
+	}
+	var missingPassphrase *gossh.PassphraseMissingError
+	if !errors.As(err, &missingPassphrase) {
+		return nil, fmt.Errorf("parse SSH private key: %w", err)
+	}
+	if guard := s.connOpts.passwordInputGuard; guard != nil {
+		if err := guard(); err != nil {
+			return nil, &passwordInputRejectedError{err: err}
+		}
+	}
+
+	s.setKeyBoardMode()
+	defer s.resetKeyboardMode()
+	utils.IgnoreErrWriteString(s.UserConn, "\r\n")
+	vt := term.NewTerminal(s.UserConn, "")
+	prompt := fmt.Sprintf(s.connOpts.getLang().T("Enter passphrase for %s: "), account.String())
+	passphrase, err := vt.ReadPassword(prompt)
+	if err != nil {
+		return nil, fmt.Errorf("read SSH private key passphrase: %w", err)
+	}
+	signer, err = gossh.ParsePrivateKeyWithPassphrase(privateKey, []byte(passphrase))
+	if err != nil {
+		return nil, fmt.Errorf("unlock SSH private key: %w", err)
+	}
+	return signer, nil
+}
+
 func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	loginAccount := s.account.GetBaseAccount()
 	if s.suFromAccount != nil {
@@ -913,10 +945,13 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(asset.Address))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(asset.ProtocolPort(protocol)))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientTimeout(timeout))
+	var password string
 	if loginAccount.IsSSHKey() {
-		if signer, err1 := gossh.ParsePrivateKey([]byte(loginAccount.Secret)); err1 == nil {
-			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
+		signer, err1 := s.getSSHKeySigner(loginAccount)
+		if err1 != nil {
+			return nil, err1
 		}
+		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 	} else if loginAccount.IsSSHCertificate() {
 		signer, err1 := sshcert.NewSigner(loginAccount)
 		if err1 != nil {
@@ -924,12 +959,12 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		}
 		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 	} else {
+		password = loginAccount.Secret
 		if !isPlatform(&platform, mfaAuth) {
-			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(loginAccount.Secret))
+			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(password))
 		}
 	}
 
-	password := loginAccount.Secret
 	kb := srvconn.SSHClientKeyboardAuth(func(user, instruction string,
 		questions []string, echos []bool) (answers []string, err error) {
 		s.setKeyBoardMode()
