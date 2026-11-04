@@ -3,6 +3,8 @@ package handler
 import (
 	"io"
 	"os"
+	"path"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -18,6 +20,26 @@ type SftpHandler struct {
 	*srvconn.UserSftpConn
 
 	recorder *proxy.FTPFileRecorder
+}
+
+// RealPath exposes the effective root only for direct, token-bound connections.
+func (s *SftpHandler) RealPath(p string) (string, error) {
+	clean := path.Clean("/" + p)
+	root, err := s.InitDirectSFTPRoot()
+	if err != nil {
+		return "", err
+	}
+	if root == "" {
+		return clean, nil
+	}
+	root = path.Clean(root)
+	if clean == "/" {
+		return root, nil
+	}
+	if root != "/" && clean != root && !strings.HasPrefix(clean, root+"/") {
+		return "", sftp.ErrSshFxPermissionDenied
+	}
+	return clean, nil
 }
 
 func (s *SftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {

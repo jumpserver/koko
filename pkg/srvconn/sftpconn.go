@@ -65,6 +65,27 @@ func (u *UserSftpConn) GetRootPath() string {
 	return u.assetDir.GetRealPath(sftpSession, "")
 }
 
+// InitDirectSFTPRoot initializes the token-bound session used by direct SFTP.
+// Asset trees have no single root and must not create an asset connection here.
+func (u *UserSftpConn) InitDirectSFTPRoot() (string, error) {
+	if u.assetDir == nil || u.opts == nil || u.opts.token == nil {
+		return "", nil
+	}
+	folderName, ok := u.assetDir.IsUniqueSu()
+	if !ok {
+		return "", nil
+	}
+	su, ok := u.assetDir.suMaps[folderName]
+	if !ok || su == nil {
+		return "", nil
+	}
+	conn, root := u.assetDir.GetSFTPAndRealPath(su, "")
+	if conn == nil || conn.isClosed {
+		return "", sftp.ErrSshFxConnectionLost
+	}
+	return root, nil
+}
+
 func (u *UserSftpConn) ReadDir(path string) (res []os.FileInfo, err error) {
 	if u.assetDir != nil {
 		return u.assetDir.ReadDir(path)
