@@ -47,7 +47,7 @@ ARG TARGETARCH
 
 WORKDIR /opt
 
-ARG USQL_VERSION=v0.2.7
+ARG USQL_VERSION=v0.2.8
 
 ARG K8S_BUNDLE_VERSION=v0.0.1
 
@@ -63,6 +63,8 @@ RUN set -ex \
     && rm -f check_linux_${TARGETARCH}.deb \
     && wget https://github.com/jumpserver-dev/usql/releases/download/${USQL_VERSION}/usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz -C /opt/koko/bin/ \
+    && /opt/koko/bin/usql --drivers | grep -qx mongodb \
+    && /opt/koko/bin/usql --drivers | grep -qx redis \
     && wget -O /opt/koko/.kubectl_aliases https://github.com/ahmetb/kubectl-aliases/raw/master/.kubectl_aliases \
     && chmod 755 /opt/koko/bin/* \
     && chown root:root /opt/koko/bin/* \
@@ -80,32 +82,6 @@ RUN set -ex \
     && wget -O /opt/s6-overlay/s6-overlay-arch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${s6_arch}.tar.xz"
 
 WORKDIR /opt/koko
-
-ARG MONGOSH_VERSION=2.3.4
-RUN set -ex \
-    && mkdir -p /opt/koko/lib \
-    && \
-    case "${TARGETARCH}" in \
-        amd64) \
-            wget https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-x64.tgz \
-            && tar -xf mongosh-${MONGOSH_VERSION}-linux-x64.tgz \
-            && chown root:root mongosh-${MONGOSH_VERSION}-linux-x64/bin/* \
-            && mv mongosh-${MONGOSH_VERSION}-linux-x64/bin/mongosh /opt/koko/bin/ \
-            && mv mongosh-${MONGOSH_VERSION}-linux-x64/bin/mongosh_crypt_v1.so /opt/koko/lib/ \
-            && rm -rf mongosh-${MONGOSH_VERSION}-linux-x64* \
-            ;; \
-        arm64|ppc64le|s390x) \
-            wget https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}.tgz \
-            && tar -xf mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}.tgz \
-            && chown root:root mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/* \
-            && mv mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/mongosh /opt/koko/bin/ \
-            && mv mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/mongosh_crypt_v1.so /opt/koko/lib/ \
-            && rm -rf mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}* \
-            ;; \
-        *) \
-            echo "Unsupported architecture: ${TARGETARCH}" \
-            ;; \
-    esac
 
 COPY --from=libghostty-vt /opt/libghostty-vt /opt/libghostty-vt
 COPY --from=stage-ffmpeg /usr/local/bin/ffmpeg /opt/koko/bin/ffmpeg
