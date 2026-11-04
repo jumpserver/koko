@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/LeeEirc/tclientlib"
 	"github.com/LeeEirc/terminalparser"
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
@@ -1394,7 +1393,7 @@ func (p *Parser) breakInputPacket() []byte {
 		if isH3C(p.platform) {
 			return []byte{CharCTRLE, CharCTRLX, '\r'}
 		}
-		return []byte{tclientlib.IAC, tclientlib.BRK, CharCTRLC, '\r'}
+		return []byte(srvconn.TelnetBreakInput)
 	case model.ProtocolSSH:
 		if isH3C(p.platform) {
 			return []byte{CharCTRLE, CharCTRLX, '\r'}
