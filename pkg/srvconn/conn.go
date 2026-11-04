@@ -143,8 +143,8 @@ var supportedMap = map[string]supportedChecker{
 	ProtocolWinRM:  builtinSupported,
 	ProtocolK8s:    kubectlSupported,
 
-	ProtocolRedis:   redisSupported,
-	ProtocolMongoDB: mongoDBSupported,
+	ProtocolRedis:   usqlSupportedChecker(ProtocolRedis),
+	ProtocolMongoDB: usqlSupportedChecker(ProtocolMongoDB),
 
 	ProtocolMySQL:      usqlSupportedChecker(ProtocolMySQL),
 	ProtocolMariadb:    usqlSupportedChecker(ProtocolMariadb),
@@ -183,32 +183,6 @@ func kubectlSupported() error {
 		return nil
 	}
 	return ErrKubectlClient
-}
-
-func redisSupported() error {
-	checkLine := "redis-cli -v"
-	cmd := exec.Command("bash", "-c", checkLine)
-	out, err := cmd.CombinedOutput()
-	if err != nil && len(out) == 0 {
-		return fmt.Errorf("%w: %s", ErrRedisClient, err)
-	}
-	if bytes.HasPrefix(out, []byte("redis-cli")) {
-		return nil
-	}
-	return ErrRedisClient
-}
-
-func mongoDBSupported() error {
-	checkLine := "mongosh --version"
-	cmd := exec.Command("bash", "-c", checkLine)
-	out, err := cmd.CombinedOutput()
-	if err != nil && len(out) == 0 {
-		return fmt.Errorf("%w: %s", ErrRedisClient, err)
-	}
-	if !bytes.HasSuffix(out, []byte("command not found")) {
-		return nil
-	}
-	return ErrMongoDBClient
 }
 
 var usqlSupportedProtocols string
@@ -280,22 +254,6 @@ func MatchLoginPrefix(prefix string, dbType string, lcmd *localcommand.LocalComm
 	return lcmd, nil
 }
 
-func DoLogin(opt *sqlOption, lcmd *localcommand.LocalCommand, dbType string) (*localcommand.LocalCommand, error) {
-	//输入密码, 登录数据库
-	time.Sleep(time.Millisecond * 100)
-	_, err := lcmd.Write([]byte(opt.Password + "\r\n"))
-	if err != nil {
-		_ = lcmd.Close()
-		logger.Errorf("%s local pty write err: %s", dbType, err)
-		return lcmd, fmt.Errorf("%s conn err: %s", dbType, err)
-	}
-	//清除掉输入密码后，界面上显示的星号
-	time.Sleep(time.Millisecond * 100)
-	clearPassword := make([]byte, len(opt.Password)+2)
-	_, _ = lcmd.Read(clearPassword)
-	return lcmd, nil
-}
-
 func StoreCAFileToLocal(caCert string) (string, error) {
 	return createTmpFileToLocal(caCert, 0666)
 }
@@ -345,13 +303,3 @@ func ClearTempFileDelay(sleepTime time.Duration, filepath ...string) {
 		}
 	}()
 }
-
-var cleanLineExitCommand = []byte{
-	CharCTRLE, CharCleanLine, '\r', '\n',
-	'e', 'x', 'i', 't', '\r', '\n',
-}
-
-const (
-	CharCleanLine = '\x15'
-	CharCTRLE     = '\x05'
-)

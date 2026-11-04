@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -15,7 +17,7 @@ import (
 )
 
 const (
-	redisPrompt = "Please input password:"
+	redisPrompt = "Enter password:"
 )
 
 var (
@@ -91,18 +93,12 @@ func (conn *RedisConn) KeepAlive() error {
 }
 
 func (conn *RedisConn) Close() error {
-	_, _ = conn.Write(cleanLineExitCommand)
 	return conn.LocalCommand.Close()
 }
 
 func startRedisCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err error) {
 	cmd := opt.RedisCommandArgs()
-	envs := make([]string, 0, 2)
-	redisCliFile := os.Getenv("REDISCLI_RCFILE")
-	if redisCliFile != "" {
-		envs = append(envs, "REDISCLI_RCFILE="+redisCliFile)
-		logger.Infof("rediscli rcfile: %s", redisCliFile)
-	}
+	envs := []string{"USQL_HISTORY=/dev/null"}
 	ptyOpt := localcommand.WithPtyWin(opt.win.Width, opt.win.Height)
 	envOpt := localcommand.WithEnv(envs)
 	opts, err := BuildNobodyWithOpts(ptyOpt, envOpt)
@@ -111,7 +107,7 @@ func startRedisCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err err
 		return nil, err
 	}
 	opts = append(opts, envOpt)
-	lcmd, err = localcommand.New("redis-cli", cmd, opts...)
+	lcmd, err = localcommand.New("usql", cmd, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +116,7 @@ func startRedisCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err err
 		if err != nil {
 			return lcmd, err
 		}
-		lcmd, err = DoLogin(opt, lcmd, "Redis")
+		lcmd, err = doNoSQLLogin(opt, lcmd)
 		if err != nil {
 			return lcmd, err
 		}
@@ -129,34 +125,29 @@ func startRedisCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err err
 }
 
 func (opt *sqlOption) RedisCommandArgs() []string {
-	params := make([]string, 0, 15)
+	u := &url.URL{Scheme: "redis", Host: net.JoinHostPort(opt.Host, strconv.Itoa(opt.Port)), Path: "/" + opt.DBName}
+	params := url.Values{}
 	if opt.ClusterMode {
-		params = append(params, "-c")
+		params.Set("cluster", "true")
 	}
-	connArgs := []string{
-		"-h", opt.Host, "-p", strconv.Itoa(opt.Port),
-		"-n", opt.DBName,
-	}
-	params = append(params, connArgs...)
-
 	if opt.UseSSL {
-		params = append(params, "--tls")
+		u.Scheme = "rediss"
 		if opt.CaCertPath != "" {
-			params = append(params, "--cacert", opt.CaCertPath)
+			params.Set("tls-ca", opt.CaCertPath)
 		}
 		if opt.ClientCertPath != "" && opt.CertKeyPath != "" {
-			params = append(params, "--cert", opt.ClientCertPath)
-			params = append(params, "--key", opt.CertKeyPath)
+			params.Set("tls-cert", opt.ClientCertPath)
+			params.Set("tls-key", opt.CertKeyPath)
+		}
+		if opt.ServerName != "" {
+			params.Set("tls-server-name", opt.ServerName)
+		}
+		if opt.AllowInvalidCert {
+			params.Set("tls-insecure", "true")
 		}
 	}
-	if opt.Username != "" {
-		params = append(params, "--user", opt.Username)
-	}
-	if opt.Password != "" {
-		params = append(params, "--askpass")
-	}
-	params = append(params, "--raw")
-	return params
+	u.RawQuery = params.Encode()
+	return noSQLCommandArgs(u, opt)
 }
 
 func checkRedisAccount(args *sqlOption) error {
