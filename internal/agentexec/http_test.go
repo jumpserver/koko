@@ -48,14 +48,16 @@ func httpTestEndpoint(t *testing.T, scheme string) (*Runtime, *HTTP, *atomic.Int
 		case "sessions/get/":
 			return respond(out, map[string]any{"session_id": "session", "session_token": "private", "approval_url": "/core/approve/"})
 		case "sessions/list/", "actions/list/":
-			return respond(out, map[string]any{"results": []any{map[string]any{"session_id": "session", "action_id": "approval", "audit_url": "/core/audit/"}}})
+			return respond(out, map[string]any{"results": []any{map[string]any{"session_id": "session", "action_id": "approval", "approval_url": "/core/approve/"}}})
 		case "actions/lookup/":
 			return respond(out, Action{ID: "approval", ActionID: "approval"})
 		case "sessions/":
 			remote <- values["remote_addr"].(string)
 			return respond(out, Session{ID: "session", ActionID: "connect", SessionToken: "capability"})
 		case "actions/approval/get/":
-			return respond(out, Action{ID: "approval", Status: "awaiting_approval", ApprovalURL: "/core/approve/", HandoffURL: "/core/handoff/", AuditURL: "/core/audit/", Result: map[string]any{"handoff_url": "/core/handoff/"}})
+			return respond(out, Action{ID: "approval", Status: "awaiting_approval", ApprovalURL: "/core/approve/", HandoffURL: "/core/handoff/", Result: map[string]any{"handoff_url": "/core/handoff/"}})
+		case "actions/expired/get/":
+			return &CoreError{Status: http.StatusGone, Operation: path, Code: "result_expired"}
 		case "actions/upload/get/", "actions/upload/authorize/":
 			hash := sha256.Sum256([]byte("12345678"))
 			return respond(out, Action{ID: "upload", Kind: "file_upload", Status: "queued", SessionID: "session", Request: map[string]any{"path": "/file", "size": 8, "sha256": hex.EncodeToString(hash[:])}})
@@ -187,7 +189,7 @@ func testHTTPMCPNativeSDKAndAbsolutePublicLinks(t *testing.T, scheme string) {
 		t.Fatal("search did not preserve authenticated result")
 	}
 	value := call("query_actions", map[string]any{"operation": "get", "action_id": "approval"})
-	for key, expected := range map[string]string{"approval_url": issuer + "/core/approve/", "handoff_url": issuer + "/core/handoff/", "audit_url": issuer + "/core/audit/"} {
+	for key, expected := range map[string]string{"approval_url": issuer + "/core/approve/", "handoff_url": issuer + "/core/handoff/"} {
 		if value[key] != expected {
 			t.Fatalf("relative %s escaped public normalization: %v", key, value[key])
 		}
@@ -202,13 +204,26 @@ func testHTTPMCPNativeSDKAndAbsolutePublicLinks(t *testing.T, scheme string) {
 		t.Fatal("unsafe or inconsistent session recovery", value)
 	}
 	for _, name := range []string{"query_sessions", "query_actions"} {
-		value := call(name, map[string]any{"operation": "list"})
-		if value["results"].([]any)[0].(map[string]any)["audit_url"] != issuer+"/core/audit/" {
-			t.Fatal("recovery audit link remained relative", name)
+		args := map[string]any{"operation": "list"}
+		if name == "query_actions" {
+			args["session_id"] = "session"
+		}
+		value := call(name, args)
+		if value["results"].([]any)[0].(map[string]any)["approval_url"] != issuer+"/core/approve/" {
+			t.Fatal("recovery approval link remained relative", name)
 		}
 	}
 	if value := call("query_sessions", map[string]any{"operation": "get", "session_id": "session"}); value["session_token"] != nil || value["session_id"] != "session" {
 		t.Fatal("session query exposed credentials or lost its ID")
+	}
+	expired, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "query_actions", Arguments: map[string]any{"operation": "get", "action_id": "expired"}})
+	if err != nil || expired == nil || !expired.IsError {
+		t.Fatal("expired pickup lost its MCP business error", expired, err)
+	}
+	var failure struct{ Error ToolError }
+	encoded, _ := json.Marshal(expired.StructuredContent)
+	if json.Unmarshal(encoded, &failure) != nil || failure.Error.Code != "result_expired" || failure.Error.HTTPStatus != 410 || failure.Error.Retryable || failure.Error.NextStep != "stop" {
+		t.Fatal("expired pickup invited refresh or replay", string(encoded))
 	}
 	for _, name := range []string{"get_action", "upload_file"} {
 		before := coreCalls.Load()
@@ -230,6 +245,7 @@ func testHTTPMCPNativeSDKAndAbsolutePublicLinks(t *testing.T, scheme string) {
 		{"query_actions", map[string]any{"operation": "get", "action_id": "approval", "idempotency_key": "original-key"}},
 		{"query_actions", map[string]any{"operation": "get", "action_id": "approval", "limit": 33}},
 		{"query_actions", map[string]any{"operation": "list", "action_id": "approval"}},
+		{"query_actions", map[string]any{"operation": "list"}},
 	} {
 		before := coreCalls.Load()
 		result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: test.name, Arguments: test.args})
@@ -246,6 +262,20 @@ func testHTTPMCPNativeSDKAndAbsolutePublicLinks(t *testing.T, scheme string) {
 	}
 	if host := <-remote; host != "127.0.0.1" {
 		t.Fatalf("connection remote address included port: %q", host)
+	}
+}
+
+func TestHTTPExpiredFilePickupDoesNotRequestOAuthRefresh(t *testing.T) {
+	_, endpoint, _, _ := httpTestEndpoint(t, "https")
+	for operation, method := range map[string]string{"upload": http.MethodPost, "download": http.MethodGet} {
+		req := httptest.NewRequest(method, "/mcp/files/"+operation, strings.NewReader(""))
+		req.Header.Set("Authorization", "Bearer valid")
+		req.Header.Set("X-JumpServer-Action-ID", "expired")
+		w := httptest.NewRecorder()
+		endpoint.Handler.ServeHTTP(w, req)
+		if w.Code != http.StatusGone || w.Header().Get("WWW-Authenticate") != "" {
+			t.Fatal("file pickup expiry became an OAuth challenge", operation, w.Code)
+		}
 	}
 }
 

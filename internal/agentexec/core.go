@@ -37,6 +37,7 @@ var publicErrorHints = map[string]string{
 	"capacity_exceeded":      "Wait for existing work to finish or close an unused session.",
 	"invalid_lookup":         "Provide either an existing resource ID or its original idempotency key.",
 	"ambiguous_lookup":       "The key exists in more than one organization; provide its resource ID.",
+	"result_expired":         "The operational result pickup window has expired. Stop polling; do not refresh authorization or repeat the operation. Audit evidence remains available to authorized auditors.",
 }
 
 // Principal is issued by Core after validating a resource-bound OAuth token.
@@ -84,7 +85,7 @@ type Action struct {
 	EvidencePending      bool           `json:"evidence_pending"`
 	LastSequence         uint64         `json:"last_sequence,omitempty"`
 	HandoffURL           string         `json:"handoff_url,omitempty"`
-	AuditURL             string         `json:"audit_url,omitempty"`
+	ResultExpiresAt      *time.Time     `json:"result_expires_at,omitempty"`
 	NextStep             string         `json:"next_step,omitempty"`
 	Terminal             bool           `json:"is_terminal"`
 	OutputComplete       bool           `json:"output_complete"`

@@ -42,6 +42,8 @@ func toolError(err error) ToolError {
 			result.RetryMode, result.NextStep, result.RetryAfterMS = "poll_existing", "wait_capacity", 1000
 		case result.Code == "idempotency_conflict":
 			result.NextStep = "lookup_by_idempotency_key"
+		case result.Code == "result_expired":
+			result.NextStep = "stop"
 		case result.Code == "sftp_session_required" || result.Code == "shell_session_required" || result.Code == "shell_context_required":
 			result.NextStep = "choose_compatible_session"
 		case result.Code == "asset_not_found":
@@ -112,6 +114,9 @@ func describeAction(action *Action, p Principal) {
 		Headers: map[string]string{"X-JumpServer-Action-ID": action.ID}}
 	if action.Transfer != nil {
 		transfer.ExpiresAt = action.Transfer.ExpiresAt
+	}
+	if action.ResultExpiresAt != nil && (transfer.ExpiresAt == nil || action.ResultExpiresAt.Before(*transfer.ExpiresAt)) {
+		transfer.ExpiresAt = action.ResultExpiresAt
 	}
 	if action.Kind == "file_upload" {
 		transfer.URL, transfer.Method = strings.TrimRight(p.Resource, "/")+"/files/upload", http.MethodPost

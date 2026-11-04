@@ -857,7 +857,9 @@ func (r *Runtime) GetPage(ctx context.Context, p Principal, id string, offset, l
 	describeAction(&action, p)
 	if action.Transfer != nil {
 		if rec, readErr := r.journal.Action(id); readErr == nil && rec.Artifact != "" && rec.Action.AuditStatus == "delivered" && !rec.ExpiresAt.IsZero() {
-			action.Transfer.ExpiresAt = &rec.ExpiresAt
+			if action.Transfer.ExpiresAt == nil || rec.ExpiresAt.Before(*action.Transfer.ExpiresAt) {
+				action.Transfer.ExpiresAt = &rec.ExpiresAt
+			}
 		}
 	}
 	return action, nil
@@ -991,7 +993,7 @@ func (r *Runtime) Cancel(ctx context.Context, p Principal, id string) (Action, e
 }
 
 func (r *Runtime) Disconnect(ctx context.Context, p Principal, id string) (map[string]any, error) {
-	// The Core action lookup checks current user/org/client ownership even
+	// The Core session lookup checks current user/org/client ownership even
 	// when the process-local connection is already gone.
 	r.mu.Lock()
 	s := r.sessions[id]
@@ -1006,7 +1008,7 @@ func (r *Runtime) Disconnect(ctx context.Context, p Principal, id string) (map[s
 	}
 	info := s.info
 	s.mu.Unlock()
-	if _, err := r.Get(ctx, p, info.ActionID, 0, 1); err != nil {
+	if _, err := r.RecoverSession(ctx, p, info.ID, ""); err != nil {
 		return nil, err
 	}
 	s.mu.Lock()

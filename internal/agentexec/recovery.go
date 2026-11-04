@@ -93,7 +93,7 @@ func (r *Runtime) RecoverSession(ctx context.Context, p Principal, id, key strin
 }
 
 func (r *Runtime) ListResources(ctx context.Context, p Principal, sessions bool, sessionID, status string, offset, limit int) (map[string]any, error) {
-	if limit < 1 || limit > 100 || offset < 0 || offset > 100000 || len(status) > 32 || (sessionID != "" && !identifier.MatchString(sessionID)) {
+	if limit < 1 || limit > 100 || offset < 0 || offset > 100000 || len(status) > 32 || (!sessions && sessionID == "") || (sessionID != "" && !identifier.MatchString(sessionID)) {
 		return nil, errors.New("invalid recovery query bounds")
 	}
 	path := "actions/list/"
@@ -127,7 +127,7 @@ func (r *Runtime) ListResources(ctx context.Context, p Principal, sessions bool,
 
 func sessionFields(value map[string]any) map[string]any {
 	result := make(map[string]any)
-	for _, key := range []string{"session_id", "action_id", "status", "asset_id", "account", "org_id", "protocol", "expires_at", "closed", "requires_terminal", "terminal_session_id", "approval_url", "audit_url", "capabilities"} {
+	for _, key := range []string{"session_id", "action_id", "status", "asset_id", "account", "org_id", "protocol", "expires_at", "closed", "requires_terminal", "terminal_session_id", "approval_url", "result_expires_at", "capabilities"} {
 		if item, ok := value[key]; ok {
 			result[key] = item
 		}

@@ -95,6 +95,10 @@ func TestStableErrorsAndSafeRetryGuidance(t *testing.T) {
 			t.Fatal("unknown submission invited a replay")
 		}
 	}
+	result = toolError(&CoreError{Status: http.StatusGone, Operation: "actions/action/get/", Code: publicCoreError([]byte(`{"code":"result_expired"}`))})
+	if result.Code != "result_expired" || result.Retryable || result.RetryMode != "do_not_replay" || result.NextStep != "stop" {
+		t.Fatal("expired pickup invited a retry or authorization refresh", result)
+	}
 }
 
 func TestMalformedCoreSuccessDoesNotInviteMutationReplay(t *testing.T) {
@@ -124,6 +128,12 @@ func TestTransferDescriptorPreservesExpiryWithoutCredentials(t *testing.T) {
 	encoded, _ := json.Marshal(action.Transfer)
 	if strings.Contains(string(encoded), "private-context") || action.Transfer.Headers["Authorization"] != "" {
 		t.Fatal("transfer descriptor exposed credentials")
+	}
+	deadline := expires.Add(-time.Second)
+	action.ResultExpiresAt = &deadline
+	describeAction(&action, Principal{Resource: "https://host/mcp"})
+	if action.Transfer.ExpiresAt != &deadline {
+		t.Fatal("local file retention extended the Core pickup window")
 	}
 }
 

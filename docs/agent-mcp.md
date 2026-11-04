@@ -120,10 +120,10 @@ DSH 插件使用同一套发现、登记、浏览器授权、令牌管理、工�
 | --- | --- |
 | `search_assets` | 分页查询授权资产、账号和协议 |
 | `connect_asset` | 创建或复用显式资产会话，返回 `session_id` 和连接 `action_id` |
-| `query_sessions` | `operation=get` 按会话 ID 或原连接幂等键找回会话；`operation=list` 分页列出当前授权范围内的会话；不重连 |
+| `query_sessions` | `operation=get` 按会话 ID 或原连接幂等键找回有效会话，关闭或到期后仅短时确认；`operation=list` 分页列出有效会话；不重连 |
 | `disconnect_asset` | 拒绝新操作，等待已接受操作排空后释放连接 |
 | `execute_command` | 提交 SSH 独立命令、WinRM PowerShell 命令、有限 kubectl 查询、SQL、Redis 命令或 MongoDB `db.runCommand`，返回 `action_id` |
-| `query_actions` | `operation=get` 查询状态、结果、分页输出及审计交付状态；`operation=list` 分页找回操作，可按 `session_id` 筛选 |
+| `query_actions` | `operation=get` 查询运行状态、限时结果、分页输出及审计交付状态；`operation=list` 必须提供 `session_id`，分页列出该会话的运行中操作及近期结果 |
 | `cancel_action` | 请求取消；远端未确认停止时结果可能仍不确定 |
 | `file_read` | `operation=list/stat/read/download`：SFTP 目录分页、元信息、小文本读取、下载登记，均返回 `action_id` |
 | `file_write` | `operation=write/upload/mkdir/rename/remove`：小文本写入、上传登记、创建目录、重命名、删除；保留上传/删除权限，目录仅支持删除空目录 |
@@ -216,7 +216,8 @@ MCP 文件读写复用现有 FTP 文件留存组件、审计存储及 `FTP_FILE_
 - 单个操作还受编码后证据预算限制，包含小块输出的事件开销，并为最终状态预留容量。审计按操作轮转投递，同一操作保持顺序；某个操作持续失败时保留其证据并记录错误，其他操作仍可交付。
 - 重启后不重连并重发命令。未派发操作过期，派发但未确认的操作标记 `unknown`；人工终端交接向 Core 对账。资产连接需显式重新建立。
 
-集中审计页面位于 `/core/auth/agent/audit/sessions/` 和 `/core/auth/agent/audit/actions/`，按本人及现有组织审计权限访问。
-返回的审计链接携带操作所属组织，页内导航保留组织参数；浏览器当前组织不同不影响获准访问的记录定位。
+审计统一在 Lina 的“会话记录 → Agent 会话”和“命令记录 → Agent 操作”中查看，分别要求 `terminal.view_agentsession`、`terminal.view_agentaction` 及相应组织审计权限。普通用户不会因记录属于本人或拥有 MCP 授权而获得历史审计浏览权限。终端录像及留存文件仍遵循各自权限。Core 保留审批、凭据和终端交接页面，移除独立审计页及 MCP `audit_url`。
+
+运行查询继续校验 OAuth、本人与客户端、节点、资源、组织和原授权。操作结果自 Core 记录的 `date_finished` 起可领取 15 分钟，返回 `result_expires_at`；翻页、轮询、刷新 OAuth 和证据补报均不续期。关闭或过期的会话仅在较早结束时间之后 15 分钟内允许按 ID/原键确认。超过期限返回业务错误 `result_expired`（HTTP 410），停止查询，不重新授权或重提操作。旧幂等键仍保持去重；取消回包、本地 journal 和下载字节不能绕过 Core。关闭有效连接不依赖建连操作的旧结果。审计证据补报和留存不受领取期限影响；本地文件描述的到期时间取 Core 期限与暂存期限的较早值。
 
 构建沿用项目流程，包括 libghostty-vt。基础回归运行 `GOMAXPROCS=2 GOMEMLIMIT=512MiB go test -race -p 1 ./internal/agentexec ./internal/assetexec ./pkg/httpd`。数据库、K8s 及 Core 贯通测试仅在显式提供隔离 fixture 时执行。`KOKO_AGENT_KUBERNETES_TEST_CONFIG` 指向仅含隔离 API 地址、token、CA、默认及禁止访问命名空间的私有 JSON 文件；测试命名空间须有 `mcp-execution` ConfigMap，其 `message` 为 `bounded-kubernetes-output`，账号仅能读取本命名空间的 ConfigMap、Pod 和日志。部署验收使用隔离资产与账户，覆盖浏览器登录、多组织授权、资产连接、审批、结果与审计查询，以及反向代理和文件传输。
