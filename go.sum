@@ -33,8 +33,8 @@ github.com/ClickHouse/clickhouse-go/v2 v2.48.0 h1:auzd4VkapQYhQF8F2Gog7s3x78Bi1J
 github.com/ClickHouse/clickhouse-go/v2 v2.48.0/go.mod h1:lBjUCPRG6RpRQdMbkXq+JV8rY0/O5lw+Z7jShgReFjM=
 github.com/LeeEirc/httpsig v1.2.1 h1:GGmCc2Bug3KeCchlZHwrfyjyAnw+JlzMjKDobPypirs=
 github.com/LeeEirc/httpsig v1.2.1/go.mod h1:aoLZLXCSNDgkzsH2sGLWn3hlVbF+Voe8fCArxLt9nWA=
-github.com/LeeEirc/tclientlib v0.0.3-0.20230803101925-fb52a90cb08d h1:4qUSGc/34IALiDs2kBrjbCKfx7zvAt16K+gTRzNN8Fo=
-github.com/LeeEirc/tclientlib v0.0.3-0.20230803101925-fb52a90cb08d/go.mod h1:TF2v0XZYyRcZfx4NmA/EEFRkdKZLsQd8YnlhGKl1KUA=
+github.com/LeeEirc/tclientlib v0.1.2 h1:N57BKuIOM27EeOXRs3W+8K2HmCntGqVEUqOfgobsjcE=
+github.com/LeeEirc/tclientlib v0.1.2/go.mod h1:h+nEDTvSA9xWg5S79Du5Hrwq/ISjVLng65OU5fQOZX8=
 github.com/LeeEirc/terminalparser v0.0.0-20260807075323-d7ea2731c61e h1:o7+byeH9M+Xpm9ds/+33J0gAg/+hayi3jVd84M/F7KA=
 github.com/LeeEirc/terminalparser v0.0.0-20260807075323-d7ea2731c61e/go.mod h1:VjncA0Ny7vJLxV7zBC31nMvRqYtI6IbRHCty7QZwbQ8=
 github.com/RaveNoX/go-jsoncommentstrip v1.0.0/go.mod h1:78ihd09MekBnJnxpICcwzCMzGrKSKYe4AqU6PDYYpjk=

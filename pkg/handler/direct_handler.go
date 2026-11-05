@@ -55,7 +55,8 @@ type directOpt struct {
 	User          *model.User
 	terminalConf  *model.TerminalConfig
 
-	tokenInfo *model.ConnectToken
+	tokenInfo      *model.ConnectToken
+	wrapperSession *WrapperSession
 
 	sftpMode bool
 
@@ -102,6 +103,12 @@ func DirectConnectToken(tokenInfo *model.ConnectToken) DirectOpt {
 	}
 }
 
+func DirectWrapperSession(wrapper *WrapperSession) DirectOpt {
+	return func(opts *directOpt) {
+		opts.wrapperSession = wrapper
+	}
+}
+
 func DirectConnectProtocol(protocol string) DirectOpt {
 	return func(opts *directOpt) {
 		opts.protocol = protocol
@@ -127,7 +134,10 @@ func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, setters .
 	)
 
 	if !opts.sftpMode {
-		wrapperSess = NewWrapperSession(sess)
+		wrapperSess = opts.wrapperSession
+		if wrapperSess == nil {
+			wrapperSess = NewWrapperSession(sess)
+		}
 		termVt = term.NewTerminal(wrapperSess, "Opt> ")
 	}
 	d := &DirectHandler{

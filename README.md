@@ -16,6 +16,10 @@ Koko is implemented using Golang, and the name comes from a Dota hero [Kunkka](h
 - Web File Management
 - [Agent MCP setup, common client configuration and troubleshooting (Chinese)](./docs/agent-mcp.md#用户接入与操作流程)
 
+## Direct connections with personal credentials
+
+Direct connection usernames support `platform_user#personal_credential_id#asset_ip_or_id` and `platform_user#protocol#personal_credential_id#asset_ip_or_id`, with `@` also supported as a separator. The asset must match uniquely. Koko uses the user's Bearer token from the current SSH login to retrieve credential metadata and create a connection token, preserving Core's asset account permissions and ACLs. If the Bearer token expires, establish a new SSH connection. Existing asset account usernames take precedence. Personal credential IDs are supported only in direct connection formats and are not added to the interactive asset menu.
+
 ## Windows PowerShell over WinRM
 
 Windows assets with an authorized, public `winrm` protocol can use Koko's Web CLI in Luna's web and desktop clients. Update JumpServer Core and Luna alongside Koko and apply the `assets.0031_winrm_terminal_access` migration to expose existing WinRM platform protocols.

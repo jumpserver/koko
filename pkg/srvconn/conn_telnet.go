@@ -1,6 +1,7 @@
 package srvconn
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"regexp"
@@ -15,17 +16,19 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
+// TelnetBreakInput is the parser's IAC BRK followed by Ctrl-C and Enter.
+const TelnetBreakInput = "\xff\xf3\x03\r"
+
 func NewTelnetConnection(opts ...TelnetOption) (*TelnetConnection, error) {
 	cfg := &TelnetConfig{
 		Host:    "127.0.0.1",
 		Port:    "23",
 		Term:    "xterm",
-		Timeout: 15,
+		Timeout: 15 * time.Second,
 		win: Windows{
 			Width:  80,
 			Height: 120,
 		},
-		CustomSuccessPattern: tclientlib.DefaultLoginSuccessPattern,
 	}
 	for _, setter := range opts {
 		setter(cfg)
@@ -57,28 +60,10 @@ func NewTelnetConnection(opts ...TelnetOption) (*TelnetConnection, error) {
 		}
 		return nil, err
 	}
-	var (
-		transformReader io.Reader
-		transformWriter io.WriteCloser
-	)
-
-	transformReader = client
-	transformWriter = client
-
-	if cfg.Charset != common.UTF8 {
-		if readDecode := common.LookupCharsetDecode(cfg.Charset); readDecode != nil {
-			transformReader = transform.NewReader(client, readDecode)
-		}
-		if writerEncode := common.LookupCharsetEncode(cfg.Charset); writerEncode != nil {
-			transformWriter = transform.NewWriter(client, writerEncode)
-		}
-	}
 	tCon := &TelnetConnection{
-		cfg:             cfg,
-		conn:            client,
-		proxyConn:       proxyClient,
-		transformReader: transformReader,
-		transformWriter: transformWriter,
+		cfg:       cfg,
+		conn:      client,
+		proxyConn: proxyClient,
 	}
 	if cfg.suCfg != nil {
 		if err = LoginToTelnetSu(tCon); err != nil {
@@ -93,41 +78,55 @@ func NewTelnetConnection(opts ...TelnetOption) (*TelnetConnection, error) {
 }
 
 func newTelnetClient(conn net.Conn, cfg *TelnetConfig) (*tclientlib.Client, error) {
-	// 修复未登录成功，但是telnet连接不断的问题。
-	// todo：检测超时，直接断开连接，后续通过更新 telnet 包解决
-	done := make(chan struct{})
-	go func() {
-		t := time.NewTicker(cfg.Timeout)
-		defer t.Stop()
-		select {
-		case <-t.C:
-			select {
-			case <-done:
-			default:
-				_ = conn.Close()
+	config := &tclientlib.ClientConfig{
+		User:           cfg.Username,
+		Password:       cfg.Password,
+		Timeout:        cfg.Timeout,
+		TerminalType:   cfg.Term,
+		Width:          cfg.win.Width,
+		Height:         cfg.win.Height,
+		LineEnding:     tclientlib.LineEndingCRNUL,
+		ShellPrompt:    telnetPromptPattern(cfg.CustomSuccessPattern, `success|成功|#|>|\$`, `success|成功|#|>`),
+		UsernamePrompt: telnetPromptPattern(cfg.CustomUsernamePattern, `username:|login:`),
+		PasswordPrompt: telnetPromptPattern(cfg.CustomPasswordPattern, `password:`),
+		WrapStream: func(reader io.Reader, writer io.Writer) (io.Reader, io.Writer) {
+			if decoder := common.LookupCharsetDecode(cfg.Charset); decoder != nil {
+				reader = transform.NewReader(reader, decoder)
 			}
-		case <-done:
-			return
-		}
-	}()
-	client, err := tclientlib.NewClientConn(conn, &tclientlib.Config{
-		Username: cfg.Username,
-		Password: cfg.Password,
-		Timeout:  cfg.Timeout,
-		TTYOptions: &tclientlib.TerminalOptions{
-			Wide:     cfg.win.Width,
-			High:     cfg.win.Height,
-			TermType: cfg.Term,
+			if encoder := common.LookupCharsetEncode(cfg.Charset); encoder != nil {
+				writer = transform.NewWriter(writer, encoder)
+			}
+			return reader, writer
 		},
-		LoginSuccessPromptRegex: cfg.CustomSuccessPattern,
-		UsernamePromptRegex:     cfg.CustomUsernamePattern,
-		PasswordPromptRegex:     cfg.CustomPasswordPattern,
-	})
-	close(done)
-	if err != nil {
-		return nil, err
 	}
-	return client, nil
+	for name, pattern := range map[string]*regexp.Regexp{
+		"username": config.UsernamePrompt,
+		"password": config.PasswordPrompt,
+		"success":  config.ShellPrompt,
+	} {
+		if pattern != nil && pattern.MatchString("") {
+			_ = conn.Close()
+			return nil, fmt.Errorf("invalid telnet %s prompt: expression matches empty input", name)
+		}
+	}
+	client, err := tclientlib.NewClientConn(conn, config)
+	if err != nil {
+		_ = conn.Close()
+	}
+	return client, err
+}
+
+func telnetPromptPattern(pattern *regexp.Regexp, legacyDefaults ...string) *regexp.Regexp {
+	if pattern == nil || pattern.String() == "" {
+		return nil
+	}
+	// Only Core's exact historical defaults should fall back to built-in matchers.
+	for _, legacy := range legacyDefaults {
+		if pattern.String() == legacy {
+			return nil
+		}
+	}
+	return pattern
 }
 
 type TelnetConnection struct {
@@ -135,9 +134,7 @@ type TelnetConnection struct {
 	conn      *tclientlib.Client
 	proxyConn *SSHClient
 
-	transformReader io.Reader
-	transformWriter io.Writer
-	once            sync.Once
+	once sync.Once
 }
 
 func (tc *TelnetConnection) KeepAlive() error {
@@ -145,15 +142,23 @@ func (tc *TelnetConnection) KeepAlive() error {
 }
 
 func (tc *TelnetConnection) SetWinSize(w, h int) error {
-	return tc.conn.WindowChange(w, h)
+	return tc.conn.WindowChange(h, w)
 }
 
 func (tc *TelnetConnection) Read(p []byte) (n int, err error) {
-	return tc.transformReader.Read(p)
+	return tc.conn.Read(p)
 }
 
 func (tc *TelnetConnection) Write(p []byte) (n int, err error) {
-	return tc.transformWriter.Write(p)
+	if string(p) == TelnetBreakInput {
+		// Control commands must bypass application-data escaping and charset conversion.
+		if err := tc.conn.SendCommand(tclientlib.CommandBreak); err != nil {
+			return 0, err
+		}
+		n, err := tc.conn.Write(p[2:])
+		return n + 2, err
+	}
+	return tc.conn.Write(p)
 }
 
 func (tc *TelnetConnection) Close() (err error) {

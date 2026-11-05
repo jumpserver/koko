@@ -94,13 +94,12 @@ func (conn *MongoDBConn) KeepAlive() error {
 }
 
 func (conn *MongoDBConn) Close() error {
-	_, _ = conn.Write(cleanLineExitCommand)
 	return conn.LocalCommand.Close()
 }
 
 func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err error) {
 	cmd := opt.MongoDBCommandArgs()
-	envOpt := localcommand.WithEnv(opt.MongoDBCommandEnv())
+	envOpt := localcommand.WithEnv(append(opt.MongoDBCommandEnv(), "USQL_HISTORY=/dev/null"))
 	opts, err := BuildNobodyWithOpts(localcommand.WithPtyWin(opt.win.Width, opt.win.Height), envOpt)
 	if err != nil {
 		logger.Errorf("build nobody with opts error: %s", err)
@@ -109,7 +108,7 @@ func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err e
 	tmpWorkDir := os.TempDir()
 	opts = append(opts, localcommand.WithWorkDir(tmpWorkDir))
 	opts = append(opts, envOpt)
-	lcmd, err = localcommand.New("mongosh", cmd, opts...)
+	lcmd, err = localcommand.New("usql", cmd, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -118,10 +117,20 @@ func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err e
 		if err != nil {
 			return lcmd, err
 		}
-		lcmd, err = DoLogin(opt, lcmd, "MongoDB")
+		lcmd, err = doNoSQLLogin(opt, lcmd)
 		if err != nil {
 			return lcmd, err
 		}
+	}
+	return lcmd, nil
+}
+
+// usql's password reader does not echo characters. Preserve its first prompt
+// for the user instead of consuming prompt bytes as legacy password masking.
+func doNoSQLLogin(opt *sqlOption, lcmd *localcommand.LocalCommand) (*localcommand.LocalCommand, error) {
+	if _, err := lcmd.Write([]byte(opt.Password + "\r")); err != nil {
+		_ = lcmd.Close()
+		return lcmd, err
 	}
 	return lcmd, nil
 }
@@ -187,15 +196,29 @@ func (opt *sqlOption) GetParams() (params map[string]string) {
 func (opt *sqlOption) MongoDBCommandArgs() []string {
 	host := net.JoinHostPort(opt.Host, strconv.Itoa(opt.Port))
 	params := opt.GetParams()
-	uri := BuildMongoDBURI(
+	if opt.ProxyURL != "" {
+		params["proxy"] = opt.ProxyURL
+	}
+	u := buildMongoDBURL(
 		MongoHost(host),
 		MongoDBName(opt.DBName),
 		MongoParams(params),
 	)
-	uriParams := []string{
-		uri, "--username", opt.Username,
+	return noSQLCommandArgs(u, opt)
+}
+
+// Passwords are sent through the existing PTY login exchange, never in argv.
+// An explicitly empty password suppresses an independent usql password prompt.
+func noSQLCommandArgs(u *url.URL, opt *sqlOption) []string {
+	flag := "--no-password"
+	if opt.Username != "" || opt.Password != "" {
+		u.User = url.UserPassword(opt.Username, "")
 	}
-	return uriParams
+	if opt.Password != "" {
+		u.User = url.User(opt.Username)
+		flag = "--password"
+	}
+	return []string{u.String(), "--no-init", "--quiet", flag}
 }
 
 func (opt *sqlOption) MongoDBCommandEnv() []string {
@@ -289,12 +312,15 @@ func (d *mongoProxyDialer) DialContext(ctx context.Context, network, address str
 type MongoOpt func(*url.URL)
 
 func BuildMongoDBURI(opts ...MongoOpt) string {
-	var mongoURI url.URL
-	mongoURI.Scheme = "mongodb"
+	return buildMongoDBURL(opts...).String()
+}
+
+func buildMongoDBURL(opts ...MongoOpt) *url.URL {
+	mongoURI := &url.URL{Scheme: "mongodb"}
 	for _, setter := range opts {
-		setter(&mongoURI)
+		setter(mongoURI)
 	}
-	return mongoURI.String()
+	return mongoURI
 }
 
 func MongoHost(host string) MongoOpt {

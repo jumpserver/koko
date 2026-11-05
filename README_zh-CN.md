@@ -16,6 +16,10 @@ Koko 使用 Golang 来实现，名字来自 Dota 英雄 [Kunkka](https://www.dot
 - web文件管理
 - [Agent MCP 接入、常用客户端配置与排障](./docs/agent-mcp.md#用户接入与操作流程)
 
+## 直连个人凭据
+
+直连用户名支持 `平台用户#个人凭据ID#资产IP或ID`、`平台用户#协议#个人凭据ID#资产IP或ID`，也支持使用 `@` 分隔。资产必须唯一匹配。Koko 使用本次 SSH 登录的本人 Bearer 查询凭据元数据并创建连接令牌，沿用 Core 的资产账号授权和 ACL。Bearer 过期时需要重新建立 SSH 连接。原有资产账号用户名优先匹配；个人凭据 ID 仅用于直连，不加入交互式资产菜单。
+
 ## 通过 WinRM 连接 Windows PowerShell
 
 Windows 资产中已授权且公开的 `winrm` 协议可通过 Koko Web CLI 连接，支持 Luna 网页和桌面客户端。需要同步更新 JumpServer Core、Koko 和 Luna，并执行 `assets.0031_winrm_terminal_access` 迁移，使已有平台的 WinRM 协议可供用户连接。
