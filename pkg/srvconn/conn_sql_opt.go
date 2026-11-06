@@ -20,6 +20,7 @@ type sqlOption struct {
 	CertKey          string
 	CertKeyPath      string
 	AllowInvalidCert bool
+	tlsDir           string // Private certificate files owned by this CLI process.
 
 	SQLServerDisableEncrypt bool // for sqlserver 2008
 	OracleUseSYSDBA         bool
