@@ -25,6 +25,9 @@ WEB_PROXY_PORT: 5001
 WEB_PROXY_RECORDING_ENABLED: true
 WEB_PROXY_FFMPEG_PATH: ffmpeg
 
+# Agent MCP 在 Core 页面启用并配置地址，Koko 每 60 秒同步，无需本地 MCP 配置。
+# 部署、持久目录和统一远程 MCP 接入说明见 docs/agent-mcp.md。
+
 # 设置日志级别 [DEBUG, INFO, WARN, ERROR, FATAL, CRITICAL]
 # LOG_LEVEL: INFO
 

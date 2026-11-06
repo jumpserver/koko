@@ -1,6 +1,7 @@
 package srvconn
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -18,15 +19,16 @@ import (
 type SSHClientOption func(conf *SSHClientOptions)
 
 type SSHClientOptions struct {
-	Host         string
-	Port         string
-	Username     string
-	Password     string
-	PrivateKey   string
-	Passphrase   string
-	Timeout      int
-	keyboardAuth gossh.KeyboardInteractiveChallenge
-	PrivateAuth  gossh.Signer
+	connectContext context.Context
+	Host           string
+	Port           string
+	Username       string
+	Password       string
+	PrivateKey     string
+	Passphrase     string
+	Timeout        int
+	keyboardAuth   gossh.KeyboardInteractiveChallenge
+	PrivateAuth    gossh.Signer
 
 	proxySSHClientOptions []SSHClientOptions
 }
@@ -163,6 +165,9 @@ func getAvailableProxyClient(cfgs ...SSHClientOptions) (*SSHClient, error) {
 }
 
 func NewSSHClientWithCfg(cfg *SSHClientOptions) (*SSHClient, error) {
+	if cfg.connectContext != nil {
+		return newSSHClientContext(cfg.connectContext, cfg)
+	}
 	gosshCfg := gossh.ClientConfig{
 		User:            cfg.Username,
 		Auth:            cfg.AuthMethods(),

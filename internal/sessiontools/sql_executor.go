@@ -298,8 +298,20 @@ func newSQLServerDatabase(config DatabaseConfig) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("configure SQL Server background connection: %w", err)
 	}
+	if config.DialContext != nil {
+		connector.Dialer = sqlServerHostDialer{databaseDialer: config.DialContext, host: config.Host}
+	}
 	return sql.OpenDB(connector), nil
 }
+
+// HostDialer makes mssql pass hostnames through unchanged, so gateway DNS and
+// routing redirects use the same controlled dialer as the initial connection.
+type sqlServerHostDialer struct {
+	databaseDialer
+	host string
+}
+
+func (d sqlServerHostDialer) HostName() string { return d.host }
 
 func buildSQLServerDSN(config DatabaseConfig) (string, func(), error) {
 	dsn := url.URL{
@@ -335,10 +347,13 @@ func buildSQLServerDSN(config DatabaseConfig) (string, func(), error) {
 func newOracleDatabase(config DatabaseConfig) (*sql.DB, error) {
 	host := config.Host
 	var dialer *fixedAddressDialer
-	if config.ServerName != "" && config.ServerName != config.Host {
-		host = config.ServerName
+	if config.DialContext != nil || (config.ServerName != "" && config.ServerName != config.Host) {
+		if config.ServerName != "" {
+			host = config.ServerName
+		}
 		dialer = &fixedAddressDialer{
-			address: net.JoinHostPort(config.Host, strconv.Itoa(config.Port)),
+			address:     net.JoinHostPort(config.Host, strconv.Itoa(config.Port)),
+			dialContext: config.DialContext,
 		}
 	}
 	options := map[string]string{}
@@ -381,17 +396,29 @@ func newClickHouseDatabase(config DatabaseConfig) (*sql.DB, error) {
 		}
 		options.TLS = tlsConfig
 	}
+	if config.DialContext != nil {
+		dial := databaseTLSDialer(config.DialContext, options.TLS)
+		options.DialContext = func(ctx context.Context, address string) (net.Conn, error) {
+			return dial(ctx, "tcp", address)
+		}
+		options.BlockBufferSize = 1
+		options.Settings = clickhouse.Settings{"max_result_rows": 1000, "max_result_bytes": 8 << 20, "result_overflow_mode": "throw"}
+	}
 	return clickhouse.OpenDB(options), nil
 }
 
 type fixedAddressDialer struct {
-	address string
-	dialer  net.Dialer
+	address     string
+	dialer      net.Dialer
+	dialContext databaseDialer
 }
 
 func (d *fixedAddressDialer) DialContext(
 	ctx context.Context,
 	network, _ string,
 ) (net.Conn, error) {
+	if d.dialContext != nil {
+		return d.dialContext(ctx, network, d.address)
+	}
 	return d.dialer.DialContext(ctx, network, d.address)
 }

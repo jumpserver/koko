@@ -1,6 +1,7 @@
 package srvconn
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,7 +25,8 @@ import (
 )
 
 type AssetDir struct {
-	opts folderOptions
+	connectContext context.Context
+	opts           folderOptions
 
 	modeTime time.Time
 
@@ -1006,6 +1008,7 @@ func (ad *AssetDir) createSftpSession(su *model.PermAccount) (sftpSess *SftpSess
 	reqSession.Protocol = model.ProtocolSFTP
 	respSession, err1 := ad.jmsService.CreateSession(reqSession)
 	if err1 != nil {
+		conn.Close()
 		logger.Errorf("Create sftp Session err: %s", err1.Error())
 		return nil, err1
 	}
@@ -1098,10 +1101,14 @@ func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken,
 		return nil, errNoSelectAsset
 	}
 	timeout := config.GlobalConfig.SSHTimeout
-	sshClient, err := NewSSHClientWithToken(connectToken, timeout)
+	sshClient, err := NewSSHClientWithTokenContext(ad.connectContext, connectToken, timeout)
 	if err != nil {
 		logger.Errorf("Get new SSH client err: %s", err)
 		return nil, err
+	}
+	if ad.connectContext != nil {
+		stop := context.AfterFunc(ad.connectContext, func() { _ = sshClient.Close() })
+		defer stop()
 	}
 	sess, err := sshClient.AcquireSession()
 	if err != nil {
@@ -1171,6 +1178,10 @@ func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken,
 }
 
 func NewSSHClientWithToken(connectToken *model.ConnectToken, timeout int) (*SSHClient, error) {
+	return NewSSHClientWithTokenContext(nil, connectToken, timeout)
+}
+
+func NewSSHClientWithTokenContext(ctx context.Context, connectToken *model.ConnectToken, timeout int) (*SSHClient, error) {
 	defer connectToken.ClearSSHCertificateCredential()
 	asset := connectToken.Asset
 	account := connectToken.Account
@@ -1178,6 +1189,9 @@ func NewSSHClientWithToken(connectToken *model.ConnectToken, timeout int) (*SSHC
 	protocol := connectToken.Protocol
 
 	sshAuthOpts := make([]SSHClientOption, 0, 6)
+	if ctx != nil {
+		sshAuthOpts = append(sshAuthOpts, SSHClientContext(ctx))
+	}
 	sshAuthOpts = append(sshAuthOpts, SSHClientUsername(username))
 	sshAuthOpts = append(sshAuthOpts, SSHClientHost(asset.Address))
 	sshAuthOpts = append(sshAuthOpts, SSHClientPort(asset.ProtocolPort(protocol)))
@@ -1186,6 +1200,9 @@ func NewSSHClientWithToken(connectToken *model.ConnectToken, timeout int) (*SSHC
 		if signer, err1 := gossh.ParsePrivateKey([]byte(account.Secret)); err1 == nil {
 			sshAuthOpts = append(sshAuthOpts, SSHClientPrivateAuth(signer))
 		} else {
+			if ctx != nil {
+				return nil, fmt.Errorf("invalid SSH private key: %w", err1)
+			}
 			logger.Errorf("ssh private key parse failed: %s", err1)
 		}
 	} else if account.IsSSHCertificate() {
