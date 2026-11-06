@@ -28,8 +28,8 @@ func TestUSQLMySQLCompatibleTLS(t *testing.T) {
 				}
 				params := dsn.Query()
 				if !useSSL {
-					if len(params) != 0 {
-						t.Fatalf("TLS disabled but connection parameters include %v", params)
+					if len(params) != 1 || params.Get("tls") != "false" {
+						t.Fatal("TLS-disabled MySQL must explicitly disable TLS without certificate settings")
 					}
 					continue
 				}
@@ -46,6 +46,55 @@ func TestUSQLMySQLCompatibleTLS(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestUSQLPostgresTLSAndGateway(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	for _, mode := range []string{"", "require", "verify-ca", "verify-full", "prefer"} {
+		opt := &sqlOption{Schema: "postgres", Host: "127.0.0.1", ServerName: "database.example",
+			Port: 15432, UseSSL: true, SqlPgSSLMode: mode, CaCert: "CA", ClientCert: "cert", CertKey: "key"}
+		args, err := opt.USQLCommandArgs()
+		if err != nil {
+			t.Fatal(err)
+		}
+		u, err := url.Parse(args[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if mode == "" {
+			mode = "verify-full"
+		}
+		if u.Hostname() != opt.ServerName || u.Port() != "15432" || u.Query().Get("hostaddr") != opt.Host || u.Query().Get("sslmode") != mode {
+			t.Fatal("gateway dial address must not replace the verified database identity or SSL mode")
+		}
+		for _, parameter := range []string{"sslrootcert", "sslcert", "sslkey"} {
+			stat, err := os.Stat(u.Query().Get(parameter))
+			if err != nil || stat.Mode().Perm() != 0600 {
+				t.Fatal("certificate files must remain private for the process lifetime", err)
+			}
+		}
+		dir := opt.tlsDir
+		opt.cleanupTLSFiles()
+		if _, err := os.Stat(dir); !os.IsNotExist(err) {
+			t.Fatal("certificate directory retained after connection cleanup")
+		}
+	}
+	opt := &sqlOption{Schema: "postgres", Host: "localhost", Port: 5432}
+	args, err := opt.USQLCommandArgs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, _ := url.Parse(args[0])
+	if u.Query().Get("sslmode") != "disable" {
+		t.Fatal("managed plaintext mode must not inherit libpq's SSL defaults")
+	}
+	opt.UseSSL, opt.SqlPgSSLMode = true, "unknown"
+	if _, err := opt.USQLCommandArgs(); err == nil {
+		t.Fatal("invalid SSL mode accepted")
+	}
+	if _, err := os.Stat(opt.tlsDir); !os.IsNotExist(err) {
+		t.Fatal("failed configuration leaked certificate files")
 	}
 }
 
