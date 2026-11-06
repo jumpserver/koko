@@ -3,6 +3,7 @@ module github.com/jumpserver/koko
 go 1.26.10
 
 require (
+	gitee.com/chunanyong/dm v1.8.23
 	github.com/Azure/azure-storage-blob-go v0.15.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.48.0
 	github.com/LeeEirc/tclientlib v0.1.2
@@ -18,6 +19,7 @@ require (
 	github.com/gin-contrib/sessions v1.1.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/gliderlabs/ssh v0.3.8
+	github.com/go-db2/go-db2 v0.0.0-20261015010257-944faf6c05dc
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/google/jsonschema-go v0.4.3

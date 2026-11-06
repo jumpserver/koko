@@ -38,7 +38,9 @@ PATH="$USQL_BIN_DIR:$PATH" KOKO_DB2_TEST_DSN_FILE=/path/to/private-dsn \
   GOMAXPROCS=2 go test -p 2 ./pkg/proxy -run '^TestLiveDB2USQL$' -v
 ```
 
-This adds interactive Web CLI support, not a detached database executor or
-Magnus native-client proxy. Existing enterprise license checks remain in place.
+The remote MCP executor also supports Db2 LUW through the same pure Go driver;
+see [Agent MCP](agent-mcp.md) for its connection and execution boundaries.
+Magnus native-client proxy support is separate. Existing enterprise license
+checks remain in place.
 Compatibility evidence is limited to Db2 LUW 11.5.7.0; it does not establish
 support for Db2 for z/OS, IBM i or every authentication mode.

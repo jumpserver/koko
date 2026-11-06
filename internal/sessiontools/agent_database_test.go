@@ -9,17 +9,17 @@ import (
 )
 
 func TestAgentSQLAllowsSessionStatementsButNotBatches(t *testing.T) {
-	for _, protocol := range []string{"mysql", "postgresql"} {
+	for _, protocol := range []string{"mysql", "postgresql", "db2", "dameng"} {
 		for _, command := range []string{"BEGIN", "ROLLBACK", "CREATE TEMPORARY TABLE agent_test (id int)", "SELECT 1 FOR UPDATE"} {
-			if _, err := AgentSQLReturnsRows(command, protocol); err != nil {
+			if _, _, err := PrepareAgentSQL(command, protocol); err != nil {
 				t.Fatalf("%s %s: %v", protocol, command, err)
 			}
 		}
-		if _, err := AgentSQLReturnsRows("SELECT 1; DELETE FROM agent_test", protocol); err == nil {
+		if _, _, err := PrepareAgentSQL("SELECT 1; DELETE FROM agent_test", protocol); err == nil {
 			t.Fatal("SQL batch accepted")
 		}
 	}
-	if rows, err := AgentSQLReturnsRows("UPDATE agent_test SET id=2 RETURNING id", "postgresql"); err != nil || !rows {
+	if _, rows, err := PrepareAgentSQL("UPDATE agent_test SET id=2 RETURNING id", "postgresql"); err != nil || !rows {
 		t.Fatalf("RETURNING result lost: %v", err)
 	}
 }
@@ -27,6 +27,7 @@ func TestAgentSQLAllowsSessionStatementsButNotBatches(t *testing.T) {
 func TestAgentNativeSQLUsesBoundedDialer(t *testing.T) {
 	for _, config := range []DatabaseConfig{
 		{Protocol: "sqlserver"}, {Protocol: "oracle"}, {Protocol: "clickhouse"},
+		{Protocol: "db2"}, {Protocol: "dameng"},
 		{Protocol: "mysql", PlatformType: "oceanbase", TenantMode: "mysql"},
 		{Protocol: "mysql", PlatformType: "oceanbase", TenantMode: "oracle"},
 	} {
@@ -71,9 +72,12 @@ func TestAgentSQLRecognizesNewProtocolResults(t *testing.T) {
 		{"sqlserver", "UPDATE agent SET id=2 OUTPUT inserted.id"},
 		{"sqlserver", "EXEC agent_proc"},
 		{"oracle", "SELECT 1 FROM dual"},
+		{"db2", "VALUES 1"},
+		{"db2", "TABLE SYSIBM.SYSDUMMY1"},
+		{"dameng", "SELECT q'[a;b]' FROM dual"},
 		{"clickhouse", "EXISTS TABLE agent"},
 	} {
-		if rows, err := AgentSQLReturnsRows(tc.command, tc.protocol); err != nil || !rows {
+		if _, rows, err := PrepareAgentSQL(tc.command, tc.protocol); err != nil || !rows {
 			t.Fatalf("%s result set was lost: %v", tc.protocol, err)
 		}
 	}

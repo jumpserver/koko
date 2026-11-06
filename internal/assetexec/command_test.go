@@ -6,9 +6,32 @@ import (
 	"io"
 	"testing"
 
+	dm "gitee.com/chunanyong/dm"
+	db2 "github.com/go-db2/go-db2"
 	"github.com/jumpserver/koko/internal/sessiontools"
 	"go.mongodb.org/mongo-driver/mongo"
 )
+
+func TestDB2DamengStatementRejectionEvidence(t *testing.T) {
+	for _, tc := range []struct {
+		protocol string
+		err      error
+		rejected bool
+	}{
+		{"db2", &db2.Db2Error{SQLCode: -204, SQLState: "42704"}, true},
+		{"db2", errors.New("db2: SQLCODE=-204 SQLSTATE=42704 missing table"), true},
+		{"db2", errors.New("db2: SQLCODE=-30081 SQLSTATE=08001 communication failure"), false},
+		{"db2", errors.New("db2: SQLCODE=-913 SQLSTATE=40003 completion unknown"), false},
+		{"db2", io.ErrUnexpectedEOF, false},
+		{"dameng", &dm.DmError{ErrCode: -2106}, true},
+		{"dameng", &dm.DmError{ErrCode: 6001}, false},
+		{"dameng", context.Canceled, false},
+	} {
+		if rejected := db2DamengStatementRejected(tc.protocol, tc.err); rejected != tc.rejected {
+			t.Fatalf("%s misclassified server rejection: %v", tc.protocol, tc.err)
+		}
+	}
+}
 
 type commandExecutor struct{ err error }
 

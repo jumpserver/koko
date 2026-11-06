@@ -11,7 +11,9 @@ import (
 	"sync"
 	"time"
 
+	dm "gitee.com/chunanyong/dm"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	db2 "github.com/go-db2/go-db2"
 	mysql "github.com/go-sql-driver/mysql"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jumpserver-dev/sdk-go/model"
@@ -104,7 +106,7 @@ func (c *Connection) openDatabase(ctx context.Context, token *model.ConnectToken
 }
 
 func (c *Connection) executeSQL(ctx context.Context, command string, emit Emit) (result Result, returnedErr error) {
-	query, err := sessiontools.AgentSQLReturnsRows(command, c.dbState.dialect)
+	command, query, err := sessiontools.PrepareAgentSQL(command, c.dbState.dialect)
 	if err != nil {
 		return Result{}, err
 	}
@@ -228,7 +230,7 @@ func (c *Connection) databaseError(ctx context.Context, result Result, err error
 	// A database error response proves the server handled the statement. A
 	// network/cancellation error does not establish whether a write committed.
 	if errors.As(err, &mysqlErr) || errors.As(err, &oceanBaseErr) || errors.As(err, &pgErr) || errors.As(err, &mssqlErr) ||
-		(errors.As(err, &oracleErr) && !oracleErr.Bad()) || errors.As(err, &clickhouseErr) {
+		(errors.As(err, &oracleErr) && !oracleErr.Bad()) || errors.As(err, &clickhouseErr) || db2DamengStatementRejected(c.protocol, err) {
 		result.Completed = true
 	}
 	if ctx.Err() != nil {
@@ -241,6 +243,32 @@ func (c *Connection) databaseError(ctx context.Context, result Result, err error
 		c.closed.Store(true)
 	}
 	return result, err
+}
+
+func db2DamengStatementRejected(protocol string, err error) bool {
+	switch protocol {
+	case srvconn.ProtocolDameng:
+		var e *dm.DmError
+		// DM uses negative codes for server errors and positive codes for
+		// local transport/driver failures. Only the former prove a rejection.
+		return errors.As(err, &e) && e.ErrCode < 0
+	case srvconn.ProtocolDB2:
+		var e *db2.Db2Error
+		var code int32
+		var state string
+		if errors.As(err, &e) {
+			code, state = e.SQLCode, e.SQLState
+		} else {
+			// The pinned driver also returns formatted SQLCA errors rather
+			// than Db2Error. Require its exact server-error prefix.
+			if n, _ := fmt.Sscanf(err.Error(), "db2: SQLCODE=%d SQLSTATE=%s", &code, &state); n != 2 {
+				return false
+			}
+		}
+		return code < 0 && len(state) == 5 && !strings.HasPrefix(state, "08") && state != "40003"
+	default:
+		return false
+	}
 }
 
 func (c *Connection) closeDatabase() error {

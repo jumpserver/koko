@@ -260,7 +260,7 @@ type searchInput struct {
 type connectInput struct {
 	AssetID        string `json:"asset_id" jsonschema:"Exact results[].id from a current search_assets response; refresh after a stale-reference error."`
 	Account        string `json:"account" jsonschema:"Exact accounts[].id from search_assets, including virtual aliases such as @INPUT; never use the display name or username."`
-	Protocol       string `json:"protocol" jsonschema:"Choose from the selected account's protocols: ssh, winrm (PowerShell), k8s (bounded kubectl get/describe/logs), sftp (files), mysql (including OceanBase tenants), mariadb, postgresql, sqlserver, oracle, clickhouse, redis, or mongodb."`
+	Protocol       string `json:"protocol" jsonschema:"Choose from the selected account's protocols: ssh, winrm (PowerShell), k8s (bounded kubectl get/describe/logs), sftp (files), mysql (including OceanBase tenants), mariadb, postgresql, sqlserver, oracle, db2, dameng, clickhouse, redis, or mongodb."`
 	IdempotencyKey string `json:"idempotency_key"`
 }
 type commandInput struct {

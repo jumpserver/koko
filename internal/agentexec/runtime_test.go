@@ -30,10 +30,10 @@ func TestIntrospectionDeclaresExecutorCapabilities(t *testing.T) {
 		values := body.(map[string]any)
 		capabilities := values["capabilities"].(map[string]any)
 		protocols := capabilities["protocols"].(map[string]string)
-		if path != "introspect/" || capabilities["version"] != 1 || protocols["ssh"] != "shell" || protocols["winrm"] != "pipeline" || protocols["k8s"] != "process" || protocols["sftp"] != "files" || len(protocols) != 12 {
+		if path != "introspect/" || capabilities["version"] != 1 || protocols["ssh"] != "shell" || protocols["winrm"] != "pipeline" || protocols["k8s"] != "process" || protocols["sftp"] != "files" || len(protocols) != 14 {
 			t.Fatalf("invalid executor capabilities: %v", capabilities)
 		}
-		for _, protocol := range []string{"mysql", "mariadb", "postgresql", "sqlserver", "oracle", "clickhouse", "redis", "mongodb"} {
+		for _, protocol := range []string{"mysql", "mariadb", "postgresql", "sqlserver", "oracle", "db2", "dameng", "clickhouse", "redis", "mongodb"} {
 			if protocols[protocol] != "database" {
 				t.Fatalf("missing database executor capability: %s", protocol)
 			}

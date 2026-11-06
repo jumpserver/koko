@@ -34,6 +34,7 @@ var protocolModes = map[string]string{
 	srvconn.ProtocolK8s:   "process",
 	srvconn.ProtocolMySQL: "database", srvconn.ProtocolMariadb: "database", srvconn.ProtocolPostgresql: "database",
 	srvconn.ProtocolSQLServer: "database", srvconn.ProtocolOracle: "database", srvconn.ProtocolClickHouse: "database",
+	srvconn.ProtocolDB2: "database", srvconn.ProtocolDameng: "database",
 	srvconn.ProtocolRedis: "database", srvconn.ProtocolMongoDB: "database",
 }
 

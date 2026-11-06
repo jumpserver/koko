@@ -166,6 +166,13 @@ func OpenAgentSQLConnection(ctx context.Context, config DatabaseConfig) (*sql.Co
 			guard.Close()
 			return nil, nil, nil, err
 		}
+	case srvconn.ProtocolDB2, srvconn.ProtocolDameng:
+		connector, err := newAgentDB2DamengConnector(config)
+		if err != nil {
+			guard.Close()
+			return nil, nil, nil, err
+		}
+		db = sql.OpenDB(connector)
 	default:
 		return nil, nil, nil, errors.New("native agent SQL connection is unsupported")
 	}
@@ -196,23 +203,28 @@ func OpenAgentDatabaseExecutor(ctx context.Context, config DatabaseConfig) (Comm
 	return executor, guard, nil
 }
 
-// AgentSQLReturnsRows validates a single SQL statement without imposing the
+// PrepareAgentSQL validates a single SQL statement without imposing the
 // browser background executor's session-independent policy. Authorization is
 // performed separately against the immutable original statement.
-func AgentSQLReturnsRows(command, protocol string) (bool, error) {
+func PrepareAgentSQL(command, protocol string) (string, bool, error) {
 	if len(command) == 0 || len(command) > 64<<10 {
-		return false, errors.New("SQL statement exceeds the size limit")
+		return "", false, errors.New("SQL statement exceeds the size limit")
 	}
 	analysis, err := analyzeSQL(command, protocol)
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 	if analysis.multi || analysis.incomplete || analysis.kind == sqlUnknown {
-		return false, errors.New("one complete supported SQL statement is required")
+		return "", false, errors.New("one complete supported SQL statement is required")
+	}
+	// A CLI terminator is not part of the SQL sent to these native drivers.
+	// Keep comments and literal semicolons intact; the audit keeps the original.
+	if (protocol == srvconn.ProtocolDB2 || protocol == srvconn.ProtocolDameng) && analysis.terminator >= 0 {
+		command = command[:analysis.terminator] + command[analysis.terminator+1:]
 	}
 	switch analysis.keyword {
 	case "SELECT", "SHOW", "DESC", "DESCRIBE", "EXPLAIN", "VALUES", "TABLE", "EXEC", "EXECUTE", "FETCH", "CALL", "EXISTS", "CHECK":
-		return true, nil
+		return command, true, nil
 	}
-	return containsTopLevelSQLWord(analysis.words, analysis.depths, "RETURNING") || containsTopLevelSQLWord(analysis.words, analysis.depths, "OUTPUT"), nil
+	return command, containsTopLevelSQLWord(analysis.words, analysis.depths, "RETURNING") || containsTopLevelSQLWord(analysis.words, analysis.depths, "OUTPUT"), nil
 }

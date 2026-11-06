@@ -1,6 +1,6 @@
 # Agent 资产执行与 MCP 接入
 
-Koko 提供标准 MCP Streamable HTTP 服务，使 Agent 通过 JumpServer 操作授权资产。支持 SSH、WinRM、Kubernetes（资源查询、详情和有限日志）、SFTP、MySQL/MariaDB、OceanBase MySQL/Oracle 租户、PostgreSQL、SQL Server、Oracle、ClickHouse、Redis 和 MongoDB。Codex 使用原生远程 MCP；DSH（DeepSeek Harness）通过独立插件适配同一服务端契约。
+Koko 提供标准 MCP Streamable HTTP 服务，使 Agent 通过 JumpServer 操作授权资产。支持 SSH、WinRM、Kubernetes（资源查询、详情和有限日志）、SFTP、MySQL/MariaDB、OceanBase MySQL/Oracle 租户、PostgreSQL、SQL Server、Oracle、DB2 LUW、达梦、ClickHouse、Redis 和 MongoDB。Codex 使用原生远程 MCP；DSH（DeepSeek Harness）通过独立插件适配同一服务端契约。
 
 | 组件 | 职责 |
 | --- | --- |
@@ -10,7 +10,7 @@ Koko 提供标准 MCP Streamable HTTP 服务，使 Agent 通过 JumpServer 操�
 | docker-web / Nginx | 外部 HTTP/HTTPS 入口、TLS 终止与反向代理 |
 | Codex / DSH 插件 | 浏览器授权、客户端令牌管理、工具调用、结果查询和审批链接呈现；按需实现 PC 文件传输 |
 
-MCP 数据库执行复用 Go 原生驱动：MySQL/MariaDB 使用 `go-sql-driver/mysql`，OceanBase 使用现有 OceanBase 驱动，PostgreSQL 使用 `pgx`，SQL Server、Oracle、ClickHouse、Redis 和 MongoDB 使用现有对应驱动。该路径不需要数据库命令行程序。WinRM 复用现有 PSRP/NTLM 通信与 TLS 配置。`open_terminal` 打开的人工数据库终端使用现有终端实现，完整 Koko 部署须保留其 `usql` 等依赖。
+MCP 数据库执行复用 Go 原生驱动：MySQL/MariaDB 使用 `go-sql-driver/mysql`，OceanBase 使用现有 OceanBase 驱动，PostgreSQL 使用 `pgx`，DB2 和达梦使用与 usql 一致的 `go-db2/go-db2`、`chunanyong/dm` 驱动，SQL Server、Oracle、ClickHouse、Redis 和 MongoDB 使用现有对应驱动。该路径不需要数据库命令行程序。WinRM 复用现有 PSRP/NTLM 通信与 TLS 配置。`open_terminal` 打开的人工数据库终端使用现有终端实现，完整 Koko 部署须保留其 `usql` 等依赖。
 
 ## 首次部署
 
@@ -160,6 +160,8 @@ K8s 默认命名空间来自平台配置，未配置时使用 `default`，连接
 K8s 执行要求部署已有的 `kubectl` 和 `prlimit`，每节点最多同时运行一个 kubectl；每进程限制 CPU 时间 15 秒、可写数据段 128 MiB、虚拟地址空间 2 GiB，并沿用操作时限和输出预算。禁用 kuberc、插件环境和继承的代理/凭据配置。只有确认 kubectl 整数退出码 0 才成功；API 拒绝产生明确非零退出码。超时、取消或输出超限会结束本地客户端，未确认完成的操作保持 `unknown`，不会把本地客户端退出当成远端停止证据。该路径不改变现有 Web Kubernetes 终端。
 
 SQL 会话保持同一物理连接，执行一条完整语句并保留协议支持的连接内状态；除 ClickHouse 外，断开时尝试回滚未提交事务。ClickHouse 使用原生 TCP 协议及其对应端口，结果最多 1000 行和 8 MiB。SQL Server 使用网关时，首次连接、服务端路由重定向及其主机名解析均经同一网关。
+
+DB2 支持 LUW，必须配置实际服务端口和不超过 18 字节的数据库名；不据此声明支持 z/OS、IBM i 或全部认证方式。TLS 复用资产的 CA、客户端证书和原始服务器名称并强制校验服务端证书。达梦的数据库名作为默认 Schema，未填写时使用账号默认值；用户名不能含冒号，Schema 不能含 `/@?&`。驱动按原始字符串接收密码，保留 `@`、`?` 等字符。两者通过仅绑定本机、只接受一次连接的转发复用资产网关及网络预算，连接取消会关闭转发，不自动重连或重放语句。驱动不支持的 TLS 策略不会静默降级：当前达梦驱动固定跳过证书校验，MCP 拒绝要求 TLS/证书的配置及服务端 TLS 协商。
 
 OceanBase 两种租户都使用资产的 `mysql` 连接协议，由平台的 `tenant_mode=mysql/oracle` 决定 SQL 方言；缺失或未知模式会在连接前拒绝。驱动、网络预算和事务生命周期沿用受控 SQL 连接，明确的 OceanBase SQL 错误记录为失败，网络故障或取消导致的结果不确定不自动重放。
 
