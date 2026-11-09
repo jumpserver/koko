@@ -14,6 +14,8 @@ import (
 
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -57,6 +59,11 @@ func NewKubernetesClient(address, namespace, token string, gateway *model.Gatewa
 }
 
 func (kc *KubernetesClient) InitClient(address, namespace, token string, gateway *model.Gateway) error {
+	kubeConfigYAML, err := kc.GetKubeConfig(address, namespace, token)
+	if err != nil {
+		return err
+	}
+
 	var proxyAddr *net.TCPAddr
 	if gateway != nil {
 		dGateway, err := newK8sGateWayServer(address, gateway)
@@ -76,6 +83,10 @@ func (kc *KubernetesClient) InitClient(address, namespace, token string, gateway
 			return err
 		}
 		address = ReplaceURLHostAndPort(originUrl, "127.0.0.1", proxyAddr.Port)
+		kubeConfigYAML, err = kc.GetKubeConfig(address, namespace, token)
+		if err != nil {
+			return err
+		}
 	}
 
 	kubeConf := &rest.Config{
@@ -87,8 +98,6 @@ func (kc *KubernetesClient) InitClient(address, namespace, token string, gateway
 	if !srvconn.IsValidK8sUserToken(kubeConf) {
 		return srvconn.ErrValidToken
 	}
-
-	kubeConfigYAML := kc.GetKubeConfig(address, namespace, token)
 
 	tmpFile, err := os.CreateTemp("", "kubeconfig-*.yaml")
 	if err != nil {
@@ -117,27 +126,24 @@ func newK8sGateWayServer(address string, gateway *model.Gateway) (*domainGateway
 	return dGateway, nil
 }
 
-func (kc *KubernetesClient) GetKubeConfig(address, namespace, token string) string {
-	return fmt.Sprintf(`
-apiVersion: v1
-kind: Config
-clusters:
-- cluster:
-    server: %s
-    insecure-skip-tls-verify: true
-  name: remote-cluster
-contexts:
-- context:
-    cluster: remote-cluster
-    user: remote-user
-    namespace: %s
-  name: remote-context
-current-context: remote-context
-users:
-- name: remote-user
-  user:
-    token: %s
-`, address, namespace, token)
+func (kc *KubernetesClient) GetKubeConfig(address, namespace, token string) (string, error) {
+	kubeConfig := clientcmdapi.Config{
+		Clusters: map[string]*clientcmdapi.Cluster{
+			"remote-cluster": {Server: address, InsecureSkipTLSVerify: true},
+		},
+		Contexts: map[string]*clientcmdapi.Context{
+			"remote-context": {Cluster: "remote-cluster", AuthInfo: "remote-user", Namespace: namespace},
+		},
+		CurrentContext: "remote-context",
+		AuthInfos: map[string]*clientcmdapi.AuthInfo{
+			"remote-user": {Token: token},
+		},
+	}
+	if err := clientcmd.Validate(kubeConfig); err != nil {
+		return "", err
+	}
+	data, err := clientcmd.Write(kubeConfig)
+	return string(data), err
 }
 
 var (
