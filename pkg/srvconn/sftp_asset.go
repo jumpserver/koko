@@ -1178,10 +1178,18 @@ func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken,
 }
 
 func NewSSHClientWithToken(connectToken *model.ConnectToken, timeout int) (*SSHClient, error) {
-	return NewSSHClientWithTokenContext(nil, connectToken, timeout)
+	return newSSHClientWithToken(connectToken, timeout, nil)
 }
 
 func NewSSHClientWithTokenContext(ctx context.Context, connectToken *model.ConnectToken, timeout int) (*SSHClient, error) {
+	var contextOption SSHClientOption
+	if ctx != nil {
+		contextOption = SSHClientContext(ctx)
+	}
+	return newSSHClientWithToken(connectToken, timeout, contextOption)
+}
+
+func newSSHClientWithToken(connectToken *model.ConnectToken, timeout int, contextOption SSHClientOption) (*SSHClient, error) {
 	defer connectToken.ClearSSHCertificateCredential()
 	asset := connectToken.Asset
 	account := connectToken.Account
@@ -1189,8 +1197,8 @@ func NewSSHClientWithTokenContext(ctx context.Context, connectToken *model.Conne
 	protocol := connectToken.Protocol
 
 	sshAuthOpts := make([]SSHClientOption, 0, 6)
-	if ctx != nil {
-		sshAuthOpts = append(sshAuthOpts, SSHClientContext(ctx))
+	if contextOption != nil {
+		sshAuthOpts = append(sshAuthOpts, contextOption)
 	}
 	sshAuthOpts = append(sshAuthOpts, SSHClientUsername(username))
 	sshAuthOpts = append(sshAuthOpts, SSHClientHost(asset.Address))
@@ -1200,7 +1208,7 @@ func NewSSHClientWithTokenContext(ctx context.Context, connectToken *model.Conne
 		if signer, err1 := gossh.ParsePrivateKey([]byte(account.Secret)); err1 == nil {
 			sshAuthOpts = append(sshAuthOpts, SSHClientPrivateAuth(signer))
 		} else {
-			if ctx != nil {
+			if contextOption != nil {
 				return nil, fmt.Errorf("invalid SSH private key: %w", err1)
 			}
 			logger.Errorf("ssh private key parse failed: %s", err1)

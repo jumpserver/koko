@@ -190,7 +190,7 @@ func (c *Connection) ReadFile(ctx context.Context, name string, dst io.Writer) (
 		return FileResult{}, err
 	}
 	closeFile := sync.OnceValue(file.Close)
-	defer closeFile()
+	defer func() { _ = closeFile() }()
 	info, err := file.Stat()
 	if err != nil {
 		return FileResult{}, err
