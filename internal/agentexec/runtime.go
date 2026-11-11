@@ -896,6 +896,11 @@ func (r *Runtime) getAction(ctx context.Context, p Principal, id string, offset,
 			return Action{}, readErr
 		}
 		if readErr == nil {
+			// Core omits submitted requests; upload descriptors still need the
+			// approved size and digest from this node's durable request.
+			if action.Kind == "file_upload" && action.Request == nil {
+				action.Request = local.Action.Request
+			}
 			if action.Kind == "file_upload" && action.Status == "queued" && local.Artifact == "" && !local.Dispatched && !terminalState(local.Action.Status) {
 				action.NextStep = "upload_bytes"
 			}

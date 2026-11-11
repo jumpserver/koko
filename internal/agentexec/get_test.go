@@ -8,6 +8,26 @@ import (
 	"testing"
 )
 
+func TestGetUploadPreservesApprovedTransferMetadata(t *testing.T) {
+	r := fileTestRuntime(t)
+	digest := strings.Repeat("a", 64)
+	action := Action{ID: "upload", SessionID: "session", Kind: "file_upload", Status: "queued",
+		Request: map[string]any{"path": "/file", "size": 8, "sha256": digest}}
+	if err := r.journal.PutAction(action, "capability"); err != nil {
+		t.Fatal(err)
+	}
+	r.core = coreFunc(func(_ context.Context, _ string, _ any, out any) error {
+		return respond(out, Action{ID: action.ID, SessionID: action.SessionID, Kind: action.Kind, Status: action.Status})
+	})
+	result, err := r.GetPage(context.Background(), Principal{Resource: "https://jumpserver.test/koko/mcp"}, action.ID, 0, 1, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Transfer == nil || !result.Transfer.Ready || result.Transfer.Size != float64(8) || result.Transfer.SHA256 != digest || result.Transfer.Headers["X-Content-SHA256"] != digest {
+		t.Fatalf("polled upload lost approved transfer metadata: %#v", result.Transfer)
+	}
+}
+
 func TestGetCursorPreservesUTF8AcrossPagesAndStreams(t *testing.T) {
 	r := fileTestRuntime(t)
 	parts := []struct{ stream, data string }{{"stdout", "\xe4\xb8"}, {"stderr", "error"}, {"stdout", "\xad"}}
