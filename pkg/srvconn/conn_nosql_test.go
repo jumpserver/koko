@@ -1,6 +1,7 @@
 package srvconn
 
 import (
+	"bufio"
 	"io"
 	"net/url"
 	"os"
@@ -51,9 +52,9 @@ func TestLiveNativeNoSQLPTY(t *testing.T) {
 	previous := debug
 	debug = "true"
 	t.Cleanup(func() { debug = previous })
-	for _, test := range []struct{ name, variable, command, want string }{
-		{"MongoDB", "USQL_MONGODB_TEST_DSN_FILE", `db.runCommand(EJSON.deserialize({"ping":1},{"relaxed":false}))`, `"ok"`},
-		{"Redis", "USQL_REDIS_TEST_DSN_FILE", "PING", "PONG"},
+	for _, test := range []struct{ name, variable, command, want, echo, suffix string }{
+		{"MongoDB", "USQL_MONGODB_TEST_DSN_FILE", `db.runCommand(EJSON.deserialize({"ping":1},{"relaxed":false}))`, `"ok"`, "print('", "')"},
+		{"Redis", "USQL_REDIS_TEST_DSN_FILE", "PING", "PONG", "ECHO '", "'"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			path := os.Getenv(test.variable)
@@ -81,25 +82,29 @@ func TestLiveNativeNoSQLPTY(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer conn.Close()
-			readUntil := func(want string) {
+			reader := bufio.NewReader(conn)
+			readUntil := func(want string) string {
 				t.Helper()
+				var output strings.Builder
 				done := make(chan error, 1)
 				go func() {
-					var output strings.Builder
-					buf := make([]byte, 1024)
 					for output.Len() < 64*1024 {
-						n, err := conn.Read(buf)
-						output.Write(buf[:n])
-						if strings.Contains(output.String(), password) {
+						b, err := reader.ReadByte()
+						if err != nil {
+							done <- err
+							return
+						}
+						output.WriteByte(b)
+						if strings.Contains(output.String(), "Enter password:") {
+							done <- io.ErrNoProgress
+							return
+						}
+						if password != "" && strings.Contains(output.String(), password) {
 							done <- io.ErrUnexpectedEOF
 							return
 						}
 						if strings.Contains(output.String(), want) {
 							done <- nil
-							return
-						}
-						if err != nil {
-							done <- err
 							return
 						}
 					}
@@ -114,13 +119,42 @@ func TestLiveNativeNoSQLPTY(t *testing.T) {
 					_ = conn.Close()
 					t.Fatal("PTY prompt/output timed out")
 				}
+				return output.String()
+			}
+			write := func(input string) {
+				t.Helper()
+				if _, err := conn.Write([]byte(input)); err != nil {
+					t.Fatal(err)
+				}
 			}
 			// The native password exchange must preserve the complete first prompt.
-			readUntil("> ")
-			if _, err = conn.Write([]byte(test.command + "\r")); err != nil {
-				t.Fatal(err)
+			prompt := "mongodb:" + strings.TrimPrefix(u.Path, "/") + "> "
+			if test.name == "Redis" {
+				prompt = "redis:" + u.Host + "[" + strings.TrimPrefix(u.Path, "/") + "]> "
 			}
+			if output := readUntil("> "); !strings.Contains(output, prompt) {
+				t.Fatal("initial shell prompt was truncated")
+			}
+			write(test.command + "\r")
 			readUntil(test.want)
+			readUntil("> ")
+			for _, marker := range []string{"tapd-first", "tapd-second"} {
+				write(test.echo + marker + test.suffix + "\r")
+				readUntil("\r\n" + marker + "\r\n")
+				readUntil("> ")
+			}
+			// Up recalls history; left/right move within it rather than changing
+			// entries. Backspace and insertion must edit the recalled command.
+			write("\x1b[A" + strings.Repeat("\x1b[D", len(test.suffix)+1) + "\x1b[C\x7fD")
+			if output := readUntil(test.echo + "tapd-seconD" + test.suffix); strings.Contains(output, "\n") {
+				t.Fatal("history repaint introduced a newline")
+			}
+			write("\r")
+			readUntil("\r\ntapd-seconD\r\n")
+			readUntil("> ")
+			write("\x1b[A\x1b[A\x1b[B\r")
+			readUntil("\r\ntapd-seconD\r\n")
+			readUntil("> ")
 		})
 	}
 }
