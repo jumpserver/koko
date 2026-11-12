@@ -2,7 +2,6 @@ package srvconn
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -222,19 +221,13 @@ func MatchLoginPrefix(prefix string, dbType string, lcmd *localcommand.LocalComm
 	)
 	prompt := make([]byte, len(prefix))
 	var buf strings.Builder
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Minute)
-	defer cancel()
-	done := make(chan struct{})
-	go func() {
-		select {
-		case <-ctx.Done():
-			_ = lcmd.Close()
-			logger.Errorf("%s login prompt characters matched timeout and closed", dbType)
-			return
-		case <-done:
-			return
-		}
-	}()
+	// Stopping a completed login must not signal the timeout path and close
+	// an authenticated connection when both select branches are ready.
+	timer := time.AfterFunc(time.Minute, func() {
+		_ = lcmd.Close()
+		logger.Errorf("%s login prompt characters matched timeout and closed", dbType)
+	})
+	defer timer.Stop()
 
 	for {
 		nr, err = lcmd.Read(prompt[:])
@@ -250,7 +243,6 @@ func MatchLoginPrefix(prefix string, dbType string, lcmd *localcommand.LocalComm
 			break
 		}
 	}
-	close(done)
 	return lcmd, nil
 }
 
