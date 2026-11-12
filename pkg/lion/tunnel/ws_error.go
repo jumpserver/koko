@@ -1,6 +1,7 @@
 package tunnel
 
 import (
+	"errors"
 	"strconv"
 
 	"github.com/jumpserver/koko/pkg/lion/guacd"
@@ -28,6 +29,14 @@ func NewJMSGuacamoleError(code int, msg string) JMSGuacamoleError {
 		code: code,
 		msg:  msg,
 	}
+}
+
+func guacdErrorInstruction(err error) guacd.Instruction {
+	var protocolErr *guacd.ProtocolError
+	if errors.As(err, &protocolErr) {
+		return protocolErr.Instruction
+	}
+	return ErrGuacamoleServer.Instruction()
 }
 
 const (
