@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -125,14 +126,33 @@ func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err e
 	return lcmd, nil
 }
 
-// usql's password reader does not echo characters. Preserve its first prompt
-// for the user instead of consuming prompt bytes as legacy password masking.
+// Readline redraws its password prompt for every injected character. Consume
+// through the password submission's newline, without reading any shell prompt.
 func doNoSQLLogin(opt *sqlOption, lcmd *localcommand.LocalCommand) (*localcommand.LocalCommand, error) {
-	if _, err := lcmd.Write([]byte(opt.Password + "\r")); err != nil {
+	timer := time.AfterFunc(time.Minute, func() { _ = lcmd.Close() })
+	defer timer.Stop()
+	password := []byte(opt.Password + "\r")
+	n, err := lcmd.Write(password)
+	if err == nil && n != len(password) {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
 		_ = lcmd.Close()
 		return lcmd, err
 	}
-	return lcmd, nil
+	var b [1]byte
+	for range 1024 * 1024 {
+		n, err = lcmd.Read(b[:])
+		if n > 0 && b[0] == '\n' {
+			return lcmd, nil
+		}
+		if err != nil {
+			_ = lcmd.Close()
+			return lcmd, fmt.Errorf("finish NoSQL password input: %w", err)
+		}
+	}
+	_ = lcmd.Close()
+	return lcmd, errors.New("NoSQL password prompt exceeds 1 MiB")
 }
 
 func addMongoParamsWithSSL(args *sqlOption, params map[string]string) {
