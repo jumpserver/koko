@@ -1,6 +1,7 @@
 package sessiontools
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/anmitsu/go-shlex"
@@ -32,6 +34,7 @@ type RedisExecutor struct {
 	client    redisExecutorClient
 	executeMu sync.Mutex
 	closeOnce sync.Once
+	truncated atomic.Bool
 }
 
 func NewRedisExecutor(
@@ -74,7 +77,27 @@ func newRedisClient(config DatabaseConfig) (redisExecutorClient, error) {
 		}
 	}
 	address := net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
+	dial := databaseTLSDialer(config.DialContext, tlsConfig)
+	if config.agent {
+		if dial == nil {
+			dial = databaseTLSDialer((&net.Dialer{Timeout: 10 * time.Second}).DialContext, tlsConfig)
+		}
+		baseDial := dial
+		dial = func(ctx context.Context, network, address string) (net.Conn, error) {
+			conn, err := baseDial(ctx, network, address)
+			if err != nil {
+				return nil, err
+			}
+			// Validate plaintext RESP before go-redis sees lengths that it
+			// uses to allocate bulk strings and nested arrays.
+			return &agentRedisConn{Conn: conn, reader: bufio.NewReaderSize(conn, 8<<10)}, nil
+		}
+	}
 	if config.ClusterMode {
+		redirects := 0
+		if config.agent {
+			redirects = -1 // Never replay a dispatched write after a network error.
+		}
 		return redis.NewClusterClient(&redis.ClusterOptions{
 			Addrs:        []string{address},
 			Username:     config.Username,
@@ -85,6 +108,7 @@ func newRedisClient(config DatabaseConfig) (redisExecutorClient, error) {
 			PoolSize:     1,
 			MaxRetries:   -1,
 			TLSConfig:    tlsConfig,
+			Dialer:       dial, MaxRedirects: redirects,
 			ClusterSlots: common.RedisClusterSlots([]string{address}, redis.Options{
 				Username:     config.Username,
 				Password:     config.Password,
@@ -94,6 +118,7 @@ func newRedisClient(config DatabaseConfig) (redisExecutorClient, error) {
 				PoolSize:     1,
 				MaxRetries:   -1,
 				TLSConfig:    tlsConfig,
+				Dialer:       dial,
 			}),
 		}), nil
 	}
@@ -108,6 +133,7 @@ func newRedisClient(config DatabaseConfig) (redisExecutorClient, error) {
 		PoolSize:     1,
 		MaxRetries:   -1,
 		TLSConfig:    tlsConfig,
+		Dialer:       dial,
 	}), nil
 }
 
@@ -116,6 +142,7 @@ func (e *RedisExecutor) Execute(
 	command string,
 	onOutput func(string),
 ) (string, *int, error) {
+	e.truncated.Store(false)
 	arguments, err := parseRedisCommand(command)
 	if err != nil {
 		return "", nil, err
@@ -141,6 +168,7 @@ func (e *RedisExecutor) Execute(
 		err = response.writeResult(value, 0)
 	}
 	output := strings.TrimSpace(response.output.String())
+	e.truncated.Store(response.output.Truncated())
 	if err != nil && output == "" && ctx.Err() == nil {
 		output = err.Error()
 	}
@@ -159,6 +187,8 @@ func (e *RedisExecutor) Execute(
 	}
 	return output, nil, err
 }
+
+func (e *RedisExecutor) OutputTruncated() bool { return e.truncated.Load() }
 
 func (e *RedisExecutor) ping(ctx context.Context) error {
 	return e.client.Ping(ctx).Err()

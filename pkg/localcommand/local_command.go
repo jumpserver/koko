@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"syscall"
 
 	"github.com/creack/pty"
+	"golang.org/x/sys/unix"
 )
 
 type LocalCommand struct {
@@ -49,6 +51,25 @@ func New(command string, argv []string, options ...Option) (*LocalCommand, error
 	ptyFd, err := pty.StartWithSize(cmd, lcmd.ptyWin)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
+	}
+	if runtime.GOOS == "linux" {
+		// PTY ioctls call File.Fd(), which switches an OpenFile descriptor back
+		// to blocking I/O. Wrap an explicitly nonblocking duplicate so later
+		// resizing preserves polling and Close can interrupt pending reads/writes.
+		fd, err := unix.FcntlInt(ptyFd.Fd(), unix.F_DUPFD_CLOEXEC, 0)
+		if err == nil {
+			err = unix.SetNonblock(fd, true)
+			if err != nil {
+				_ = unix.Close(fd)
+			}
+		}
+		_ = ptyFd.Close()
+		if err != nil {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+			return nil, fmt.Errorf("configure nonblocking PTY: %w", err)
+		}
+		ptyFd = os.NewFile(uintptr(fd), ptyFd.Name())
 	}
 	lcmd.cmd = cmd
 	lcmd.ptyFd = ptyFd

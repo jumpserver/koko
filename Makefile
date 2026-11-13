@@ -1,5 +1,6 @@
 NAME=koko
 BUILDDIR=build
+GOLANGCI_LINT ?= golangci-lint
 
 VERSION ?= Unknown
 BuildTime := $(shell date -u '+%Y-%m-%d %I:%M:%S%p')
@@ -77,6 +78,14 @@ clean:
 .PHONY: libghostty-vt
 libghostty-vt:
 	@./utils/setup-libghostty-vt.sh
+
+.PHONY: lint
+lint:
+	@$(GOLANGCI_LINT) version
+	@$(GOLANGCI_LINT) config verify
+	@LIBGHOSTTY_VT_ROOT="$$(./utils/setup-libghostty-vt.sh)" || exit $$?; \
+	PKG_CONFIG_PATH="$${LIBGHOSTTY_VT_ROOT}/lib/pkgconfig$${PKG_CONFIG_PATH:+:$${PKG_CONFIG_PATH}}" \
+	CGO_ENABLED=1 $(GOLANGCI_LINT) run
 
 .PHONY: usql
 usql:

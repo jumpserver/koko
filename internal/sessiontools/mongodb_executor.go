@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -36,6 +37,7 @@ type MongoDBExecutor struct {
 	database  *mongo.Database
 	sanitizer ValueSanitizer
 	closeOnce sync.Once
+	truncated atomic.Bool
 }
 
 func NewMongoDBExecutor(
@@ -70,6 +72,7 @@ func (e *MongoDBExecutor) Execute(
 	command string,
 	onOutput func(string),
 ) (string, *int, error) {
+	e.truncated.Store(false)
 	document, err := parseMongoDBCommand(command)
 	if err != nil {
 		return "", nil, err
@@ -97,12 +100,15 @@ func (e *MongoDBExecutor) Execute(
 	outputWriter := &boundedDatabaseOutput{}
 	_, _ = outputWriter.Write(encoded)
 	output := outputWriter.String()
+	e.truncated.Store(outputWriter.Truncated())
 	if output != "" && onOutput != nil {
 		onOutput(output)
 	}
 	exitCode := 0
 	return output, &exitCode, nil
 }
+
+func (e *MongoDBExecutor) OutputTruncated() bool { return e.truncated.Load() }
 
 func (e *MongoDBExecutor) Close() error {
 	var err error
@@ -183,6 +189,12 @@ func mongoDBClientOptions(config DatabaseConfig) (*options.ClientOptions, error)
 			return nil, err
 		}
 		clientOptions.SetDialer(dialer)
+	}
+	if config.DialContext != nil {
+		clientOptions.SetDialer(databaseDialer(config.DialContext))
+	}
+	if config.agent {
+		clientOptions.SetRetryReads(false).SetRetryWrites(false)
 	}
 	return clientOptions, nil
 }
