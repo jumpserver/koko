@@ -1,4 +1,4 @@
-FROM ghcr.io/jumpserver-dev/ffmpeg:7.1.5-trixie-build-1.1 AS stage-ffmpeg
+FROM ghcr.io/jumpserver-dev/ffmpeg:7.1.5-trixie-build-2.1 AS stage-ffmpeg
 FROM ghcr.io/jumpserver-dev/libghostty-vt:ghostty-d4ac93a0395d-zig-0.15.2-build-3.1 AS libghostty-vt
 
 # Keep the Go version aligned with go.mod.
