@@ -56,6 +56,11 @@ type webRecording struct {
 	hasLastHash   bool
 	lastTimestamp int64
 	closed        bool
+	format        string
+	chunkCount    int
+	videoBytes    int64
+	lastChunkHash [sha256.Size]byte
+	resized       bool
 }
 
 type recordedFrame struct {
@@ -71,6 +76,10 @@ type recordingMetadata struct {
 	StartedAt  time.Time       `json:"started_at"`
 	DurationMS int64           `json:"duration_ms"`
 	Frames     []recordedFrame `json:"frames"`
+	Format     string          `json:"format,omitempty"`
+	ChunkCount int             `json:"chunk_count,omitempty"`
+	VideoBytes int64           `json:"video_bytes,omitempty"`
+	Resized    bool            `json:"resized,omitempty"`
 }
 
 type recordingResult struct {
@@ -79,6 +88,7 @@ type recordingResult struct {
 	Path       string `json:"path"`
 	FrameCount int    `json:"frame_count"`
 	DurationMS int64  `json:"duration_ms"`
+	ChunkCount int    `json:"chunk_count,omitempty"`
 }
 
 func newRecordingManager(root, ffmpegPath string) (*recordingManager, error) {
@@ -159,9 +169,13 @@ func (m *recordingManager) finish(ctx context.Context, id string, durationMS int
 		StartedAt:  recording.startedAt,
 		DurationMS: durationMS,
 		Frames:     append([]recordedFrame(nil), recording.frames...),
+		Format:     recording.format,
+		ChunkCount: recording.chunkCount,
+		VideoBytes: recording.videoBytes,
+		Resized:    recording.resized,
 	}
 	recording.mu.Unlock()
-	if len(metadata.Frames) == 0 {
+	if len(metadata.Frames) == 0 && metadata.ChunkCount == 0 {
 		_ = os.RemoveAll(recording.dir)
 		return recordingResult{}, errors.New("recording has no frames")
 	}
@@ -192,6 +206,7 @@ func (m *recordingManager) finish(ctx context.Context, id string, durationMS int
 		Path:       replayPath,
 		FrameCount: len(metadata.Frames),
 		DurationMS: durationMS,
+		ChunkCount: metadata.ChunkCount,
 	}, nil
 }
 
@@ -230,6 +245,9 @@ func (r *webRecording) addFrame(timestampMS int64, frameData []byte) (bool, int,
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.format != "" {
+		return false, 0, errors.New("video recording does not accept JPEG frames")
+	}
 	if r.closed {
 		return false, len(r.frames), errors.New("recording is closed")
 	}
@@ -259,6 +277,9 @@ func (r *webRecording) addFrame(timestampMS int64, frameData []byte) (bool, int,
 }
 
 func (m *recordingManager) encodeMP4(ctx context.Context, recording *webRecording) error {
+	if recording.format != "" {
+		return m.encodeVideoMP4(ctx, recording)
+	}
 	recording.mu.Lock()
 	frames := append([]recordedFrame(nil), recording.frames...)
 	durationMS := recording.lastTimestamp
@@ -336,6 +357,8 @@ func (s *Server) serveRecording(w http.ResponseWriter, r *http.Request) {
 		s.startRecording(w, r, sessionID)
 	case len(parts) == 2 && parts[1] == "frames" && r.Method == http.MethodPost:
 		s.addRecordingFrame(w, r, parts[0])
+	case len(parts) == 2 && parts[1] == "chunks" && r.Method == http.MethodPost:
+		s.addRecordingVideoChunk(w, r, parts[0])
 	case len(parts) == 2 && parts[1] == "finish" && r.Method == http.MethodPost:
 		s.finishRecording(w, r, parts[0])
 	case len(parts) == 1 && r.Method == http.MethodDelete:
@@ -370,6 +393,7 @@ func (s *Server) startRecording(w http.ResponseWriter, r *http.Request, sessionI
 		TargetURL string `json:"target_url"`
 		Width     int    `json:"width"`
 		Height    int    `json:"height"`
+		Format    string `json:"format,omitempty"`
 	}
 	if err := decodeLimitedJSON(w, r, &request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -377,6 +401,14 @@ func (s *Server) startRecording(w http.ResponseWriter, r *http.Request, sessionI
 	}
 	if request.Width < 1 || request.Width > 8192 || request.Height < 1 || request.Height > 8192 {
 		http.Error(w, "invalid recording dimensions", http.StatusBadRequest)
+		return
+	}
+	if request.Format != "" && request.Format != "mp4" && request.Format != "webm" {
+		http.Error(w, "invalid recording format", http.StatusBadRequest)
+		return
+	}
+	if request.Format != "" && (request.Width > 1920 || request.Height > 1080) {
+		http.Error(w, "video recording exceeds 1080p", http.StatusBadRequest)
 		return
 	}
 	if request.SessionID != sessionID {
@@ -390,6 +422,9 @@ func (s *Server) startRecording(w http.ResponseWriter, r *http.Request, sessionI
 		return
 	}
 	recording, err := s.recordings.start(request.SessionID, request.TargetURL, request.Width, request.Height)
+	if err == nil {
+		recording.format = request.Format
+	}
 	s.auth.mu.Unlock()
 	if err != nil {
 		if errors.Is(err, errInvalidWebSessionID) {
@@ -401,7 +436,7 @@ func (s *Server) startRecording(w http.ResponseWriter, r *http.Request, sessionI
 		return
 	}
 	logger.Infof("Web recording %s started for %s", recording.id, recording.targetURL)
-	writeRecordingJSON(w, http.StatusCreated, map[string]string{"id": recording.id})
+	writeRecordingJSON(w, http.StatusCreated, map[string]string{"id": recording.id, "format": recording.format})
 }
 
 func (s *Server) addRecordingFrame(w http.ResponseWriter, r *http.Request, id string) {
