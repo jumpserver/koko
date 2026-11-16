@@ -94,7 +94,7 @@ func (t *sqlMetadataTool) Invalidate() {
 }
 
 func (t *sqlMetadataTool) Lookup(
-	ctx context.Context, request SQLSchemaLookupRequest,
+	ctx context.Context, request SQLSchemaLookupRequest, sanitizer *MySQLSanitizer,
 ) (SQLSchemaLookupResult, error) {
 	request, err := normalizeSQLSchemaLookupRequest(request)
 	if err != nil {
@@ -122,7 +122,7 @@ func (t *sqlMetadataTool) Lookup(
 	if (request.Query != "" || len(refs) == 0) && len(refs) < maxSQLMetadataTables {
 		matches, searchErr := t.search(ctx, request.Query)
 		if searchErr != nil {
-			return result, searchErr
+			return result, sanitizer.diagnostic(searchErr)
 		}
 		for _, match := range matches {
 			result.Matches = append(result.Matches, qualifiedSQLTableName(match))
@@ -138,7 +138,7 @@ func (t *sqlMetadataTool) Lookup(
 	var describeTruncated bool
 	result.Tables, describeTruncated, err = t.describe(ctx, refs)
 	if err != nil {
-		return result, err
+		return result, sanitizer.diagnostic(err)
 	}
 	result.Truncated = result.Truncated || describeTruncated
 	t.mu.Lock()
