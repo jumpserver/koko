@@ -34,7 +34,7 @@ var errInvalidMongoDBProxyURL = errors.New("invalid MongoDB HTTP proxy URL")
 type MongoDBExecutor struct {
 	client    *mongo.Client
 	database  *mongo.Database
-	sanitizer ValueSanitizer
+	sanitizer *MySQLSanitizer
 	closeOnce sync.Once
 }
 
@@ -60,7 +60,7 @@ func NewMongoDBExecutor(
 	}
 	if err = client.Ping(ctx, nil); err != nil {
 		_ = executor.Close()
-		return nil, fmt.Errorf("initialize MongoDB background connection: %w", err)
+		return nil, fmt.Errorf("initialize MongoDB background connection: %w", executor.sanitizer.diagnostic(err))
 	}
 	return executor, nil
 }
@@ -84,15 +84,15 @@ func (e *MongoDBExecutor) Execute(
 			healthCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			if healthErr := e.client.Ping(healthCtx, nil); healthErr != nil {
-				return "", nil, &ExecutionUnavailableError{Cause: healthErr}
+				return "", nil, &ExecutionUnavailableError{Cause: e.sanitizer.diagnostic(healthErr)}
 			}
 		}
-		return "", nil, err
+		return "", nil, e.sanitizer.diagnostic(err)
 	}
 	result = sanitizeMongoDBDocument(result, e.sanitizer)
 	encoded, err := bson.MarshalExtJSON(result, false, false)
 	if err != nil {
-		return "", nil, fmt.Errorf("encode MongoDB result: %w", err)
+		return "", nil, fmt.Errorf("encode MongoDB result: %w", e.sanitizer.diagnostic(err))
 	}
 	outputWriter := &boundedDatabaseOutput{}
 	_, _ = outputWriter.Write(encoded)
