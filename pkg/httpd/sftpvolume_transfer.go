@@ -61,6 +61,8 @@ type sftpTransferResult struct {
 	Duplicate      bool   `json:"duplicate,omitempty"`
 }
 
+type sftpTransferWrite func() (sftpTransferResult, error)
+
 type sftpTransferChunk struct {
 	Offset int64  `json:"offset"`
 	SHA256 string `json:"sha256"`
@@ -606,34 +608,36 @@ func (r *transferReadRecord) discardLocked() {
 	}
 }
 
-func (u *sftpVolume) writeTransferChunk(transferID, targetPath string, totalSize, offset int64, expectedSHA256 string, data []byte) (result sftpTransferResult, err error) {
+// Reserve the offset before dispatching remote I/O. The returned write must run
+// once to release the retained file, including when the volume has been closed.
+func (u *sftpVolume) prepareTransferWrite(transferID, targetPath string, totalSize, offset int64, expectedSHA256 string, data []byte) (sftpTransferWrite, error) {
 	chunkSum := sha256.Sum256(data)
 	if totalSize < 0 || offset < 0 || offset > totalSize || len(data) == 0 || len(data) > transferChunkMaxSize || int64(len(data)) > totalSize-offset || !strings.EqualFold(expectedSHA256, hex.EncodeToString(chunkSum[:])) {
-		return sftpTransferResult{}, fmt.Errorf("invalid file transfer chunk")
+		return nil, fmt.Errorf("invalid file transfer chunk")
 	}
 	stagePath, err := transferStagePath(targetPath, transferID)
 	if err != nil {
-		return sftpTransferResult{}, err
+		return nil, err
 	}
 	length := int64(len(data))
 
 	u.lock.Lock()
 	if u.closed.Load() {
 		u.lock.Unlock()
-		return sftpTransferResult{}, os.ErrClosed
+		return nil, os.ErrClosed
 	}
 	if err := u.conn.CheckUploadSize(targetPath, totalSize); err != nil {
 		u.lock.Unlock()
-		return sftpTransferResult{}, err
+		return nil, err
 	}
 	file, committedBytes, cached, err := u.writeHandleLocked(transferID, stagePath, offset)
 	if err != nil {
 		u.lock.Unlock()
-		return sftpTransferResult{}, err
+		return nil, err
 	}
 	if committedBytes > totalSize {
 		u.lock.Unlock()
-		return sftpTransferResult{}, fmt.Errorf("file transfer chunk offset is out of order")
+		return nil, fmt.Errorf("file transfer chunk offset is out of order")
 	}
 	duplicate := offset < committedBytes
 	if !duplicate {
@@ -642,12 +646,12 @@ func (u *sftpVolume) writeTransferChunk(transferID, targetPath string, totalSize
 			next = u.transferWrite.nextAccept()
 			if len(u.transferWrite.inFlight) >= 2 {
 				u.lock.Unlock()
-				return sftpTransferResult{}, fmt.Errorf("file transfer write pipeline full")
+				return nil, fmt.Errorf("file transfer write pipeline full")
 			}
 		}
 		if offset != next {
 			u.lock.Unlock()
-			return sftpTransferResult{}, fmt.Errorf("file transfer chunk offset is out of order")
+			return nil, fmt.Errorf("file transfer chunk offset is out of order")
 		}
 		if cached && u.transferWrite != nil {
 			u.transferWrite.inFlight[offset] = length
@@ -658,38 +662,40 @@ func (u *sftpVolume) writeTransferChunk(transferID, targetPath string, totalSize
 	}
 	u.lock.Unlock()
 
-	closeUncached := !cached
-	defer func() {
-		if closeUncached {
-			if closeErr := file.Close(); err == nil && closeErr != nil {
-				result, err = sftpTransferResult{}, closeErr
+	return func() (result sftpTransferResult, err error) {
+		closeUncached := !cached
+		defer func() {
+			if closeUncached {
+				if closeErr := file.Close(); err == nil && closeErr != nil {
+					result, err = sftpTransferResult{}, closeErr
+				}
 			}
-		}
-	}()
+		}()
 
-	if duplicate {
-		existing := make([]byte, len(data))
-		n, readErr := file.ReadAt(existing, offset)
-		if readErr != nil && readErr != io.EOF {
+		if duplicate {
+			existing := make([]byte, len(data))
+			n, readErr := file.ReadAt(existing, offset)
+			if readErr != nil && readErr != io.EOF {
+				u.finishWrite(cached, false, nil)
+				return sftpTransferResult{}, readErr
+			}
+			if n != len(data) || !strings.EqualFold(sha256Hex(existing), expectedSHA256) {
+				u.finishWrite(cached, false, nil)
+				return sftpTransferResult{}, fmt.Errorf("file transfer duplicate chunk does not match")
+			}
 			u.finishWrite(cached, false, nil)
-			return sftpTransferResult{}, readErr
+			return sftpTransferResult{TransferID: transferID, CommittedBytes: committedBytes, TotalBytes: totalSize, State: "ready", Duplicate: true}, nil
 		}
-		if n != len(data) || !strings.EqualFold(sha256Hex(existing), expectedSHA256) {
-			u.finishWrite(cached, false, nil)
-			return sftpTransferResult{}, fmt.Errorf("file transfer duplicate chunk does not match")
+		n, writeErr := file.WriteAt(data, offset)
+		if writeErr == nil && n != len(data) {
+			writeErr = io.ErrShortWrite
 		}
-		u.finishWrite(cached, false, nil)
-		return sftpTransferResult{TransferID: transferID, CommittedBytes: committedBytes, TotalBytes: totalSize, State: "ready", Duplicate: true}, nil
-	}
-	n, writeErr := file.WriteAt(data, offset)
-	if writeErr == nil && n != len(data) {
-		writeErr = io.ErrShortWrite
-	}
-	committedBytes, err = u.completeWrite(cached, offset, length, chunkSum, writeErr)
-	if err != nil {
-		return sftpTransferResult{}, err
-	}
-	return sftpTransferResult{TransferID: transferID, CommittedBytes: committedBytes, TotalBytes: totalSize, State: "ready"}, nil
+		committedBytes, err = u.completeWrite(cached, offset, length, chunkSum, writeErr)
+		if err != nil {
+			return sftpTransferResult{}, err
+		}
+		return sftpTransferResult{TransferID: transferID, CommittedBytes: committedBytes, TotalBytes: totalSize, State: "ready"}, nil
+	}, nil
 }
 
 func (u *sftpVolume) completeWrite(cached bool, offset, length int64, chunkSum [32]byte, writeErr error) (int64, error) {
