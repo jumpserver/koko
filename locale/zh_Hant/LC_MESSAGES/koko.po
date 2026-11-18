@@ -1309,8 +1309,8 @@ msgstr "MFA 驗證碼已傳送。"
 msgid "Enter the MFA code."
 msgstr "請輸入 MFA 驗證碼。"
 
-msgid "Approval is required. Submit a request? (y/n): "
-msgstr "本次連線需要審批，是否申請？ (y/n): "
+msgid "Approval is required. Submit a request? (Y/n): "
+msgstr "本次連線需要審批，是否申請？ (Y/n): "
 
 msgid "Submitting approval request..."
 msgstr "正在提交審批申請..."

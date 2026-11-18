@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -247,6 +248,9 @@ func connectSelectedAsset(conn proxy.UserConnection, jmsService *service.JMServi
 	}
 
 	if err := completeConnectionACL(conn.Context(), jmsService, tokenInfo.ID, conn, i18nLang); err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, io.EOF) {
+			return false, "", false
+		}
 		return false, connectionACLErrorMessage(i18nLang, err), false
 	}
 	if conn.Context().Err() != nil {

@@ -1309,8 +1309,8 @@ msgstr "Код MFA отправлен."
 msgid "Enter the MFA code."
 msgstr "Введите код MFA."
 
-msgid "Approval is required. Submit a request? (y/n): "
-msgstr "Требуется согласование. Отправить заявку? (y/n): "
+msgid "Approval is required. Submit a request? (Y/n): "
+msgstr "Требуется согласование. Отправить заявку? (Y/n): "
 
 msgid "Submitting approval request..."
 msgstr "Отправка заявки на согласование..."

@@ -1309,8 +1309,8 @@ msgstr "MFA コードを送信しました。"
 msgid "Enter the MFA code."
 msgstr "MFA コードを入力してください。"
 
-msgid "Approval is required. Submit a request? (y/n): "
-msgstr "承認が必要です。申請しますか？ (y/n): "
+msgid "Approval is required. Submit a request? (Y/n): "
+msgstr "承認が必要です。申請しますか？ (Y/n): "
 
 msgid "Submitting approval request..."
 msgstr "承認を申請しています..."
