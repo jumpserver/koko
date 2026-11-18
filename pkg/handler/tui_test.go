@@ -2063,8 +2063,8 @@ func TestAssetTUIMultiSessionImmersiveMode(t *testing.T) {
 	}
 	select {
 	case window := <-connection.winch:
-		if window.Height != 21 {
-			t.Fatalf("restored session height is %d, want 21", window.Height)
+		if window.Height != 22 {
+			t.Fatalf("restored session height is %d, want 22", window.Height)
 		}
 	default:
 		t.Fatal("leaving immersive mode did not restore the session size")
@@ -2072,20 +2072,14 @@ func TestAssetTUIMultiSessionImmersiveMode(t *testing.T) {
 	manager.setCommandMode(false)
 	select {
 	case window := <-connection.winch:
-		if window.Height != 22 {
-			t.Fatalf("focused session height is %d, want 22", window.Height)
-		}
+		t.Fatalf("leaving command mode unexpectedly resized the session: %+v", window)
 	default:
-		t.Fatal("entering the session did not expand its operation area")
 	}
 	manager.setCommandMode(true)
 	select {
 	case window := <-connection.winch:
-		if window.Height != 21 {
-			t.Fatalf("session-window height is %d, want 21", window.Height)
-		}
+		t.Fatalf("entering command mode unexpectedly resized the session: %+v", window)
 	default:
-		t.Fatal("activating the session window did not reserve the tab row")
 	}
 	if assetTUIMultiHintDuration != 5*time.Second {
 		t.Fatalf("immersive hint duration is %s, want 5s", assetTUIMultiHintDuration)

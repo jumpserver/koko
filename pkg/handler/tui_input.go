@@ -132,11 +132,8 @@ func (m *assetTUIMultiSessionManager) restoreEscape(state assetTUIEscapeState) b
 	}
 	m.commandMode = true
 	state.session.scrollOffset = state.scrollOffset
-	sessions := append([]*assetTUIMultiSession(nil), m.sessions...)
-	width, height := m.width, assetTUIMultiSessionHeight(m.height, m.immersive, m.commandMode)
 	active := m.viewActive
 	m.mu.Unlock()
-	resizeAssetTUIMultiSessions(sessions, width, height)
 	if active {
 		m.renderCurrentLocked()
 	}
