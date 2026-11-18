@@ -23,6 +23,7 @@ type WrapperSession struct {
 	readResetMu     sync.Mutex
 	readStateMu     sync.Mutex
 	readInterrupted bool
+	inputTail       []byte
 
 	closed chan struct{}
 
@@ -80,8 +81,23 @@ func (w *WrapperSession) Read(p []byte) (int, error) {
 		w.readInterrupted = false
 		n, err = 0, io.ErrClosedPipe
 	}
+	if n > 0 {
+		data := append(w.inputTail, p[:n]...)
+		w.inputTail = append([]byte(nil), data[assetTUIInputBoundary(data):]...)
+	}
 	w.readStateMu.Unlock()
 	return n, err
+}
+
+// Keep an incomplete sequence across the asset-list reader's shutdown. Its
+// prefix may already have reached Bubble Tea, but its tail still belongs to
+// that UI event, not to the newly connected remote shell.
+func (w *WrapperSession) takeInputTail() []byte {
+	w.readStateMu.Lock()
+	defer w.readStateMu.Unlock()
+	tail := w.inputTail
+	w.inputTail = nil
+	return tail
 }
 
 func (w *WrapperSession) Close() error {

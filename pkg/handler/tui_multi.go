@@ -339,16 +339,94 @@ func (m *assetTUIMultiSessionManager) Run(startInCommandMode bool) error {
 	m.activate(startInCommandMode)
 	defer m.deactivate()
 
-	buffer := make([]byte, 8192)
+	tail := m.physical.takeInputTail()
+	inheritedTail := len(tail) > 0
+	var lateMouse *assetTUIEscapeState
+	reads, stopRead := m.readInput()
+	defer stopRead()
+	escapeTimer := time.NewTimer(assetTUIEscapeTimeout)
+	escapeTimer.Stop()
+	defer escapeTimer.Stop()
 	for {
-		n, err := m.physical.Read(buffer)
+		var escape <-chan time.Time
+		if lateMouse == nil && !inheritedTail && len(tail) == 1 && tail[0] == 0x1b {
+			escapeTimer.Reset(assetTUIEscapeTimeout)
+			escape = escapeTimer.C
+		}
+		var buffer []byte
+		var err error
+		select {
+		case input := <-reads:
+			escapeTimer.Stop()
+			err = input.err
+			if len(input.data) > 0 && m.forwardZmodemInput(input.data) {
+				// Do not replay a prior UI prefix into binary transfer data.
+				tail = nil
+				inheritedTail = false
+				lateMouse = nil
+				if err != nil {
+					return err
+				}
+				continue
+			}
+			buffer = append(tail, input.data...)
+			if lateMouse != nil {
+				size, incomplete := assetTUILateMouse(buffer)
+				if incomplete {
+					tail = bytes.Clone(buffer)
+					if err != nil {
+						return err
+					}
+					continue
+				}
+				if size > 0 {
+					if !lateMouse.commandMode {
+						// The Escape has already reached the remote application.
+						// Only an application still requesting mouse gets its tail.
+						if !m.isCommandMode() && m.remoteMouseTracking() {
+							m.forward(buffer[1:size])
+						}
+						buffer = buffer[size:]
+					} else if !m.restoreEscape(*lateMouse) {
+						buffer = buffer[size:]
+					}
+				} else {
+					buffer = buffer[1:]
+				}
+				lateMouse = nil
+			}
+			if inheritedTail {
+				// Finish and discard the old view's event, rather than replaying
+				// any part of it into the newly selected remote application.
+				size := assetTUIInputSequenceLength(buffer)
+				if size == 0 {
+					tail = bytes.Clone(buffer)
+					if err != nil {
+						return err
+					}
+					continue
+				}
+				buffer = buffer[size:]
+			}
+			boundary := assetTUIInputBoundary(buffer)
+			tail = bytes.Clone(buffer[boundary:])
+			buffer = buffer[:boundary]
+			inheritedTail = false
+		case <-escape:
+			state := m.escapeState()
+			lateMouse = &state
+			buffer = tail
+			tail = []byte{0x1b}
+			inheritedTail = false
+		}
+		n := len(buffer)
 		m.mu.RLock()
 		returnToAssets := m.returnToAssets
 		m.mu.RUnlock()
 		if returnToAssets {
 			return nil
 		}
-		if n > 0 && !m.forwardZmodemInput(buffer[:n]) {
+		if n > 0 {
 			pending := make([]byte, 0, n)
 			flush := func() {
 				if len(pending) == 0 {
@@ -363,7 +441,7 @@ func (m *assetTUIMultiSessionManager) Run(startInCommandMode bool) error {
 					if m.isCommandMode() {
 						flush()
 						m.handleMouse(event)
-					} else {
+					} else if m.remoteMouseTracking() {
 						pending = append(pending, buffer[index:index+consumed]...)
 					}
 					index += consumed - 1
@@ -613,7 +691,7 @@ func assetTUIMultiMouse(data []byte) (assetTUIMultiMouseEvent, int) {
 		return assetTUIMultiMouseEvent{}, 0
 	}
 	end := -1
-	for index := 3; index < min(len(data), 32); index++ {
+	for index := 3; index < min(len(data), assetTUIInputSequenceLimit); index++ {
 		if data[index] == 'M' || data[index] == 'm' {
 			end = index
 			break
@@ -1470,6 +1548,29 @@ func (m *assetTUIMultiSessionManager) forward(data []byte) {
 		session.screen.PreserveNextClear()
 	}
 	_ = session.conn.sendInput(data)
+}
+
+// Koko enables mouse reporting for its own views. Late releases from those
+// views must not reach a shell, but applications that explicitly requested
+// mouse input (for example vim or tmux) still receive complete mouse events.
+func (m *assetTUIMultiSessionManager) remoteMouseTracking() bool {
+	m.mu.RLock()
+	if len(m.sessions) == 0 {
+		m.mu.RUnlock()
+		return false
+	}
+	screen := m.sessions[max(0, min(m.active, len(m.sessions)-1))].screen
+	m.mu.RUnlock()
+	if screen == nil {
+		return false
+	}
+	screen.mu.Lock()
+	defer screen.mu.Unlock()
+	if screen.closed || screen.styledTerminal == nil {
+		return false
+	}
+	enabled, err := screen.styledTerminal.MouseTracking()
+	return err == nil && enabled
 }
 
 func (s *assetTUIMultiScreen) preserveCurrentHistoryLocked() error {
