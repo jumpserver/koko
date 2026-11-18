@@ -76,6 +76,7 @@ type assetTUIMultiSessionManager struct {
 	sessions           []*assetTUIMultiSession
 	active             int
 	viewActive         bool
+	returnToAssets     bool
 	commandMode        bool
 	immersive          bool
 	immersiveHint      bool
@@ -226,10 +227,11 @@ func (m *assetTUIMultiSessionManager) connect(session *assetTUIMultiSession, cli
 		maxManualPasswordAttempts)
 	failure := ""
 	shown := false
+	connected := false
 	if err := srvconn.IsSupportedProtocol(connection.protocol); err != nil {
 		failure = err.Error()
 	} else {
-		_, failure, shown = connectSelectedAsset(
+		connected, failure, shown = connectSelectedAsset(
 			session.conn, client, m.handler.user,
 			connection.asset, connection.account, connection.protocol, i18nLang,
 			func() error {
@@ -240,10 +242,46 @@ func (m *assetTUIMultiSessionManager) connect(session *assetTUIMultiSession, cli
 			},
 		)
 	}
+	if !connected && failure == "" {
+		m.cancelConnection(session)
+		return
+	}
 	if failure != "" && !shown && m.hasSession(session) {
 		m.appendOutput(session, []byte(utils.CharNewLine+utils.WrapperWarn(failure)))
 	}
 	m.finish(session, failure != "")
+}
+
+func (m *assetTUIMultiSessionManager) cancelConnection(session *assetTUIMultiSession) {
+	m.outputMu.Lock()
+	defer m.outputMu.Unlock()
+	m.mu.Lock()
+	for index, current := range m.sessions {
+		if current != session {
+			continue
+		}
+		returnToAssets := index == m.active && m.viewActive
+		m.sessions = append(m.sessions[:index], m.sessions[index+1:]...)
+		if m.active > index || m.active >= len(m.sessions) {
+			m.active = max(0, m.active-1)
+		}
+		if returnToAssets {
+			m.returnToAssets = true
+		}
+		active := m.viewActive
+		m.mu.Unlock()
+		_ = session.conn.Close()
+		_ = session.screen.Close()
+		if returnToAssets {
+			// Wake Run without closing SSH; outputMu keeps the next UI reader
+			// from starting before the interrupt has completed.
+			_ = m.physical.InterruptRead()
+		} else if active {
+			m.renderCurrentLocked()
+		}
+		return
+	}
+	m.mu.Unlock()
 }
 
 func (m *assetTUIMultiSessionManager) hasSession(session *assetTUIMultiSession) bool {
@@ -304,6 +342,12 @@ func (m *assetTUIMultiSessionManager) Run(startInCommandMode bool) error {
 	buffer := make([]byte, 8192)
 	for {
 		n, err := m.physical.Read(buffer)
+		m.mu.RLock()
+		returnToAssets := m.returnToAssets
+		m.mu.RUnlock()
+		if returnToAssets {
+			return nil
+		}
 		if n > 0 && !m.forwardZmodemInput(buffer[:n]) {
 			pending := make([]byte, 0, n)
 			flush := func() {
@@ -1274,6 +1318,7 @@ func (m *assetTUIMultiSessionManager) activate(commandMode bool) {
 	m.outputMu.Lock()
 	m.mu.Lock()
 	m.viewActive = true
+	m.returnToAssets = false
 	m.commandMode = commandMode
 	m.immersive = false
 	m.immersiveHint = false
@@ -1326,6 +1371,7 @@ func (m *assetTUIMultiSessionManager) deactivate() {
 	m.outputMu.Lock()
 	m.mu.Lock()
 	m.viewActive = false
+	m.returnToAssets = false
 	m.commandMode = false
 	m.immersive = false
 	m.immersiveHint = false

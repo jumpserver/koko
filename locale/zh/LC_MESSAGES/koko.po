@@ -1310,8 +1310,8 @@ msgstr "MFA 验证码已发送。"
 msgid "Enter the MFA code."
 msgstr "请输入 MFA 验证码。"
 
-msgid "Approval is required. Submit a request? (y/n): "
-msgstr "本次连接需要审批，是否提交申请？(y/n)："
+msgid "Approval is required. Submit a request? (Y/n): "
+msgstr "本次连接需要审批，是否提交申请？(Y/n)："
 
 msgid "Submitting approval request..."
 msgstr "正在提交审批申请…"
