@@ -83,6 +83,8 @@ type assetTUIDialog struct {
 	protocolIndex     int
 	scrollbarDragging bool
 	scrollbarGrab     int
+	lastClickAccount  int
+	lastClickAt       time.Time
 }
 
 type assetTUILanguageDialog struct {
@@ -253,6 +255,9 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseMsg:
 		return m.updateMouse(tea.MouseEvent(msg))
 	case tea.KeyMsg:
+		if m.dialog != nil {
+			m.dialog.lastClickAt = time.Time{}
+		}
 		if m.quitDialog {
 			return m.updateQuitDialogKey(msg)
 		}
@@ -601,12 +606,13 @@ func (m *assetTUI) openAssetDialog(index int, multiWindow bool) (tea.Model, tea.
 }
 
 func newAssetTUIDialog(asset model.PermAsset, accounts []model.PermAccount, protocols []string) *assetTUIDialog {
-	dialog := &assetTUIDialog{asset: asset, accounts: accounts, protocols: protocols}
+	dialog := &assetTUIDialog{asset: asset, accounts: accounts, protocols: protocols, lastClickAccount: -1}
 	dialog.filterAccounts()
 	return dialog
 }
 
 func (d *assetTUIDialog) filterAccounts() {
+	d.lastClickAt = time.Time{}
 	query := strings.ToLower(strings.TrimSpace(string(d.accountSearch)))
 	d.accountMatches = d.accountMatches[:0]
 	for i := range d.accounts {
@@ -1816,6 +1822,8 @@ func (m *assetTUI) updateDialogMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) 
 	if event.Action != tea.MouseActionPress {
 		return m, nil
 	}
+	lastClickAccount, lastClickAt := dialog.lastClickAccount, dialog.lastClickAt
+	dialog.lastClickAt = time.Time{}
 	if event.X < geometry.x || event.X >= geometry.x+geometry.width ||
 		event.Y < geometry.y || event.Y >= geometry.y+geometry.height {
 		if event.Button == tea.MouseButtonLeft {
@@ -1876,6 +1884,13 @@ func (m *assetTUI) updateDialogMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) 
 	start := dialog.accountListStart(geometry.rows)
 	if position := start + row; position < total {
 		dialog.accountIndex = position
+		account := dialog.accountMatches[position]
+		now := time.Now()
+		if lastClickAccount == account && now.Sub(lastClickAt) <= tuiDoubleClickInterval {
+			return m.chooseDialogConnection()
+		}
+		dialog.lastClickAccount = account
+		dialog.lastClickAt = now
 	}
 	return m, nil
 }

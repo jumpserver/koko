@@ -23,7 +23,7 @@ func (h *webSftp) handleTransferRead(request *webSftpRequest, response *Message)
 	h.ws.SendMessage(response)
 }
 
-func (h *webSftp) handleTransferMutation(request *webSftpRequest, msg *Message, response *Message) {
+func (h *webSftp) handleTransferMutation(request *webSftpRequest, msg *Message, response *Message, write sftpTransferWrite) {
 	var (
 		result sftpTransferResult
 		err    error
@@ -32,7 +32,7 @@ func (h *webSftp) handleTransferMutation(request *webSftpRequest, msg *Message, 
 	case "transfer_prepare":
 		result, err = h.volume.prepareTransfer(request.TransferID, request.Path, request.Size, request.ConflictPolicy)
 	case "transfer_write":
-		result, err = h.volume.writeTransferChunk(request.TransferID, request.Path, request.Size, request.OffSet, request.SHA256, msg.Raw)
+		result, err = write()
 	case "transfer_status":
 		result, err = h.volume.transferStatus(request.TransferID, request.Path, request.Size)
 	case "transfer_commit":

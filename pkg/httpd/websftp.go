@@ -94,10 +94,12 @@ func (h *webSftp) HandleMessage(msg *Message) {
 	}
 	h.pending.Add(1)
 	h.stateMu.Unlock()
+	// Register upload chunks in receive order before workers can be rescheduled.
+	dispatch := h.prepareDispatch(*msg)
 	go func() {
 		defer h.pending.Done()
 		defer func() { <-h.requests }()
-		h.dispatch(*msg)
+		dispatch()
 	}()
 }
 
@@ -201,7 +203,7 @@ type webSftpSaveCapability struct {
 	MaxBytes        int64 `json:"max_bytes"`
 }
 
-func (h *webSftp) dispatch(msg Message) {
+func (h *webSftp) prepareDispatch(msg Message) func() {
 	message := Message{
 		Id:   msg.Id,
 		Cmd:  msg.Cmd,
@@ -212,40 +214,46 @@ func (h *webSftp) dispatch(msg Message) {
 	err := json.Unmarshal([]byte(msg.Data), request)
 	if err != nil {
 		message.Err = err.Error()
-		h.ws.SendMessage(&message)
-		return
+		return func() { h.ws.SendMessage(&message) }
 	}
 	if h.sessionExpired() {
 		message.Err = i18n.NewLang(h.ws.langCode).T("FileManagementExpired")
 		message.Type = CLOSE
-		h.ws.SendMessage(&message)
-		return
+		return func() { h.ws.SendMessage(&message) }
 	}
 	if err := h.checkPermission(msg.Cmd); err != nil {
-		h.sendError(&message, err)
-		return
+		return func() { h.sendError(&message, err) }
 	}
-	switch msg.Cmd {
-	case "list":
-		h.handleList(request, &message)
-	case "download":
-		h.handleDownload(request, &message)
-	case "upload":
-		h.handleUpload(request, &msg, &message)
-	case "transfer_read":
-		h.handleTransferRead(request, &message)
-	case "transfer_prepare", "transfer_write", "transfer_status", "transfer_commit", "transfer_cancel":
-		h.handleTransferMutation(request, &msg, &message)
-	case "save":
-		h.handleSave(request, &msg, &message)
-	case "rm":
-		h.handleAction(h.rm, request, &message)
-	case "rename":
-		h.handleAction(h.rename, request, &message)
-	case "mkdir":
-		h.handleAction(h.mkdir, request, &message)
-	default:
-		h.sendError(&message, fmt.Errorf("Unknown command"))
+	var write sftpTransferWrite
+	if msg.Cmd == "transfer_write" {
+		write, err = h.volume.prepareTransferWrite(request.TransferID, request.Path, request.Size, request.OffSet, request.SHA256, msg.Raw)
+		if err != nil {
+			return func() { h.sendError(&message, err) }
+		}
+	}
+	return func() {
+		switch msg.Cmd {
+		case "list":
+			h.handleList(request, &message)
+		case "download":
+			h.handleDownload(request, &message)
+		case "upload":
+			h.handleUpload(request, &msg, &message)
+		case "transfer_read":
+			h.handleTransferRead(request, &message)
+		case "transfer_prepare", "transfer_write", "transfer_status", "transfer_commit", "transfer_cancel":
+			h.handleTransferMutation(request, &msg, &message, write)
+		case "save":
+			h.handleSave(request, &msg, &message)
+		case "rm":
+			h.handleAction(h.rm, request, &message)
+		case "rename":
+			h.handleAction(h.rename, request, &message)
+		case "mkdir":
+			h.handleAction(h.mkdir, request, &message)
+		default:
+			h.sendError(&message, fmt.Errorf("Unknown command"))
+		}
 	}
 }
 

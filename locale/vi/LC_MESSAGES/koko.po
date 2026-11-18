@@ -1278,8 +1278,8 @@ msgstr "Đã gửi mã MFA."
 msgid "Enter the MFA code."
 msgstr "Nhập mã MFA."
 
-msgid "Approval is required. Submit a request? (y/n): "
-msgstr "Cần phê duyệt. Gửi yêu cầu? (y/n): "
+msgid "Approval is required. Submit a request? (Y/n): "
+msgstr "Cần phê duyệt. Gửi yêu cầu? (Y/n): "
 
 msgid "Submitting approval request..."
 msgstr "Đang gửi yêu cầu phê duyệt..."

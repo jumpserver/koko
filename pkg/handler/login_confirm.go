@@ -150,7 +150,7 @@ func completeConnectionACL(ctx context.Context, core *service.JMService, tokenID
 		}
 		return strings.TrimSpace(line), err
 	}
-	confirm := func(prompt string) error {
+	confirm := func(prompt string, defaultYes bool) error {
 		for {
 			answer, err := readLine(prompt)
 			if err != nil {
@@ -159,7 +159,12 @@ func completeConnectionACL(ctx context.Context, core *service.JMService, tokenID
 			switch strings.ToLower(answer) {
 			case "y", "yes":
 				return nil
-			case "", "n", "no":
+			case "":
+				if defaultYes {
+					return nil
+				}
+				return context.Canceled
+			case "n", "no":
 				return context.Canceled
 			default:
 				printLine(lang.T("Enter y to continue or n to cancel."))
@@ -285,7 +290,7 @@ func completeConnectionACL(ctx context.Context, core *service.JMService, tokenID
 			body["mfa_type"], body["mfa_code"] = mfaMethod, code
 		case "review":
 			if state.Ticket == nil && state.TicketInfo.TicketDetailUrl == "" {
-				if err := confirm("Approval is required. Submit a request? (y/n): "); err != nil {
+				if err := confirm("Approval is required. Submit a request? (Y/n): ", true); err != nil {
 					return err
 				}
 				printLine(lang.T("Submitting approval request..."))
@@ -301,7 +306,7 @@ func completeConnectionACL(ctx context.Context, core *service.JMService, tokenID
 			}
 		case "push_account":
 			if state.ACL.Preparation.Status == "" {
-				if err := confirm("Push the same-name account before connecting? (y/n): "); err != nil {
+				if err := confirm("Push the same-name account before connecting? (y/n): ", false); err != nil {
 					return err
 				}
 				printLine(lang.T("Starting account push..."))
