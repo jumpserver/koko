@@ -55,6 +55,15 @@ type WinRMClient struct {
 }
 
 func NewWinRMClient(config WinRMConfig) (*WinRMClient, error) {
+	return NewWinRMClientContext(context.Background(), config)
+}
+
+// The connect context bounds only the handshake; the returned runspace is
+// owned by its caller and remains alive until Close.
+func NewWinRMClientContext(connectCtx context.Context, config WinRMConfig) (*WinRMClient, error) {
+	if err := connectCtx.Err(); err != nil {
+		return nil, err
+	}
 	if config.Host == "" || config.Port < 1 || config.Port > 65535 || config.Username == "" || config.Password == "" {
 		return nil, errors.New("WinRM requires a host, valid port, username and password")
 	}
@@ -145,7 +154,7 @@ func NewWinRMClient(config WinRMConfig) (*WinRMClient, error) {
 	}{io.LimitReader(bridge, 2*1024*1024), bridge}, uuid.New())
 	_ = pool.SetMinRunspaces(1)
 	_ = pool.SetMaxRunspaces(1)
-	openCtx, openCancel := context.WithTimeout(ctx, 30*time.Second)
+	openCtx, openCancel := context.WithTimeout(connectCtx, 30*time.Second)
 	defer openCancel()
 	bridge.SetContext(openCtx)
 	if err := backend.Init(openCtx, pool); err != nil {
@@ -170,7 +179,47 @@ func splitWinRMUsername(value string) (username, domain string) {
 	return value, ""
 }
 
-func (c *WinRMClient) Execute(ctx context.Context, command string, output io.Writer) (err error) {
+type WinRMResult struct {
+	Dispatched, Completed, HadErrors bool
+	PipelineState                    string
+	ExitCode                         *int
+}
+
+type winRMCommandOutput struct {
+	io.Writer
+	stderr       io.Writer
+	result       *WinRMResult
+	statusPrefix string
+	statusSeen   bool
+}
+
+// ExecuteCommand preserves protocol completion evidence and separates the error
+// stream for remote Agent audit. The interactive terminal keeps its own output
+// and nonterminating-error behavior through Execute.
+func (c *WinRMClient) ExecuteCommand(ctx context.Context, command string, stdout, stderr io.Writer) (result WinRMResult, err error) {
+	if stdout == nil || stderr == nil {
+		return result, errors.New("WinRM output consumers are required")
+	}
+	output := &winRMCommandOutput{Writer: stdout, stderr: stderr, result: &result}
+	err = c.execute(ctx, command, output, &result)
+	if err == nil && result.Completed {
+		switch {
+		case !output.statusSeen:
+			err = errors.New("PowerShell command completed without execution status")
+		case result.HadErrors:
+			err = errors.New("PowerShell command reported errors; inspect the error output")
+		case result.ExitCode != nil && *result.ExitCode != 0:
+			err = fmt.Errorf("PowerShell native program exited with code %d", *result.ExitCode)
+		}
+	}
+	return result, err
+}
+
+func (c *WinRMClient) Execute(ctx context.Context, command string, output io.Writer) error {
+	return c.execute(ctx, command, output, nil)
+}
+
+func (c *WinRMClient) execute(ctx context.Context, command string, output io.Writer, result *WinRMResult) (err error) {
 	select {
 	case c.permit <- struct{}{}:
 	case <-ctx.Done():
@@ -206,6 +255,12 @@ func (c *WinRMClient) Execute(ctx context.Context, command string, output io.Wri
 		width = max(2, min(4096, c.OutputWidth()))
 	}
 	script := `try { . ([scriptblock]::Create([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('` + encoded + `')))) | Out-String -Stream -Width ` + strconv.Itoa(width) + ` } finally { '` + locationPrefix + `' + (Microsoft.PowerShell.Management\Get-Location).Path }`
+	if commandOutput, audit := output.(*winRMCommandOutput); audit {
+		commandOutput.statusPrefix = "__JMS_EXIT_" + uuid.NewString() + "__"
+		// Reset only per-invocation exit status, so a PowerShell-only command
+		// cannot inherit the previous native program's exit code.
+		script = `$global:LASTEXITCODE = $null; ` + strings.TrimSuffix(script, " }") + `; '` + commandOutput.statusPrefix + `' + $global:LASTEXITCODE }`
+	}
 	pl, err := c.pool.CreatePipeline(script)
 	if err != nil {
 		return err
@@ -218,8 +273,19 @@ func (c *WinRMClient) Execute(ctx context.Context, command string, output io.Wri
 		pl.Fail(err)
 		return err
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if result != nil {
+		// Until the server returns a pipeline state, sending Command may have
+		// created a pipeline even if its response never reaches this process.
+		result.Dispatched = true
+	}
 	reader, _, err := c.backend.PreparePipeline(ctx, pl, base64.StdEncoding.EncodeToString(payload))
 	if err != nil {
+		if result != nil && errors.Is(err, errWinRMAuthentication) {
+			result.Dispatched = false
+		}
 		pl.Fail(err)
 		// A lost Command response may leave a running pipeline with no returned
 		// command ID. An authentication failure sent no SOAP and leaves the
@@ -245,7 +311,7 @@ func (c *WinRMClient) Execute(ctx context.Context, command string, output io.Wri
 		return err
 	}
 	done := make(chan error, 1)
-	go func() { done <- receiveWinRMPipeline(reader, pl) }()
+	go func() { done <- receiveWinRMPipeline(reader, pl, result) }()
 	streams := []<-chan *messages.Message{pl.Output(), pl.Error(), pl.Warning(), pl.Verbose(), pl.Debug(), pl.Progress(), pl.Information()}
 	consumeErr := consumeWinRMStreams(ctx, streams, output, locationPrefix, c.OnLocation)
 	if consumeErr != nil {
@@ -265,7 +331,7 @@ func (c *WinRMClient) Execute(ctx context.Context, command string, output io.Wri
 	return pl.Wait()
 }
 
-func receiveWinRMPipeline(reader io.Reader, pl *pipeline.Pipeline) error {
+func receiveWinRMPipeline(reader io.Reader, pl *pipeline.Pipeline, result *WinRMResult) error {
 	assembler := fragments.NewAssemblerWithLimits(4, 64)
 	sizes := make(map[uint64]int)
 	for {
@@ -313,6 +379,10 @@ func receiveWinRMPipeline(reader io.Reader, pl *pipeline.Pipeline) error {
 		}
 		delete(sizes, fragment.ObjectID)
 		msg, err := messages.Decode(message)
+		var remoteState pipeline.State
+		if err == nil && result != nil && msg.Type == messages.MessageTypePipelineState {
+			remoteState, err = winRMPipelineState(msg.Data)
+		}
 		// Host input and full-screen programs cannot use this line-oriented
 		// session. Reject host calls before the library starts concurrent I/O.
 		if err == nil && msg.Type == messages.MessageTypePipelineHostCall {
@@ -325,7 +395,31 @@ func receiveWinRMPipeline(reader io.Reader, pl *pipeline.Pipeline) error {
 			pl.Fail(err)
 			return err
 		}
+		if result != nil && (remoteState == pipeline.StateCompleted || remoteState == pipeline.StateFailed || remoteState == pipeline.StateStopped) {
+			result.Completed, result.PipelineState = true, remoteState.String()
+		}
 	}
+}
+
+func winRMPipelineState(data []byte) (pipeline.State, error) {
+	deserializer := serialization.NewDeserializer()
+	defer deserializer.Close()
+	values, err := deserializer.Deserialize(data)
+	if err != nil || len(values) != 1 {
+		return 0, errors.New("invalid WinRM pipeline state")
+	}
+	value := values[0]
+	if object, ok := value.(*serialization.PSObject); ok {
+		value = object.Members["PipelineState"]
+		if value == nil {
+			value = object.Properties["PipelineState"]
+		}
+	}
+	state, ok := value.(int32)
+	if !ok || state < 0 || state > int32(pipeline.StateDisconnected) {
+		return 0, errors.New("invalid WinRM pipeline state")
+	}
+	return pipeline.State(state), nil
 }
 
 func consumeWinRMStreams(ctx context.Context, streams []<-chan *messages.Message, output io.Writer, locationPrefix string, onLocation func(context.Context, string)) error {
@@ -335,6 +429,7 @@ func consumeWinRMStreams(ctx context.Context, streams []<-chan *messages.Message
 	for out != nil || errs != nil || warn != nil || verbose != nil || debug != nil || progress != nil || info != nil {
 		var msg *messages.Message
 		var ok bool
+		writer := output
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -345,6 +440,10 @@ func consumeWinRMStreams(ctx context.Context, streams []<-chan *messages.Message
 		case msg, ok = <-errs:
 			if !ok {
 				errs = nil
+			}
+			if commandOutput, audit := output.(*winRMCommandOutput); audit && ok {
+				commandOutput.result.HadErrors = true
+				writer = commandOutput.stderr
 			}
 		case msg, ok = <-warn:
 			if !ok {
@@ -378,6 +477,22 @@ func consumeWinRMStreams(ctx context.Context, streams []<-chan *messages.Message
 			return err
 		}
 		for _, value := range values {
+			if commandOutput, audit := output.(*winRMCommandOutput); audit && writer == output {
+				if text, ok := value.(string); ok && commandOutput.statusPrefix != "" && strings.HasPrefix(text, commandOutput.statusPrefix) {
+					if commandOutput.statusSeen {
+						return errors.New("duplicate WinRM execution status")
+					}
+					commandOutput.statusSeen = true
+					if raw := strings.TrimPrefix(text, commandOutput.statusPrefix); raw != "" {
+						code, err := strconv.Atoi(raw)
+						if err != nil {
+							return errors.New("invalid WinRM process exit code")
+						}
+						commandOutput.result.ExitCode = &code
+					}
+					continue
+				}
+			}
 			if text, ok := value.(string); ok && locationPrefix != "" && strings.HasPrefix(text, locationPrefix) {
 				if onLocation != nil {
 					onLocation(ctx, strings.TrimPrefix(text, locationPrefix))
@@ -394,12 +509,12 @@ func consumeWinRMStreams(ctx context.Context, streams []<-chan *messages.Message
 				if err := ctx.Err(); err != nil {
 					return err
 				}
-				if _, err := fmt.Fprintln(output); err != nil {
+				if _, err := fmt.Fprintln(writer); err != nil {
 					return err
 				}
 				pendingEmptyLines--
 			}
-			if _, err := fmt.Fprintln(output, value); err != nil {
+			if _, err := fmt.Fprintln(writer, value); err != nil {
 				return err
 			}
 			wroteOutput = true
