@@ -509,7 +509,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		switch strings.ToLower(string(b)) {
 		case "y":
 			p.confirmStatus.SetStatus(StatusNone)
-			p.userOutputChan <- []byte("\r\n")
+			p.userOutputChan <- charEnter
 		case "n":
 			p.confirmStatus.SetStatus(StatusNone)
 			p.srvOutputChan <- []byte("\r\n")
