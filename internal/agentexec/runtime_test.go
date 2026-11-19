@@ -42,7 +42,7 @@ func TestIntrospectionDeclaresExecutorCapabilities(t *testing.T) {
 			}
 		}
 		delete(protocols, "ssh")
-		return respond(out, Principal{ContextToken: "context", UserID: "user", OrgID: "org", ClientID: "client", Resource: "https://mcp.example/mcp", AllOrganizations: true})
+		return respond(out, Principal{ContextToken: "context", UserID: "user", ClientID: "client", Resource: "https://mcp.example/mcp", AllOrganizations: true})
 	})}
 	if _, err := r.Introspect(context.Background(), "token", "https://mcp.example/mcp"); err != nil {
 		t.Fatal(err)
@@ -77,7 +77,7 @@ func TestHandoffClaimsOnceAndWaitsForRealTerminal(t *testing.T) {
 			return nil
 		}
 	})
-	p := Principal{OrgID: "org", UserID: "user", ClientID: "client"}
+	p := Principal{UserID: "user", ClientID: "client"}
 	s := &liveSession{owner: owner(p), info: Session{ID: "session", Status: "failed", SessionToken: "capability"}, gate: make(chan struct{}, 1)}
 	r.sessions = map[string]*liveSession{"session": s}
 	if _, err := r.getSession(p, s.info.ID, true); err == nil {
@@ -187,7 +187,7 @@ func TestConfiguredCapacityAboveLegacyCeilings(t *testing.T) {
 
 func TestUnlimitedSessionsStillRequireCoreAuthorization(t *testing.T) {
 	r := fileTestRuntime(t)
-	p := Principal{OrgID: "org", UserID: "user", ClientID: "client"}
+	p := Principal{UserID: "user", ClientID: "client"}
 	r.sessions = map[string]*liveSession{"existing": {owner: owner(p), key: "existing"}}
 	denied := errors.New("Core denied the connection")
 	calls := 0
@@ -267,7 +267,7 @@ func TestFailedConnectionPreservesBoundedHandoffSession(t *testing.T) {
 		}
 		return respond(out, Session{Status: "awaiting_approval", RequiresTerminal: true})
 	})
-	p := Principal{OrgID: "org", UserID: "user", ClientID: "client"}
+	p := Principal{UserID: "user", ClientID: "client"}
 	s := &liveSession{owner: owner(p), info: Session{ID: "session", ActionID: "connect", ExpiresAt: time.Now().Add(time.Minute)}}
 	r.sessions = map[string]*liveSession{s.info.ID: s}
 	if err := r.journal.PutAction(Action{ID: "connect", Kind: "connect_asset", Status: "queued"}, "capability"); err != nil {
@@ -290,12 +290,28 @@ func TestFailedConnectionPreservesBoundedHandoffSession(t *testing.T) {
 }
 
 func TestExpiredSessionCannotExtendIdleLease(t *testing.T) {
-	p := Principal{OrgID: "org", UserID: "user", ClientID: "client"}
+	p := Principal{UserID: "user", ClientID: "client"}
 	last := time.Now().Add(-time.Minute)
 	s := &liveSession{owner: owner(p), info: Session{ID: "expired", Status: "active", ExpiresAt: time.Now().Add(-time.Second)}, lastUsed: last, connection: &assetexec.Connection{}}
 	r := &Runtime{sessions: map[string]*liveSession{"expired": s}}
 	if _, err := r.getSession(p, "expired", true); err == nil || !s.closing || s.lastUsed != last {
 		t.Fatal("expired session was kept alive by another request")
+	}
+}
+
+func TestSessionOwnershipRequiresSameUserAndClient(t *testing.T) {
+	p := Principal{UserID: "user", ClientID: "client"}
+	r := &Runtime{sessions: map[string]*liveSession{
+		"session": {owner: owner(p), info: Session{ID: "session"}},
+	}}
+	for _, item := range []struct {
+		user, client string
+		allowed      bool
+	}{{"user", "client", true}, {"other", "client", false}, {"user", "other", false}} {
+		_, err := r.getSession(Principal{UserID: item.user, ClientID: item.client}, "session", false)
+		if item.allowed != (err == nil) {
+			t.Fatal("session ownership no longer isolates users and clients")
+		}
 	}
 }
 

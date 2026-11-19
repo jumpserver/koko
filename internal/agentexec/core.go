@@ -44,7 +44,6 @@ var publicErrorHints = map[string]string{
 // ContextToken must never be returned to an MCP client or included in logs.
 type Principal struct {
 	UserID           string    `json:"user_id"`
-	OrgID            string    `json:"org_id"`
 	AllOrganizations bool      `json:"all_organizations,omitempty"`
 	ClientID         string    `json:"client_id"`
 	ContextToken     string    `json:"context_token"`

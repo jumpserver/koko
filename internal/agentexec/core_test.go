@@ -137,7 +137,7 @@ func TestTransferDescriptorPreservesExpiryWithoutCredentials(t *testing.T) {
 	}
 }
 
-func TestIntrospectionRequiresCoreOrganization(t *testing.T) {
+func TestIntrospectionRequiresCoreAuthorizedScope(t *testing.T) {
 	resource := "https://jumpserver.example/koko/mcp"
 	r := &Runtime{}
 	r.core = coreFunc(func(_ context.Context, _ string, body, out any) error {
@@ -147,13 +147,6 @@ func TestIntrospectionRequiresCoreOrganization(t *testing.T) {
 		return respond(out, Principal{ContextToken: "context", UserID: "user", ClientID: "client", Resource: resource})
 	})
 	if _, err := r.Introspect(context.Background(), "token", resource); err == nil {
-		t.Fatal("identity without Core-authorized organization was accepted")
-	}
-	r.core = coreFunc(func(_ context.Context, _ string, _ any, out any) error {
-		return respond(out, Principal{ContextToken: "context", UserID: "user", ClientID: "client", Resource: resource,
-			OrgID: "00000000-0000-0000-0000-000000000000"})
-	})
-	if _, err := r.Introspect(context.Background(), "token", resource); err == nil {
 		t.Fatal("identity without all-organization scope was accepted")
 	}
 	r.core = coreFunc(func(_ context.Context, _ string, body, out any) error {
@@ -161,7 +154,7 @@ func TestIntrospectionRequiresCoreOrganization(t *testing.T) {
 			t.Fatal("client must not select an organization for discovery")
 		}
 		return respond(out, Principal{ContextToken: "context", UserID: "user", ClientID: "client", Resource: resource,
-			OrgID: "00000000-0000-0000-0000-000000000000", AllOrganizations: true})
+			AllOrganizations: true})
 	})
 	if p, err := r.Introspect(context.Background(), "token", resource); err != nil || !p.AllOrganizations {
 		t.Fatalf("Core-issued multi-organization scope was lost: %v", err)

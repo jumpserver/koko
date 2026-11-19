@@ -141,7 +141,7 @@ func New(core Core, jms *service.JMService, options Options) (*Runtime, error) {
 	return r, nil
 }
 
-func owner(p Principal) string { return p.OrgID + ":" + p.UserID + ":" + p.ClientID }
+func owner(p Principal) string { return p.UserID + ":" + p.ClientID }
 
 func (r *Runtime) available() error {
 	r.mu.Lock()
@@ -174,7 +174,7 @@ func (r *Runtime) Introspect(ctx context.Context, token, resource string) (p Pri
 		"access_token": token, "resource": resource,
 		"capabilities": map[string]any{"version": 1, "protocols": assetexec.ProtocolModes()},
 	}, &p)
-	if err == nil && (p.ContextToken == "" || p.UserID == "" || p.OrgID == "" || p.ClientID == "" || p.Resource != resource || !p.AllOrganizations) {
+	if err == nil && (p.ContextToken == "" || p.UserID == "" || p.ClientID == "" || p.Resource != resource || !p.AllOrganizations) {
 		err = errors.New("authorization service returned an invalid identity")
 	}
 	return
