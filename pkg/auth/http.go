@@ -9,48 +9,24 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
-	"github.com/jumpserver/koko/pkg/logger"
 )
 
 const (
-	authorizationHeader = "Authorization"
-	dateHeader          = "Date"
-	orgHeader           = "X-JMS-ORG"
+	authorizationHeader       = "Authorization"
+	dateHeader                = "Date"
+	orgHeader                 = "X-JMS-ORG"
+	strictSessionHeader       = "X-JMS-Check-Session-Lock"
+	ContextKeyHTTPAuthHeaders = "CONTEXT_HTTP_AUTH_HEADERS"
+	ContextKeyConnectTicket   = "CONTEXT_CONNECT_TICKET"
 )
 
 func HTTPMiddleSessionAuth(jmsService *service.JMService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		var (
-			err  error
-			user *model.User
-		)
-		reqCookies := ctx.Request.Cookies()
-		var cookies = make(map[string]string)
-		for _, cookie := range reqCookies {
-			cookies[cookie.Name] = cookie.Value
-		}
-		if len(cookies) != 0 {
-			user, err = jmsService.CheckUserCookie(cookies)
-			if err == nil {
-				ctx.Set(ContextKeyUser, user)
-				return
-			}
-
-			logger.Errorf("Check user cookie failed: %s", err)
-		}
-
 		headers := requestAuthHeaders(ctx.Request)
-		if len(headers) != 0 {
-			user, err = jmsService.CheckUserHeaders(headers)
-			if err == nil {
-				ctx.Set(ContextKeyUser, user)
-				return
-			}
-
-			logger.Errorf("Check user bearer failed: %s", err)
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"detail": "authentication failed",
-			})
+		// Explicit credentials must not inherit an unrelated browser session's lock state.
+		// Once selected, a failed credential never falls back to another identity.
+		if headers[authorizationHeader] != "" {
+			checkUserProfile(ctx, jmsService, headers)
 			return
 		}
 
@@ -74,7 +50,25 @@ func HTTPMiddleSessionAuth(jmsService *service.JMService) gin.HandlerFunc {
 				}
 			}
 
-			for key, value := range ticket.Headers {
+			if ticket.Headers[authorizationHeader] == "" && ticket.Headers["Cookie"] == "" {
+				ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+					"detail": "connect ticket credentials missing",
+				})
+				return
+			}
+			// A ticket transports the original login; its cached user is not a new login.
+			if !checkUserProfile(ctx, jmsService, ticket.Headers) {
+				return
+			}
+			if ctx.MustGet(ContextKeyUser).(*model.User).ID != ticket.User.ID {
+				ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+					"detail": "connect ticket identity changed",
+				})
+				return
+			}
+			ctx.Set(ContextKeyConnectTicket, true)
+			for _, key := range []string{authorizationHeader, dateHeader, orgHeader} {
+				value := ticket.Headers[key]
 				if strings.TrimSpace(value) == "" {
 					continue
 				}
@@ -83,7 +77,11 @@ func HTTPMiddleSessionAuth(jmsService *service.JMService) gin.HandlerFunc {
 			if strings.TrimSpace(ctx.Request.Header.Get(orgHeader)) == "" && ticket.OrgID != "" {
 				ctx.Request.Header.Set(orgHeader, ticket.OrgID)
 			}
-			ctx.Set(ContextKeyUser, ticket.User)
+			return
+		}
+		if cookies := ctx.Request.Header.Get("Cookie"); cookies != "" {
+			headers["Cookie"] = cookies
+			checkUserProfile(ctx, jmsService, headers)
 			return
 		}
 
@@ -91,6 +89,43 @@ func HTTPMiddleSessionAuth(jmsService *service.JMService) gin.HandlerFunc {
 		ctx.Redirect(http.StatusFound, loginUrl)
 		ctx.Abort()
 	}
+}
+
+func checkUserProfile(ctx *gin.Context, jmsService *service.JMService, headers map[string]string) bool {
+	// CloneClient clears component credentials. Only Core receives these user credentials.
+	client := jmsService.CloneClient()
+	for _, key := range []string{authorizationHeader, dateHeader, orgHeader, "Cookie"} {
+		if value := headers[key]; value != "" {
+			client.SetHeader(key, value)
+		}
+	}
+	client.SetHeader(strictSessionHeader, "1")
+	var profile struct {
+		model.User
+		Code string `json:"code"`
+	}
+	response, err := client.Get(service.UserProfileURL, &profile)
+	if err == nil && response != nil && response.StatusCode == http.StatusOK && profile.ID != "" {
+		ctx.Set(ContextKeyUser, &profile.User)
+		// Kept in memory for issuing connection tickets; never returned to the browser or logged.
+		ctx.Set(ContextKeyHTTPAuthHeaders, cloneHeaders(headers))
+		return true
+	}
+	status := http.StatusBadGateway
+	if response != nil {
+		switch response.StatusCode {
+		case http.StatusUnauthorized, http.StatusForbidden, http.StatusLocked:
+			status = response.StatusCode
+		case http.StatusOK:
+			status = http.StatusUnauthorized
+		}
+	}
+	body := gin.H{"detail": "authentication failed"}
+	if profile.Code == "web_session_locked" || profile.Code == "client_locked" {
+		body = gin.H{"code": profile.Code, "locked": true}
+	}
+	ctx.AbortWithStatusJSON(status, body)
+	return false
 }
 
 func RequestAuthHeaders(req *http.Request) map[string]string {

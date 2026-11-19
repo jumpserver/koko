@@ -35,6 +35,11 @@ func agentContextSnapshot(
 	if sessionKind == "file" {
 		commandLanguage = "sftp"
 	}
+	if token.Platform.Type.Value == "oceanbase" && protocol == srvconn.ProtocolMySQL {
+		if setting, ok := token.Platform.GetProtocolSetting(protocol); ok && setting.Setting["tenant_mode"] == "oracle" {
+			dialect = "oracle"
+		}
+	}
 	return sessiontools.ContextSnapshot{
 		SessionKind: sessionKind, InteractionMode: "live",
 		CommandLanguage: commandLanguage, Dialect: dialect,

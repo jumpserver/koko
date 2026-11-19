@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/LeeEirc/tclientlib"
 	"github.com/LeeEirc/terminalparser"
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
@@ -82,6 +81,10 @@ type Parser struct {
 	command       string
 	output        string
 	cmdCreateDate time.Time
+	commandSource int // Also used by deferred records from multi-line input.
+	inputSource   int
+
+	lastInputWasCR bool
 
 	cmdFilterACLs model.CommandACLs
 	closed        chan struct{}
@@ -312,7 +315,7 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 	if bytes.LastIndex(b, charEnter) == 0 {
 		return true
 	}
-	if len(b) > 1 && bytes.HasSuffix(b, charLF) && isLinux(p.platform) {
+	if bytes.HasSuffix(b, charLF) && isLinux(p.platform) {
 		return true
 	}
 	// 多行命令，会有 \r 字符，此处也需要拦截
@@ -326,6 +329,7 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 		srvconn.ProtocolClickHouse,
 		srvconn.ProtocolOracle,
 		srvconn.ProtocolDameng,
+		srvconn.ProtocolDB2,
 		srvconn.ProtocolSQLServer:
 		// terminal 右键粘贴时，没有 \r 只有 \n
 		if bytes.ContainsRune(b, '\n') && bytes.ContainsRune(b, ';') {
@@ -337,6 +341,11 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 
 // parseInputState 切换用户输入状态, 并结算命令和结果
 func (p *Parser) parseInputState(b []byte) []byte {
+	lastInputWasCR := p.lastInputWasCR
+	if len(b) > 0 {
+		p.lastInputWasCR = false
+	}
+
 	if p.awaitingZmodemSrvOO {
 		// 下载结束阶段客户端回给远端的 ZFIN 必须原样通过，不能当作 shell 命令解析。
 		return b
@@ -500,7 +509,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		switch strings.ToLower(string(b)) {
 		case "y":
 			p.confirmStatus.SetStatus(StatusNone)
-			p.userOutputChan <- []byte("\r\n")
+			p.userOutputChan <- []byte(p.confirmStatus.data)
 		case "n":
 			p.confirmStatus.SetStatus(StatusNone)
 			p.srvOutputChan <- []byte("\r\n")
@@ -565,10 +574,18 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		}
 		return nil
 	}
+	// A split CRLF must not settle the same command twice before remote echo.
+	if lastInputWasCR && bytes.Equal(b, charLF) && isLinux(p.platform) {
+		return b
+	}
+	if len(b) > 0 {
+		p.lastInputWasCR = bytes.HasSuffix(b, charEnter)
+	}
 	if currentCmd, ok1 := p.TerminalParser.WriteInput(b); ok1 {
 		p.sendCommandRecord()
 		p.command = currentCmd
 		p.cmdCreateDate = time.Now()
+		p.commandSource = p.inputSource
 		if decision, ok := p.consumeAgentToolGrant(currentCmd); ok {
 			p.applyAgentToolGrant(decision)
 		} else if rule, cmd, ok := p.IsMatchCommandRule(currentCmd); ok {
@@ -595,6 +612,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				p.setCurrentCmdStatusLevel(model.WarningLevel)
 			case model.ActionNotifyAndWarn:
 				p.confirmStatus.SetStatus(StatusQuery)
+				p.confirmStatus.SetData(string(b))
 				p.setCurrentCmdFilterRule(rule)
 				p.setCurrentCmdStatusLevel(model.WarningLevel)
 				p.srvOutputChan <- []byte("\r\n" + WarnWaitMsg)
@@ -612,7 +630,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 }
 
 func (p *Parser) consumeAgentToolGrant(command string) (CommandACLDecision, bool) {
-	if p.agentToolGrant == nil {
+	if p.inputSource != model.CommandSourceAI || p.agentToolGrant == nil {
 		return CommandACLDecision{}, false
 	}
 	return p.agentToolGrant(command)
@@ -1260,6 +1278,7 @@ func (p *Parser) sendCommandToChan() {
 		Output:         output,
 		CreatedDate:    p.cmdCreateDate,
 		RiskLevel:      p.getCurrentCmdStatusLevel(),
+		Source:         p.commandSource,
 		CmdFilterACLId: cmdFilterId,
 		CmdGroupId:     cmdGroupId,
 		User:           p.currentActiveUser,
@@ -1281,6 +1300,7 @@ func (p *Parser) CommandRecordChan() chan *ExecutedCommand {
 func (p *Parser) UpdateActiveUser(msg *exchange.RoomMessage) {
 	p.currentActiveUser.UserId = msg.Meta.UserId
 	p.currentActiveUser.User = msg.Meta.User
+	p.inputSource = msg.Meta.Source
 }
 
 type ExecutedCommand struct {
@@ -1288,6 +1308,7 @@ type ExecutedCommand struct {
 	Output      string
 	CreatedDate time.Time
 	RiskLevel   int64
+	Source      int
 	User        CurrentActiveUser
 
 	CmdFilterACLId string
@@ -1373,7 +1394,7 @@ func (p *Parser) breakInputPacket() []byte {
 		if isH3C(p.platform) {
 			return []byte{CharCTRLE, CharCTRLX, '\r'}
 		}
-		return []byte{tclientlib.IAC, tclientlib.BRK, CharCTRLC, '\r'}
+		return []byte(srvconn.TelnetBreakInput)
 	case model.ProtocolSSH:
 		if isH3C(p.platform) {
 			return []byte{CharCTRLE, CharCTRLX, '\r'}

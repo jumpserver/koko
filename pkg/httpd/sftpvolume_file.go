@@ -171,7 +171,7 @@ func (u *sftpVolume) zipFolder(zipWriter *zip.Writer, remotePath, basePath strin
 }
 
 func (u *sftpVolume) zipFile(zipWriter *zip.Writer, remotePath, zipPath string) error {
-	remoteFile, err := u.conn.Open(remotePath)
+	remoteFile, err := u.GetFile(remotePath)
 	if err != nil {
 		return fmt.Errorf("failed to open remote file: %v", err)
 	}

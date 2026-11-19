@@ -25,7 +25,7 @@ const maxNativeSQLRows = 1000
 type NativeSQLExecutor struct {
 	protocol  string
 	db        *sql.DB
-	sanitizer ValueSanitizer
+	sanitizer *MySQLSanitizer
 	metadata  *sqlMetadataTool
 	closeOnce sync.Once
 }
@@ -78,10 +78,10 @@ func (e *NativeSQLExecutor) Execute(
 		healthCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if healthErr := e.db.PingContext(healthCtx); healthErr != nil {
-			return output, nil, &ExecutionUnavailableError{Cause: healthErr}
+			return output, nil, &ExecutionUnavailableError{Cause: e.sanitizer.diagnostic(healthErr)}
 		}
 	}
-	return output, nil, err
+	return output, nil, e.sanitizer.diagnostic(err)
 }
 
 func (e *NativeSQLExecutor) SQLMetadataScope() string {
@@ -91,7 +91,7 @@ func (e *NativeSQLExecutor) SQLMetadataScope() string {
 func (e *NativeSQLExecutor) LookupSQLSchema(
 	ctx context.Context, request SQLSchemaLookupRequest,
 ) (SQLSchemaLookupResult, error) {
-	return e.metadata.Lookup(ctx, request)
+	return e.metadata.Lookup(ctx, request, e.sanitizer)
 }
 
 func (e *NativeSQLExecutor) InvalidateSQLMetadata() {

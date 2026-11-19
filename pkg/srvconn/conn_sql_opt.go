@@ -9,6 +9,7 @@ type sqlOption struct {
 	Password         string
 	DBName           string
 	Host             string
+	ServerName       string
 	Port             int
 	UseSSL           bool
 	SqlPgSSLMode     string
@@ -19,6 +20,7 @@ type sqlOption struct {
 	CertKey          string
 	CertKeyPath      string
 	AllowInvalidCert bool
+	tlsDir           string // Private certificate files owned by this CLI process.
 
 	SQLServerDisableEncrypt bool // for sqlserver 2008
 	OracleUseSYSDBA         bool
@@ -69,6 +71,12 @@ func SqlDBName(dbName string) SqlOption {
 func SqlHost(host string) SqlOption {
 	return func(args *sqlOption) {
 		args.Host = host
+	}
+}
+
+func SqlServerName(name string) SqlOption {
+	return func(args *sqlOption) {
+		args.ServerName = name
 	}
 }
 

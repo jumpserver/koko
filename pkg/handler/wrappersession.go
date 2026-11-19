@@ -14,12 +14,16 @@ import (
 )
 
 type WrapperSession struct {
-	Uuid      string
-	Sess      ssh.Session
-	inWriter  io.WriteCloser
-	outReader io.ReadCloser
-	mux       *sync.RWMutex
-	winMux    sync.RWMutex
+	Uuid            string
+	Sess            ssh.Session
+	inWriter        io.WriteCloser
+	outReader       io.ReadCloser
+	mux             *sync.RWMutex
+	winMux          sync.RWMutex
+	readResetMu     sync.Mutex
+	readStateMu     sync.Mutex
+	readInterrupted bool
+	inputTail       []byte
 
 	closed chan struct{}
 
@@ -62,19 +66,63 @@ func (w *WrapperSession) Read(p []byte) (int, error) {
 		return 0, io.EOF
 	default:
 	}
+	w.readStateMu.Lock()
+	if w.readInterrupted {
+		w.readInterrupted = false
+		w.readStateMu.Unlock()
+		return 0, io.ErrClosedPipe
+	}
 	w.mux.RLock()
 	defer w.mux.RUnlock()
-	return w.outReader.Read(p)
+	w.readStateMu.Unlock()
+	n, err := w.outReader.Read(p)
+	w.readStateMu.Lock()
+	if w.readInterrupted {
+		w.readInterrupted = false
+		n, err = 0, io.ErrClosedPipe
+	}
+	if n > 0 {
+		data := append(w.inputTail, p[:n]...)
+		w.inputTail = append([]byte(nil), data[assetTUIInputBoundary(data):]...)
+	}
+	w.readStateMu.Unlock()
+	return n, err
+}
+
+// Keep an incomplete sequence across the asset-list reader's shutdown. Its
+// prefix may already have reached Bubble Tea, but its tail still belongs to
+// that UI event, not to the newly connected remote shell.
+func (w *WrapperSession) takeInputTail() []byte {
+	w.readStateMu.Lock()
+	defer w.readStateMu.Unlock()
+	tail := w.inputTail
+	w.inputTail = nil
+	return tail
 }
 
 func (w *WrapperSession) Close() error {
+	return w.resetReadPipe(false)
+}
+
+// InterruptRead releases the current input reader without closing the SSH
+// session. The caller must wait for that reader to stop before starting another.
+func (w *WrapperSession) InterruptRead() error {
+	return w.resetReadPipe(true)
+}
+
+func (w *WrapperSession) resetReadPipe(interrupt bool) error {
+	w.readResetMu.Lock()
+	defer w.readResetMu.Unlock()
 	select {
 	case <-w.closed:
 		return nil
 	default:
 	}
+	w.readStateMu.Lock()
+	w.readInterrupted = interrupt
 	_ = w.inWriter.Close()
 	err := w.outReader.Close()
+	w.readStateMu.Unlock()
 	w.initReadPip()
 	return err
 }

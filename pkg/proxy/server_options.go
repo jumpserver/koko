@@ -122,7 +122,7 @@ func (opts *ConnectionOptions) ConnectMsg() string {
 		msg = fmt.Sprintf(lang.T("Connecting to %s@%s"), accountName, asset.Address)
 	case srvconn.ProtocolClickHouse,
 		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolMariadb,
-		srvconn.ProtocolMySQL, srvconn.ProtocolSQLServer, srvconn.ProtocolPostgresql:
+		srvconn.ProtocolMySQL, srvconn.ProtocolSQLServer, srvconn.ProtocolPostgresql, srvconn.ProtocolDB2:
 		msg = fmt.Sprintf(lang.T("Connecting to Database %s"), asset.String())
 	case srvconn.ProtocolK8s:
 		msg = fmt.Sprintf(lang.T("Connecting to Kubernetes %s"), asset.Address)

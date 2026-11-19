@@ -58,9 +58,14 @@ func newTerminalToolController(
 		return nil, fmt.Errorf("terminal observer is already configured")
 	}
 	ctx, cancel := context.WithCancel(client.Context())
+	contextSnapshot := agentContextSnapshot(token, "terminal")
+	toolProtocol := token.Protocol
+	if contextSnapshot.PlatformType == "oceanbase" && contextSnapshot.Dialect == "oracle" {
+		toolProtocol = srvconn.ProtocolOracle
+	}
 	controller := &terminalToolController{
 		client: client, ws: ws, server: server,
-		context: agentContextSnapshot(token, "terminal"), protocol: token.Protocol,
+		context: contextSnapshot, protocol: toolProtocol,
 		ctx: ctx, cancel: cancel,
 	}
 	if !terminalBackgroundExecutorExpected(
@@ -115,8 +120,9 @@ func (c *terminalToolController) attachWinRM(conn *srvconn.WinRMConnection) {
 
 func (c *terminalToolController) attachDatabase(info proxy.DatabaseConnectionInfo) {
 	config := sessiontools.DatabaseConfig{
-		Protocol: info.Protocol,
-		Host:     info.Host, Port: info.Port, ServerName: info.ServerName,
+		Protocol:     info.Protocol,
+		PlatformType: info.PlatformType, TenantMode: info.TenantMode,
+		Host: info.Host, Port: info.Port, ServerName: info.ServerName,
 		Username: info.Username, Password: info.Password,
 		Database: info.Database, UseSSL: info.UseSSL,
 		PGSSLMode: info.PGSSLMode,
@@ -304,7 +310,13 @@ func (c *terminalToolController) executePTY(
 	ctx context.Context,
 	command string,
 	decision *sessiontools.CommandACLDecision,
-) (string, *int, error) {
+) (output string, exitCode *int, err error) {
+	submitted := false
+	defer func() {
+		if err != nil && !submitted {
+			c.recordCommand(command, err.Error(), nil, decision)
+		}
+	}()
 	if err := c.server.CheckAgentToolExecution(); err != nil {
 		return "", nil, err
 	}
@@ -336,7 +348,10 @@ func (c *terminalToolController) executePTY(
 		c.server.AuthorizeAgentToolCommand(command, &value)
 		defer c.server.RevokeAgentToolCommand(command)
 	}
-	if err = c.client.WriteAgentToolData(ctx, []byte(command+"\r")); err == nil {
+	input := []byte(command + "\r")
+	n, err := c.client.writeAgentToolData(ctx, input)
+	submitted = n == len(input)
+	if err == nil {
 		select {
 		case <-ctx.Done():
 			err = ctx.Err()

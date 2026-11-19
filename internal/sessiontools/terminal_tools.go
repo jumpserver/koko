@@ -222,7 +222,7 @@ func (t *mcpCommandTool) Call(
 	var decision *CommandACLDecision
 	audited := false
 	defer func() {
-		if t.protocol == srvconn.ProtocolWinRM && !audited && err != nil && t.hooks.BackgroundRecord != nil {
+		if !audited && err != nil && t.hooks.BackgroundRecord != nil {
 			t.hooks.BackgroundRecord(command, err.Error(), nil, decision)
 		}
 	}()
@@ -285,6 +285,8 @@ func (t *mcpCommandTool) Call(
 	var exitCode *int
 	var executeErr error
 	if execution == MCPExecutionPTY {
+		// Ordinary PTY execution owns its audit, including failures before submission.
+		audited = t.protocol != srvconn.ProtocolWinRM
 		output, exitCode, executeErr = t.hooks.PTYExecute(execCtx, command, decision)
 	} else {
 		if t.executor == nil {

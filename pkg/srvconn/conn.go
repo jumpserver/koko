@@ -2,7 +2,6 @@ package srvconn
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -48,6 +47,7 @@ const (
 	ProtocolPostgresql = "postgresql"
 	ProtocolOracle     = "oracle"
 	ProtocolDameng     = "dameng"
+	ProtocolDB2        = "db2"
 )
 
 func SupportedDBProtocols() []string {
@@ -59,6 +59,7 @@ func SupportedDBProtocols() []string {
 		ProtocolMariadb,
 		ProtocolOracle,
 		ProtocolDameng,
+		ProtocolDB2,
 		ProtocolSQLServer,
 		ProtocolPostgresql,
 		ProtocolClickHouse,
@@ -86,6 +87,7 @@ func SupportedProtocols() []string {
 		ProtocolSQLServer,
 		ProtocolOracle,
 		ProtocolDameng,
+		ProtocolDB2,
 		ProtocolRedis,
 		ProtocolMongoDB,
 		ProtocolMariadb,
@@ -140,8 +142,8 @@ var supportedMap = map[string]supportedChecker{
 	ProtocolWinRM:  builtinSupported,
 	ProtocolK8s:    kubectlSupported,
 
-	ProtocolRedis:   redisSupported,
-	ProtocolMongoDB: mongoDBSupported,
+	ProtocolRedis:   usqlSupportedChecker(ProtocolRedis),
+	ProtocolMongoDB: usqlSupportedChecker(ProtocolMongoDB),
 
 	ProtocolMySQL:      usqlSupportedChecker(ProtocolMySQL),
 	ProtocolMariadb:    usqlSupportedChecker(ProtocolMariadb),
@@ -150,6 +152,7 @@ var supportedMap = map[string]supportedChecker{
 	ProtocolClickHouse: usqlSupportedChecker(ProtocolClickHouse),
 	ProtocolOracle:     usqlSupportedChecker(ProtocolOracle),
 	ProtocolDameng:     usqlSupportedChecker(ProtocolDameng),
+	ProtocolDB2:        usqlSupportedChecker(ProtocolDB2),
 }
 
 func IsSupportedProtocol(p string) error {
@@ -181,32 +184,6 @@ func kubectlSupported() error {
 	return ErrKubectlClient
 }
 
-func redisSupported() error {
-	checkLine := "redis-cli -v"
-	cmd := exec.Command("bash", "-c", checkLine)
-	out, err := cmd.CombinedOutput()
-	if err != nil && len(out) == 0 {
-		return fmt.Errorf("%w: %s", ErrRedisClient, err)
-	}
-	if bytes.HasPrefix(out, []byte("redis-cli")) {
-		return nil
-	}
-	return ErrRedisClient
-}
-
-func mongoDBSupported() error {
-	checkLine := "mongosh --version"
-	cmd := exec.Command("bash", "-c", checkLine)
-	out, err := cmd.CombinedOutput()
-	if err != nil && len(out) == 0 {
-		return fmt.Errorf("%w: %s", ErrRedisClient, err)
-	}
-	if !bytes.HasSuffix(out, []byte("command not found")) {
-		return nil
-	}
-	return ErrMongoDBClient
-}
-
 var usqlSupportedProtocols string
 var once sync.Once
 
@@ -233,6 +210,10 @@ func usqlSupportedChecker(protocol string) func() error {
 	}
 }
 
+func CheckUSQLDriver(driver string) error {
+	return usqlSupportedChecker(driver)()
+}
+
 func MatchLoginPrefix(prefix string, dbType string, lcmd *localcommand.LocalCommand) (*localcommand.LocalCommand, error) {
 	var (
 		nr  int
@@ -240,19 +221,13 @@ func MatchLoginPrefix(prefix string, dbType string, lcmd *localcommand.LocalComm
 	)
 	prompt := make([]byte, len(prefix))
 	var buf strings.Builder
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Minute)
-	defer cancel()
-	done := make(chan struct{})
-	go func() {
-		select {
-		case <-ctx.Done():
-			_ = lcmd.Close()
-			logger.Errorf("%s login prompt characters matched timeout and closed", dbType)
-			return
-		case <-done:
-			return
-		}
-	}()
+	// Stopping a completed login must not signal the timeout path and close
+	// an authenticated connection when both select branches are ready.
+	timer := time.AfterFunc(time.Minute, func() {
+		_ = lcmd.Close()
+		logger.Errorf("%s login prompt characters matched timeout and closed", dbType)
+	})
+	defer timer.Stop()
 
 	for {
 		nr, err = lcmd.Read(prompt[:])
@@ -268,23 +243,6 @@ func MatchLoginPrefix(prefix string, dbType string, lcmd *localcommand.LocalComm
 			break
 		}
 	}
-	close(done)
-	return lcmd, nil
-}
-
-func DoLogin(opt *sqlOption, lcmd *localcommand.LocalCommand, dbType string) (*localcommand.LocalCommand, error) {
-	//输入密码, 登录数据库
-	time.Sleep(time.Millisecond * 100)
-	_, err := lcmd.Write([]byte(opt.Password + "\r\n"))
-	if err != nil {
-		_ = lcmd.Close()
-		logger.Errorf("%s local pty write err: %s", dbType, err)
-		return lcmd, fmt.Errorf("%s conn err: %s", dbType, err)
-	}
-	//清除掉输入密码后，界面上显示的星号
-	time.Sleep(time.Millisecond * 100)
-	clearPassword := make([]byte, len(opt.Password)+2)
-	_, _ = lcmd.Read(clearPassword)
 	return lcmd, nil
 }
 
@@ -337,13 +295,3 @@ func ClearTempFileDelay(sleepTime time.Duration, filepath ...string) {
 		}
 	}()
 }
-
-var cleanLineExitCommand = []byte{
-	CharCTRLE, CharCleanLine, '\r', '\n',
-	'e', 'x', 'i', 't', '\r', '\n',
-}
-
-const (
-	CharCleanLine = '\x15'
-	CharCTRLE     = '\x05'
-)

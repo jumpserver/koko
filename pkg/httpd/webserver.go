@@ -220,6 +220,10 @@ func (s *Server) HealthStatusHandler(ctx *gin.Context) {
 }
 
 func (s *Server) CreateConnectTicket(ctx *gin.Context) {
+	if ctx.GetBool(auth.ContextKeyConnectTicket) {
+		ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"detail": "connect ticket cannot issue another ticket"})
+		return
+	}
 	var payload struct {
 		TokenID string `json:"token_id"`
 		OrgID   string `json:"org_id"`
@@ -234,7 +238,12 @@ func (s *Server) CreateConnectTicket(ctx *gin.Context) {
 
 	userValue := ctx.MustGet(auth.ContextKeyUser)
 	currentUser := userValue.(*model.User)
-	headers := auth.RequestAuthHeaders(ctx.Request)
+	credentials, _ := ctx.Get(auth.ContextKeyHTTPAuthHeaders)
+	headers, _ := credentials.(map[string]string)
+	if headers["Authorization"] == "" && headers["Cookie"] == "" {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"detail": "authentication required"})
+		return
+	}
 	ticket := auth.ConnectTickets.Create(currentUser, headers, payload.TokenID, payload.OrgID)
 
 	ctx.JSON(http.StatusCreated, gin.H{

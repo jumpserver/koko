@@ -363,7 +363,7 @@ func (s *Server) RecordBackgroundCommand(
 	record := &model.Command{
 		SessionID: s.sessionInfo.ID, OrgID: s.sessionInfo.OrgID,
 		Input: command, Output: output,
-		User: s.sessionInfo.User, Server: s.sessionInfo.Asset,
+		User: s.sessionInfo.User + " - AI", Server: s.sessionInfo.Asset,
 		Account: s.sessionInfo.Account, Timestamp: now.Unix(),
 		RiskLevel: riskLevel, CmdFilterAclId: aclID, CmdGroupId: itemID,
 		DateCreated: now.UTC(),
@@ -560,6 +560,9 @@ func (s *Server) GenerateCommandItem(user, input, output string, item *ExecutedC
 		}
 	}
 	createdDate := item.CreatedDate
+	if item.Source == model.CommandSourceAI {
+		user += " - AI"
+	}
 	return &model.Command{
 		SessionID:   s.ID,
 		OrgID:       asset.OrgID,
@@ -631,7 +634,7 @@ func (s *Server) checkRequiredAuth() error {
 
 		srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 		srvconn.ProtocolSQLServer, srvconn.ProtocolPostgresql,
-		srvconn.ProtocolRedis, srvconn.ProtocolOracle, srvconn.ProtocolDameng:
+		srvconn.ProtocolRedis, srvconn.ProtocolOracle, srvconn.ProtocolDameng, srvconn.ProtocolDB2:
 		if err := s.getAuthPasswordIfNeed(); err != nil {
 			s.sendAuthPasswordError(err)
 			return fmt.Errorf("get auth password failed: %s", err)
@@ -890,6 +893,35 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 	return
 }
 
+func (s *Server) getSSHKeySigner(account *model.BaseAccount) (gossh.Signer, error) {
+	privateKey := []byte(account.Secret)
+	signer, err := gossh.ParsePrivateKey(privateKey)
+	if err == nil {
+		return signer, nil
+	}
+	var missingPassphrase *gossh.PassphraseMissingError
+	if !errors.As(err, &missingPassphrase) {
+		return nil, fmt.Errorf("parse SSH private key: %w", err)
+	}
+
+	s.setKeyBoardMode()
+	defer s.resetKeyboardMode()
+	// Give the connecting message time to finish before displaying the passphrase prompt.
+	time.Sleep(300 * time.Millisecond)
+	utils.IgnoreErrWriteString(s.UserConn, "\r\n")
+	vt := term.NewTerminal(s.UserConn, "")
+	prompt := fmt.Sprintf(s.connOpts.getLang().T("Enter passphrase for %s: "), account.String())
+	passphrase, err := vt.ReadPassword(prompt)
+	if err != nil {
+		return nil, fmt.Errorf("read SSH private key passphrase: %w", err)
+	}
+	signer, err = gossh.ParsePrivateKeyWithPassphrase(privateKey, []byte(passphrase))
+	if err != nil {
+		return nil, fmt.Errorf("unlock SSH private key: %w", err)
+	}
+	return signer, nil
+}
+
 func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	loginAccount := s.account.GetBaseAccount()
 	if s.suFromAccount != nil {
@@ -910,10 +942,13 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(asset.Address))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(asset.ProtocolPort(protocol)))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientTimeout(timeout))
+	var password string
 	if loginAccount.IsSSHKey() {
-		if signer, err1 := gossh.ParsePrivateKey([]byte(loginAccount.Secret)); err1 == nil {
-			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
+		signer, err1 := s.getSSHKeySigner(loginAccount)
+		if err1 != nil {
+			return nil, err1
 		}
+		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 	} else if loginAccount.IsSSHCertificate() {
 		signer, err1 := sshcert.NewSigner(loginAccount)
 		if err1 != nil {
@@ -921,12 +956,12 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		}
 		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 	} else {
+		password = loginAccount.Secret
 		if !isPlatform(&platform, mfaAuth) {
-			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(loginAccount.Secret))
+			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(password))
 		}
 	}
 
-	password := loginAccount.Secret
 	kb := srvconn.SSHClientKeyboardAuth(func(user, instruction string,
 		questions []string, echos []bool) (answers []string, err error) {
 		s.setKeyBoardMode()
@@ -943,7 +978,15 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 					continue
 				}
 			}
-			line, err2 := vt.ReadLine()
+			var (
+				line string
+				err2 error
+			)
+			if echos[i] {
+				line, err2 = vt.ReadLine()
+			} else {
+				line, err2 = vt.ReadPassword(q)
+			}
 			if err2 != nil {
 				logger.Errorf("Conn[%s] keyboard auth read err: %s", s.UserConn.ID(), err2)
 			}
@@ -1182,7 +1225,8 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		srvconn.ProtocolSQLServer,
 		srvconn.ProtocolClickHouse,
 		srvconn.ProtocolOracle,
-		srvconn.ProtocolDameng:
+		srvconn.ProtocolDameng,
+		srvconn.ProtocolDB2:
 		return s.getUSQLConn(proxyAddr)
 	default:
 		return nil, ErrUnMatchProtocol
@@ -1284,6 +1328,11 @@ func (s *Server) Proxy() {
 			s.UserConn.ID(), s.ID, msg, err)
 		return
 	}
+	defer func() {
+		if err := s.DisConnectedCallback(); err != nil {
+			logger.Errorf("Conn[%s] update session %s err: %+v", s.UserConn.ID(), s.ID, err)
+		}
+	}()
 	if s.connOpts.authInfo.Ticket != nil {
 		reviewTicketId := s.connOpts.authInfo.Ticket.ID
 		msg := fmt.Sprintf("Conn[%s] create session %s ticket %s relation",
@@ -1302,6 +1351,12 @@ func (s *Server) Proxy() {
 		logger.Infof("Conn[%s] join face monitor %s", s.UserConn.ID(), faceMonitorToken)
 		if err := s.jmsService.JoinFaceMonitor(faceReq); err != nil {
 			logger.Errorf("Conn[%s] join face monitor err: %s", s.UserConn.ID(), err)
+			s.ConnectionError = err
+			s.sendConnectErrorMsg(err)
+			if callbackErr := s.ConnectedFailedCallback(err); callbackErr != nil {
+				logger.Errorf("Conn[%s] update failed face monitor session err: %s", s.UserConn.ID(), callbackErr)
+			}
+			return
 		}
 	}
 
@@ -1324,11 +1379,6 @@ func (s *Server) Proxy() {
 	})
 	session.AddSession(traceSession)
 	defer session.RemoveSession(traceSession)
-	defer func() {
-		if err := s.DisConnectedCallback(); err != nil {
-			logger.Errorf("Conn[%s] update session %s err: %+v", s.UserConn.ID(), s.ID, err)
-		}
-	}()
 	var proxyAddr *net.TCPAddr
 	if s.gateway != nil {
 		protocol := s.connOpts.authInfo.Protocol

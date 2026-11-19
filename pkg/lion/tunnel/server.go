@@ -183,6 +183,15 @@ func (g *GuacamoleTunnelServer) Connect(ctx *gin.Context) {
 		logger.Infof("Session %s join face monitor", tunnelSession.ID)
 		if err1 := g.JmsService.JoinFaceMonitor(faceReq); err1 != nil {
 			logger.Errorf("Session %s join face monitor err: %s", tunnelSession.ID, err1)
+			errIns := NewJMSGuacamoleError(1006, err1.Error())
+			_ = ws.WriteMessage(websocket.TextMessage, []byte(errIns.String()))
+			if callbackErr := tunnelSession.ConnectedFailedCallback(err1); callbackErr != nil {
+				logger.Errorf("Update failed face monitor session err: %s", callbackErr)
+			}
+			if callbackErr := tunnelSession.DisConnectedCallback(); callbackErr != nil {
+				logger.Errorf("Close failed face monitor session err: %s", callbackErr)
+			}
+			return
 		}
 	}
 
@@ -214,13 +223,14 @@ func (g *GuacamoleTunnelServer) Connect(ctx *gin.Context) {
 	tunnel, err = guacd.NewTunnel(guacdAddr, conf, info)
 	if err != nil {
 		logger.Errorf("Connect tunnel err: %+v", err)
-		msg := fmt.Sprintf("Connect guacd server %s failed", guacdAddr)
-		_ = ws.WriteMessage(websocket.TextMessage, []byte(ErrGuacamoleServer.String()))
-		if err = tunnelSession.ConnectedFailedCallback(err); err != nil {
-			logger.Errorf("Update session connect status failed %+v", err)
+		msg := fmt.Sprintf("Connect guacd server %s failed: %s", guacdAddr, err)
+		errIns := guacdErrorInstruction(err)
+		_ = ws.WriteMessage(websocket.TextMessage, []byte(errIns.String()))
+		if callbackErr := tunnelSession.ConnectedFailedCallback(err); callbackErr != nil {
+			logger.Errorf("Update session connect status failed %+v", callbackErr)
 		}
-		if err = tunnelSession.DisConnectedCallback(); err != nil {
-			logger.Errorf("Session DisConnectedCallback err: %+v", err)
+		if callbackErr := tunnelSession.DisConnectedCallback(); callbackErr != nil {
+			logger.Errorf("Session DisConnectedCallback err: %+v", callbackErr)
 		}
 		reason := model.SessionLifecycleLog{Reason: msg}
 		g.RecordLifecycleLog(sessionId, model.AssetConnectFinished, reason)
@@ -312,6 +322,10 @@ func (g *GuacamoleTunnelServer) DownloadFile(ctx *gin.Context) {
 	}
 	user := userItem.(*model.User)
 	if tun := g.Cache.Get(tid); tun != nil && tun.Sess.User.ID == user.ID {
+		if tun.Sess.ActionPerm == nil || !tun.Sess.ActionPerm.EnableDownload {
+			ctx.AbortWithStatus(http.StatusForbidden)
+			return
+		}
 		recorder := proxy.GetFTPFileRecorder(g.JmsService)
 		fileLog := model.FTPLog{
 			ID:         common.UUID(),

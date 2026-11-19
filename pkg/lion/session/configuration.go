@@ -34,6 +34,8 @@ type RDPConfiguration struct {
 	Platform       *model.Platform
 	TerminalConfig *model.TerminalConfig
 	ActionsPerm    *ActionPermission
+	EnablePrinting bool
+	Security       string
 }
 
 func (r RDPConfiguration) GetGuacdConfiguration() guacd.Configuration {
@@ -132,6 +134,9 @@ func (r RDPConfiguration) GetGuacdConfiguration() guacd.Configuration {
 		conf.SetParameter(guacd.RDPDisableDownload, disableDownload)
 		conf.SetParameter(guacd.RDPDisableUpload, disableUpload)
 	}
+	// Printing exports a PDF through the same download stream.
+	conf.SetParameter(guacd.RDPEnablePrinting,
+		ConvertBoolToString(r.EnablePrinting && r.ActionsPerm.EnableDownload))
 
 	// 粘贴复制
 	{
@@ -153,6 +158,9 @@ func (r RDPConfiguration) GetGuacdConfiguration() guacd.Configuration {
 				conf.SetParameter(guacd.RDPConsole, BoolTrue)
 			}
 		}
+	}
+	if ValidateSecurityValue(r.Security) {
+		rdpSecurityValue = r.Security
 	}
 	conf.SetParameter(guacd.RDPSecurity, rdpSecurityValue)
 	conf.SetParameter(guacd.RDPIgnoreCert, BoolTrue)

@@ -1,42 +1,14 @@
 package handler
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/i18n"
-	"github.com/jumpserver/koko/pkg/logger"
 )
 
 func (u *UserSelectHandler) retrieveRemoteNodeAsset(reqParam model.PaginationParam) []model.PermAsset {
-	if u.selectedNode.ID == "ungrouped" {
-		params := map[string]string{
-			"limit": strconv.Itoa(reqParam.PageSize), "offset": strconv.Itoa(max(0, reqParam.Offset)),
-			"order": reqParam.Order,
-		}
-		if len(reqParam.Searches) > 0 {
-			params["search"] = strings.Join(reqParam.Searches, ",")
-		}
-		var response model.PaginationResponse
-		path := classicData{userID: u.user.ID}.userPath("nodes/ungrouped/assets/")
-		_, err := u.h.jmsService.Call("GET", path, nil, &response, params)
-		if err != nil {
-			logger.Errorf("Get user %s ungrouped assets failed %s", u.user.Name, err)
-			u.loadErr = err
-			return nil
-		}
-		assets := u.updateRemotePageData(reqParam, response)
-		return u.prepareAssetPage(assets, path)
-	}
-	res, err := u.h.jmsService.GetUserNodeAssets(u.user.ID, u.selectedNode.ID, reqParam)
-	if err != nil {
-		logger.Errorf("Get user %s node assets failed %s", u.user.Name, err)
-		u.loadErr = err
-		return nil
-	}
-	assets := u.updateRemotePageData(reqParam, res)
-	return u.prepareAssetPage(assets, u.assetListPath())
+	return u.retrieveRemoteAssetPage(reqParam, u.assetListPath(), nil)
 }
 
 func (u *UserSelectHandler) displayNodeAssetResult(searchHeader string) {

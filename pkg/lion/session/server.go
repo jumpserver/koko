@@ -174,7 +174,10 @@ func (s *Server) CreatByToken(ctx *gin.Context, token string) (TunnelSession, er
 			logger.Errorf("Try to expire connect token err: %s", err1.Error())
 		}
 	}
-	return s.Create(ctx, opts...)
+	sess, err := s.Create(ctx, opts...)
+	printersRedirect := connectToken.ConnectOptions.PrintersRedirect
+	sess.EnablePrinting = printersRedirect != nil && *printersRedirect
+	return sess, err
 }
 
 func ConnectTokenAuthInfo(authInfo *model.ConnectToken) TunnelOption {
@@ -348,6 +351,7 @@ func (s *Server) Create(ctx *gin.Context, opts ...TunnelOption) (sess TunnelSess
 		UserID:     sess.User.ID,
 		AssetID:    sess.Asset.ID,
 		AccountID:  opt.Account.ID,
+		TokenId:    opt.authInfo.Id,
 		Comment:    comment,
 		Type:       model.NORMALType,
 	}

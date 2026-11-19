@@ -200,6 +200,10 @@ func (t *Tunnel) expect(opcode string) (instruction Instruction, err error) {
 		return instruction, err
 	}
 
+	if instruction.Opcode == InstructionServerError {
+		return instruction, &ProtocolError{Instruction: instruction}
+	}
+
 	if opcode != instruction.Opcode {
 		msg := fmt.Sprintf(`expected "%s" instruction but instead received "%s"`, opcode, instruction.Opcode)
 		return instruction, errors.New(msg)

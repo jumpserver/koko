@@ -12,6 +12,8 @@ import (
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 var k8sProxyDirname = "k8s_proxy"
@@ -84,10 +86,29 @@ func (k *KubectlProxyConn) UnixPath() string {
 }
 
 func (k *KubectlProxyConn) CreateKubeConfig(server, namespace, token string) (string, error) {
+	kubeConfig := clientcmdapi.Config{
+		Clusters: map[string]*clientcmdapi.Cluster{
+			"kubernetes": {Server: server, InsecureSkipTLSVerify: true},
+		},
+		Contexts: map[string]*clientcmdapi.Context{
+			"kubernetes": {Cluster: "kubernetes", AuthInfo: "JumpServer-user", Namespace: namespace},
+		},
+		CurrentContext: "kubernetes",
+		AuthInfos: map[string]*clientcmdapi.AuthInfo{
+			"JumpServer-user": {Token: token},
+		},
+	}
+	if err := clientcmd.Validate(kubeConfig); err != nil {
+		return "", err
+	}
+	configContent, err := clientcmd.Write(kubeConfig)
+	if err != nil {
+		return "", err
+	}
+
 	k8sDir := GetK8sProxyDir()
 	configPath := filepath.Join(k8sDir, fmt.Sprintf("config-%s", k.Id))
-	configContent := fmt.Sprintf(proxyconfigTmpl, server, namespace, token)
-	err := os.WriteFile(configPath, []byte(configContent), 0600)
+	err = os.WriteFile(configPath, configContent, 0600)
 	return configPath, err
 }
 
@@ -111,24 +132,3 @@ func (k *KubectlProxyConn) Env() []string {
 		fmt.Sprintf("K8S_NAME=%s", k8sName),
 	}
 }
-
-var proxyconfigTmpl = `apiVersion: v1
-clusters:
-- cluster:
-    insecure-skip-tls-verify: true
-    server: %s
-  name: kubernetes
-contexts:
-- context:
-    cluster: kubernetes
-    user: JumpServer-user
-    namespace: %s
-  name: kubernetes
-current-context: kubernetes
-kind: Config
-preferences: {}
-users:
-- name: JumpServer-user
-  user:
-    token: %s
-`

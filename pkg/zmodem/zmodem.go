@@ -47,13 +47,16 @@ type ZmodemParser struct {
 
 	AbnormalFinish bool
 	lastAbort      bool
+	trailingOutput []byte
 }
 
 // rz sz 解析的入口
 
-func (z *ZmodemParser) Parse(p []byte) {
+// Parse observes protocol bytes and returns terminal output following the final OO.
+func (z *ZmodemParser) Parse(p []byte) []byte {
 	z.Lock()
 	defer z.Unlock()
+	z.trailingOutput = nil
 	if z.IsStartSession() {
 		z.touch()
 		zSession := z.currentSession
@@ -61,10 +64,11 @@ func (z *ZmodemParser) Parse(p []byte) {
 		if zSession.IsEnd() {
 			z.finishSession(zSession, true)
 		}
-		return
+		return z.trailingOutput
 	}
 
 	z.consumeInitialHeader(p)
+	return z.trailingOutput
 }
 
 func (z *ZmodemParser) consumeInitialHeader(p []byte) {
@@ -139,6 +143,9 @@ func (z *ZmodemParser) startSession(sessionType, status string, remain []byte) {
 }
 
 func (z *ZmodemParser) finishSession(session *ZSession, fireStatusEvent bool) {
+	if session != nil && session.haveEnd && bytes.HasPrefix(session.zfinBuf, zSessionEnd) {
+		z.trailingOutput = bytes.Clone(session.zfinBuf[len(zSessionEnd):])
+	}
 	status := z.Status()
 	z.AbnormalFinish = session != nil && session.AbnormalFinish
 	z.lastAbort = session != nil && session.transferStatus == TransferStatusAbort

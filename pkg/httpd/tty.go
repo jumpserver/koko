@@ -735,6 +735,7 @@ func (h *tty) JoinRoom(c *Client, roomID string) {
 		TerminalId: h.ws.Uuid,
 		Primary:    false,
 		Writable:   writable,
+		Source:     model.CommandSourceManual,
 	}
 	if room := exchange.GetRoom(roomID); room != nil {
 		conn := exchange.WrapperUserCon(c)

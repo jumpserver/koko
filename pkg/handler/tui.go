@@ -48,15 +48,16 @@ const (
 )
 
 type assetPageMsg struct {
-	assets      []model.PermAsset
-	connectable []bool
-	offset      int
-	total       int
-	hasPrev     bool
-	hasNext     bool
-	pageSize    int
-	refresh     bool
-	err         error
+	assets        []model.PermAsset
+	connectable   []bool
+	offset        int
+	total         int
+	allAssetCount *int
+	hasPrev       bool
+	hasNext       bool
+	pageSize      int
+	refresh       bool
+	err           error
 }
 
 type assetChoicesMsg struct {
@@ -82,6 +83,8 @@ type assetTUIDialog struct {
 	protocolIndex     int
 	scrollbarDragging bool
 	scrollbarGrab     int
+	lastClickAccount  int
+	lastClickAt       time.Time
 }
 
 type assetTUILanguageDialog struct {
@@ -109,12 +112,13 @@ type assetTUI struct {
 	handler  *InteractiveHandler
 	selector *UserSelectHandler
 
-	width    int
-	height   int
-	pageSize int
-	offset   int
-	total    int
-	cursor   int
+	width         int
+	height        int
+	pageSize      int
+	offset        int
+	total         int
+	allAssetCount *int
+	cursor        int
 
 	assets             []model.PermAsset
 	connectable        []bool
@@ -193,12 +197,14 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !msg.refresh {
 				m.assets, m.connectable = nil, nil
 				m.total, m.hasPrev, m.hasNext = 0, false, false
+				m.allAssetCount = nil
 			}
 			return m, m.showStatus(userFacingErrorMessage(m.tr("资产加载失败", "Failed to load assets"), msg.err))
 		}
 		m.assets = msg.assets
 		m.connectable = msg.connectable
 		m.offset, m.total = msg.offset, msg.total
+		m.allAssetCount = msg.allAssetCount
 		m.hasPrev, m.hasNext = msg.hasPrev, msg.hasNext
 		if msg.refresh {
 			m.cursor = min(m.cursor, max(0, len(m.assets)-1))
@@ -214,11 +220,10 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, m.loadPage(offset)
 		}
-		if len(m.assets) == 0 {
-			return m, m.showStatus(m.tr("没有匹配的资产", "No matching assets"))
-		} else {
-			m.clearStatus()
+		if len(m.assets) == 0 && m.allAssetCount == nil {
+			return m, m.showStatus(assetMatchSummary(i18n.NewLang(m.handler.i18nLang), 0, 0))
 		}
+		m.clearStatus()
 	case assetChoicesMsg:
 		m.loadingChoices = false
 		if msg.err != nil {
@@ -250,6 +255,9 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseMsg:
 		return m.updateMouse(tea.MouseEvent(msg))
 	case tea.KeyMsg:
+		if m.dialog != nil {
+			m.dialog.lastClickAt = time.Time{}
+		}
 		if m.quitDialog {
 			return m.updateQuitDialogKey(msg)
 		}
@@ -535,7 +543,8 @@ func (m *assetTUI) loadPageWithRefresh(offset int, refresh bool) tea.Cmd {
 		return assetPageMsg{
 			assets: append([]model.PermAsset(nil), assets...), connectable: connectable,
 			offset: offset, total: selector.TotalCount(), hasPrev: selector.HasPrev(),
-			hasNext: selector.HasNext(), pageSize: pageSize, refresh: refresh, err: selector.loadErr,
+			allAssetCount: selector.allAssetCount,
+			hasNext:       selector.HasNext(), pageSize: pageSize, refresh: refresh, err: selector.loadErr,
 		}
 	}
 	return tea.Batch(loadCmd, statusCmd)
@@ -597,12 +606,13 @@ func (m *assetTUI) openAssetDialog(index int, multiWindow bool) (tea.Model, tea.
 }
 
 func newAssetTUIDialog(asset model.PermAsset, accounts []model.PermAccount, protocols []string) *assetTUIDialog {
-	dialog := &assetTUIDialog{asset: asset, accounts: accounts, protocols: protocols}
+	dialog := &assetTUIDialog{asset: asset, accounts: accounts, protocols: protocols, lastClickAccount: -1}
 	dialog.filterAccounts()
 	return dialog
 }
 
 func (d *assetTUIDialog) filterAccounts() {
+	d.lastClickAt = time.Time{}
 	query := strings.ToLower(strings.TrimSpace(string(d.accountSearch)))
 	d.accountMatches = d.accountMatches[:0]
 	for i := range d.accounts {
@@ -1574,6 +1584,7 @@ func (m *assetTUI) helpShortcutRows() []assetTUIHelpRow {
 		assetTUIHelpRow{key: "v", description: m.mouseModeHelpDescription()},
 		row("t", "Switch to text mode"),
 		row("ctrl+c, q", "Quit"),
+		assetTUIHelpRow{key: m.tr("数量", "Counts"), description: assetCountExplanation(lang)},
 		row("?", "Open shortcut help"),
 	)
 }
@@ -1811,6 +1822,8 @@ func (m *assetTUI) updateDialogMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) 
 	if event.Action != tea.MouseActionPress {
 		return m, nil
 	}
+	lastClickAccount, lastClickAt := dialog.lastClickAccount, dialog.lastClickAt
+	dialog.lastClickAt = time.Time{}
 	if event.X < geometry.x || event.X >= geometry.x+geometry.width ||
 		event.Y < geometry.y || event.Y >= geometry.y+geometry.height {
 		if event.Button == tea.MouseButtonLeft {
@@ -1871,6 +1884,13 @@ func (m *assetTUI) updateDialogMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) 
 	start := dialog.accountListStart(geometry.rows)
 	if position := start + row; position < total {
 		dialog.accountIndex = position
+		account := dialog.accountMatches[position]
+		now := time.Now()
+		if lastClickAccount == account && now.Sub(lastClickAt) <= tuiDoubleClickInterval {
+			return m.chooseDialogConnection()
+		}
+		dialog.lastClickAccount = account
+		dialog.lastClickAt = now
 	}
 	return m, nil
 }
@@ -1994,6 +2014,10 @@ func tuiSearchField(label, search string, input []rune, width int) (string, int)
 }
 
 func (m *assetTUI) pageLine() string {
+	if m.allAssetCount != nil {
+		start, end := resultDisplayRange(m.offset+len(m.assets), len(m.assets), m.total)
+		return assetPageSummary(i18n.NewLang(m.handler.i18nLang), m.width, start, end, m.total, *m.allAssetCount)
+	}
 	if !m.hasPagination() {
 		return ""
 	}
@@ -2004,9 +2028,12 @@ func (m *assetTUI) pageLine() string {
 }
 
 func (m *assetTUI) statusPageLine() string {
-	status := ""
-	if m.status != "" {
-		status = tuiStatusPrefix + m.status
+	status := m.status
+	if status == "" && !m.loading && m.allAssetCount != nil {
+		status = assetMatchSummary(i18n.NewLang(m.handler.i18nLang), m.total, *m.allAssetCount)
+	}
+	if status != "" {
+		status = tuiStatusPrefix + status
 	}
 	page := m.pageLine()
 	if page == "" {
@@ -2214,6 +2241,8 @@ func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf m
 				handler.saveTerminalPreference(handler.interfaceMode)
 				model.persistTextMode = false
 			}
+			handler.helpReturnView = classicViewHelp
+			handler.helpBackTarget = ""
 			handler.displayHelp()
 			if !classicStarted {
 				handler.firstLoadData()

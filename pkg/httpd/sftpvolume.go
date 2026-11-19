@@ -84,6 +84,8 @@ type cachedTransferFile struct {
 	done      map[int64]doneTransferChunk
 	chain     checksumChain
 	digested  int64
+
+	readRecord *transferReadRecord
 }
 
 type fileMutationOptions struct {

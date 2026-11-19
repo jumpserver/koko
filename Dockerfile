@@ -1,13 +1,16 @@
-FROM jumpserver/koko-base:20261015_054200 AS stage-build
+FROM jumpserver/koko-base:20261116_080019 AS stage-build
 WORKDIR /opt/koko
 ARG TARGETARCH
+
 COPY . .
 
 ARG VERSION
 ENV VERSION=$VERSION
 
 WORKDIR /opt/koko
-RUN make build -s \
+RUN /opt/koko/bin/usql --drivers | grep -qx mongodb \
+    && /opt/koko/bin/usql --drivers | grep -qx redis \
+    && GOMAXPROCS=2 GOFLAGS=-p=2 make build -s \
     && set -x && ls -al . \
     && mv /opt/koko/build/koko /opt/koko/koko
 
@@ -29,10 +32,10 @@ USER root
 
 ARG DEPENDENCIES="                    \
         bash-completion               \
-        ffmpeg                        \
+        libx264-164                   \
+        ghostscript                   \
         less                          \
         openssl                       \
-        redis-tools                   \
         xz-utils                      \
         ca-certificates"
 
@@ -55,7 +58,6 @@ WORKDIR /opt/koko
 
 COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl_aliases
 COPY --from=stage-build /opt/koko/bin /usr/local/bin
-COPY --from=stage-build /opt/koko/lib /usr/local/lib
 COPY --from=stage-build /opt/koko/release .
 COPY --from=stage-build /opt/koko/koko .
 
@@ -64,7 +66,8 @@ COPY s6-overlay/services.d/ /etc/services.d/
 RUN chmod +x /etc/cont-init.d/10-koko-init \
     /etc/services.d/koko/run \
     /etc/services.d/guacd/run \
-    /etc/services.d/guacd/log/run
+    /etc/services.d/guacd/log/run \
+    && ffmpeg -hide_banner -version
 
 ARG VERSION
 ENV VERSION=${VERSION}

@@ -68,9 +68,16 @@ func (s *Server) SFTPHandler(sess ssh.Session) {
 	var sftpHandler *SftpHandler
 	termConf := s.GetTerminalConfig()
 	if directRequest, ok2 := directReq.(*auth.DirectLoginAssetReq); ok2 {
+		directRequest, _, err := s.prepareDirectRequest(sess, currentUser, directRequest, false)
+		if err != nil {
+			logger.Errorf("Prepare direct SFTP request failed: %s", err)
+			utils.IgnoreErrWriteString(sess.Stderr(), userFacingErrorDetail(err)+"\r\n")
+			return
+		}
 		selectedAssets, err := s.getDirectSFTPAssets(currentUser, directRequest)
 		if err != nil {
 			logger.Errorf("Get matched assets failed: %s", err)
+			utils.IgnoreErrWriteString(sess.Stderr(), userFacingErrorDetail(err)+"\r\n")
 			return
 		}
 		if directRequest.IsToken() && config.GetConf().ConnectionTokenReusable {
@@ -117,6 +124,9 @@ func (s *Server) SFTPHandler(sess ssh.Session) {
 func (s *Server) getDirectSFTPAssets(user *model.User,
 	req *auth.DirectLoginAssetReq) ([]model.PermAsset, error) {
 	if req.IsToken() {
+		if common.IsUUID(req.AccountUsername) && req.ConnectToken.Protocol != model.ProtocolSSH && req.ConnectToken.Protocol != model.ProtocolSFTP {
+			return nil, errors.New("personal credential SFTP requires an SSH or SFTP connection token")
+		}
 		return nil, nil
 	}
 	return s.getMatchedAssetsByDirectReq(user, req)
@@ -191,9 +201,22 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 	i18nLang := i18n.NewLang(user.Language)
 	termConf := s.GetTerminalConfig()
 	directReq := sess.Context().Value(auth.ContextKeyDirectLoginFormat)
+	var preparedSession *WrapperSession
+	if request, ok := directReq.(*auth.DirectLoginAssetReq); ok {
+		_, _, isPty := sess.Pty()
+		prepared, wrapper, err := s.prepareDirectRequest(sess, user, request, isPty && sess.RawCommand() == "")
+		if err != nil {
+			logger.Errorf("Prepare direct request failed: %s", err)
+			utils.IgnoreErrWriteString(sess, userFacingErrorDetail(err)+"\r\n")
+			return
+		}
+		directReq = prepared
+		preparedSession = wrapper
+	}
 	if pty, winChan, isPty := sess.Pty(); isPty && sess.RawCommand() == "" {
 		if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
 			opts := buildDirectRequestOptions(user, directRequest)
+			opts = append(opts, DirectWrapperSession(preparedSession))
 			opts = append(opts, DirectTerminalConf(&termConf))
 			if !directRequest.IsToken() {
 				selectedAssets, err := s.getMatchedAssetsByDirectReq(user, directRequest)
@@ -792,6 +815,9 @@ func (s *Server) buildConnectToken(ctx ssh.Context, user *model.User, req *auth.
 		msg := "not ssh asset connection"
 		logger.Errorf("Direct Request ssh failed: %s", msg)
 		return nil, errors.New(msg)
+	}
+	if token, err := s.directPersonalToken(ctx, user, req, nil); err != nil || token != nil {
+		return token, err
 	}
 
 	selectAccounts, err := s.getMatchedAccounts(user, req, permAssetDetail)
