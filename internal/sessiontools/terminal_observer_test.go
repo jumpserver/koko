@@ -9,6 +9,8 @@ func TestTerminalObserverRequiresReadySQLPrompt(t *testing.T) {
 	for _, tc := range []struct{ name, input string }{
 		{"empty", ""}, {"partial", "mysql=> SEL"}, {"continuation", "mysql-> "},
 		{"transaction_partial", "mysql=~ SEL"}, {"transaction_continuation", "mysql-~ "},
+		{"oceanbase_partial", "oceanbase=> SEL"}, {"oceanbase_continuation", "oceanbase-> "},
+		{"oboracle_partial", "oboracle=~ SEL"}, {"oboracle_continuation", "oboracle-~ "},
 		{"wrapped", "mysql=> " + strings.Repeat("x", 80)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -110,8 +112,12 @@ func TestTerminalObserverSQLPromptAliases(t *testing.T) {
 		{"postgresql", "postgres=~ ", "postgres=~ "},
 		{"postgresql", "postgres=> ", "postgres=~ "},
 		{"postgresql", "postgres=~ ", "postgres=> "},
+		{"mysql", "oceanbase=> ", "oceanbase=~ "},
+		{"mysql", "oceanbase=~ ", "oceanbase=> "},
+		{"mysql", "oboracle=> ", "oboracle=~ "},
+		{"mysql", "oboracle=~ ", "oboracle=> "},
 	} {
-		t.Run(tc.protocol, func(t *testing.T) {
+		t.Run(tc.protocol+"/"+strings.TrimSpace(tc.prompt), func(t *testing.T) {
 			observer, err := NewTerminalObserver(80, 24, tc.protocol)
 			if err != nil {
 				t.Fatal(err)
