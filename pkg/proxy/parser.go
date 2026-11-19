@@ -509,7 +509,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		switch strings.ToLower(string(b)) {
 		case "y":
 			p.confirmStatus.SetStatus(StatusNone)
-			p.userOutputChan <- charEnter
+			p.userOutputChan <- []byte(p.confirmStatus.data)
 		case "n":
 			p.confirmStatus.SetStatus(StatusNone)
 			p.srvOutputChan <- []byte("\r\n")
@@ -612,6 +612,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				p.setCurrentCmdStatusLevel(model.WarningLevel)
 			case model.ActionNotifyAndWarn:
 				p.confirmStatus.SetStatus(StatusQuery)
+				p.confirmStatus.SetData(string(b))
 				p.setCurrentCmdFilterRule(rule)
 				p.setCurrentCmdStatusLevel(model.WarningLevel)
 				p.srvOutputChan <- []byte("\r\n" + WarnWaitMsg)
