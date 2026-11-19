@@ -23,6 +23,7 @@ type sqlAnalysis struct {
 	multi            bool
 	incomplete       bool
 	semicolon        bool
+	terminator       int
 	lineCommentStart int
 }
 
@@ -57,14 +58,14 @@ func (a sqlAnalysis) PTYReason() string {
 
 func analyzeSQL(statement, protocol string) (sqlAnalysis, error) {
 	dialect := dialectForSQL(protocol)
-	words, depths, semicolon, trailingOnly, incomplete, lineCommentStart, err := scanSQL(statement, dialect)
+	words, depths, terminator, trailingOnly, incomplete, lineCommentStart, err := scanSQL(statement, dialect)
 	if err != nil {
 		return sqlAnalysis{}, err
 	}
 	analysis := sqlAnalysis{
 		words: words, depths: depths,
-		multi: semicolon && !trailingOnly, incomplete: incomplete,
-		semicolon: semicolon, lineCommentStart: lineCommentStart,
+		multi: terminator >= 0 && !trailingOnly, incomplete: incomplete,
+		semicolon: terminator >= 0, terminator: terminator, lineCommentStart: lineCommentStart,
 	}
 	if len(words) == 0 {
 		return analysis, fmt.Errorf("model generated an empty SQL statement")
@@ -115,8 +116,9 @@ func isSchemaChangingSQL(analysis sqlAnalysis) bool {
 }
 
 func scanSQL(statement string, dialect sqlDialect) (
-	words []string, depths []int, semicolon, trailingOnly, incomplete bool, lineCommentStart int, err error,
+	words []string, depths []int, terminator int, trailingOnly, incomplete bool, lineCommentStart int, err error,
 ) {
+	terminator = -1
 	lineCommentStart = -1
 	var word strings.Builder
 	state := byte(0)
@@ -201,13 +203,14 @@ func scanSQL(statement string, dialect sqlDialect) (
 		}
 		if current == ';' {
 			flush()
-			if semicolon {
+			if terminator >= 0 {
 				trailingOnly = false
+			} else {
+				terminator = index
 			}
-			semicolon = true
 			continue
 		}
-		if semicolon && !unicode.IsSpace(rune(current)) {
+		if terminator >= 0 && !unicode.IsSpace(rune(current)) {
 			trailingOnly = false
 		}
 		if current == '$' && word.Len() == 0 && (dialect.postgres || dialect.clickhouse) {
