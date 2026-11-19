@@ -137,8 +137,13 @@ func (o *TerminalObserver) Feed(data []byte) {
 
 func (o *TerminalObserver) isPrompt(row string) bool {
 	if o.promptPrefix != "" {
-		return row == o.promptPrefix+"=>" || row == o.promptPrefix+"=#" ||
-			row == o.promptPrefix+"=~"
+		prefix, state, ok := strings.Cut(row, "=")
+		if !ok || (state != ">" && state != "#" && state != "~") {
+			return false
+		}
+		// OceanBase tenants use the MySQL wire protocol with tenant-specific usql prompts.
+		return prefix == o.promptPrefix || (o.promptPrefix == srvconn.ProtocolMySQL &&
+			(prefix == "oceanbase" || prefix == "oboracle"))
 	}
 	return row == o.prompt
 }
