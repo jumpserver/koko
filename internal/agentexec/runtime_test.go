@@ -3,12 +3,15 @@ package agentexec
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
 
+	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/internal/assetexec"
 )
 
@@ -172,6 +175,90 @@ func TestSessionQueueLeavesCapacityForOtherSessions(t *testing.T) {
 	})
 }
 
+func TestConfiguredCapacityAboveLegacyCeilings(t *testing.T) {
+	r, err := New(coreFunc(func(context.Context, string, any, any) error { return nil }), &service.JMService{}, Options{
+		Directory: t.TempDir(), MaxSessions: 1024, MaxPending: 512, MaxRunning: 128,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+}
+
+func TestUnlimitedSessionsStillRequireCoreAuthorization(t *testing.T) {
+	r := fileTestRuntime(t)
+	p := Principal{OrgID: "org", UserID: "user", ClientID: "client"}
+	r.sessions = map[string]*liveSession{"existing": {owner: owner(p), key: "existing"}}
+	denied := errors.New("Core denied the connection")
+	calls := 0
+	r.core = coreFunc(func(context.Context, string, any, any) error {
+		calls++
+		return denied
+	})
+	r.opts.MaxSessions = 1
+	if _, err := r.Connect(context.Background(), p, "asset", "account", "ssh", "new", ""); err == nil || toolError(err).Code != "capacity_exceeded" || calls != 0 {
+		t.Fatal("configured session count limit was not enforced")
+	}
+	r.opts.MaxSessions = 0
+	if _, err := r.Connect(context.Background(), p, "asset", "account", "ssh", "new", ""); !errors.Is(err, denied) || calls != 1 {
+		t.Fatal("unlimited sessions bypassed Core authorization", err)
+	}
+}
+
+func TestQueueTimeoutAndExecutionBudget(t *testing.T) {
+	r := fileTestRuntime(t)
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		r.ctx, r.opts.MaxPending, r.opts.QueueTimeout = ctx, 1, time.Second
+		r.jobs = make(map[string]context.CancelFunc)
+		r.running = make(chan struct{}, 1)
+		r.core = coreFunc(func(ctx context.Context, path string, _ any, out any) error {
+			if strings.HasSuffix(path, "/claim/") {
+				time.Sleep(2 * time.Second)
+				if ctx.Err() != nil {
+					t.Fatal("queue deadline cancelled execution after dispatch")
+				}
+				return respond(out, map[string]any{"claimed": true, "handoff_url": "/core/handoff/"})
+			}
+			return respond(out, Action{Status: "queued"})
+		})
+		for _, blocked := range []bool{true, false} {
+			id := "execute"
+			if blocked {
+				id = "wait"
+			}
+			s := &liveSession{info: Session{ID: id}, gate: make(chan struct{}, 1)}
+			if blocked {
+				s.gate <- struct{}{}
+			}
+			a := Action{ID: id, SessionID: id, Kind: "open_terminal", Status: "queued"}
+			if err := r.journal.PutAction(a, "capability"); err != nil {
+				t.Fatal(err)
+			}
+			if err := r.enqueue(a, s); err != nil {
+				t.Fatal(err)
+			}
+			synctest.Wait()
+			if blocked {
+				if err := r.enqueue(Action{ID: "extra"}, s); err == nil || toolError(err).Code != "capacity_exceeded" {
+					t.Fatal("full queue did not return a capacity error")
+				}
+			}
+			time.Sleep(3 * time.Second)
+			synctest.Wait()
+			record, err := r.journal.Action(id)
+			wanted := "awaiting_input"
+			if blocked {
+				wanted = "expired"
+			}
+			if err != nil || record.Action.Status != wanted || len(r.jobs) != 0 {
+				t.Fatalf("queue completion: status=%s expected=%s jobs=%d error=%v", record.Action.Status, wanted, len(r.jobs), err)
+			}
+		}
+	})
+}
+
 func TestFailedConnectionPreservesBoundedHandoffSession(t *testing.T) {
 	r := fileTestRuntime(t)
 	r.core = coreFunc(func(_ context.Context, path string, _ any, out any) error {
@@ -209,6 +296,65 @@ func TestExpiredSessionCannotExtendIdleLease(t *testing.T) {
 	r := &Runtime{sessions: map[string]*liveSession{"expired": s}}
 	if _, err := r.getSession(p, "expired", true); err == nil || !s.closing || s.lastUsed != last {
 		t.Fatal("expired session was kept alive by another request")
+	}
+}
+
+func TestIdleCleanupRotatesWithoutClosingActiveSessions(t *testing.T) {
+	r := &Runtime{sessions: make(map[string]*liveSession), opts: Options{IdleTimeout: time.Minute}}
+	now := time.Now()
+	for index := range 130 {
+		s := &liveSession{info: Session{ID: fmt.Sprintf("session-%03d", index)}, lastUsed: now}
+		if index >= 128 {
+			s.lastUsed = now.Add(-2 * time.Minute)
+		}
+		if index == 129 {
+			s.active = 1
+		}
+		r.addSessionLocked(s)
+	}
+	r.expireIdleSessions()
+	if len(r.sessions) != 130 {
+		t.Fatal("idle cleanup exceeded its scan budget")
+	}
+	r.expireIdleSessions()
+	if len(r.sessions) != 129 || r.sessions["session-128"] != nil || r.sessions["session-129"] == nil {
+		t.Fatal("idle cleanup starved a later session or closed active work")
+	}
+}
+
+func TestReconciliationContinuesAfterSlowSessionClosure(t *testing.T) {
+	r := fileTestRuntime(t)
+	for index := range 128 {
+		if err := r.journal.PutAction(Action{ID: fmt.Sprintf("completed-%03d", index), Status: "succeeded"}, "capability"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, id := range []string{"first", "later"} {
+		if err := r.journal.SaveSession(Session{ID: id, SessionToken: "capability"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	action := Action{ID: "pending", Status: "queued"}
+	if err := r.journal.PutAction(action, "capability"); err != nil {
+		t.Fatal(err)
+	}
+	var closed []string
+	queries := 0
+	r.core = coreFunc(func(ctx context.Context, path string, _ any, out any) error {
+		if strings.HasSuffix(path, "/close/") {
+			closed = append(closed, path)
+			<-ctx.Done()
+			return ctx.Err()
+		}
+		queries++
+		return respond(out, action)
+	})
+	synctest.Test(t, func(t *testing.T) {
+		r.reconcile(context.Background())
+		r.reconcile(context.Background())
+	})
+	if len(closed) != 2 || closed[0] == closed[1] || queries != 2 {
+		t.Fatalf("slow closure skipped sessions, starved actions or repeated a poll: %v, queries=%d", closed, queries)
 	}
 }
 

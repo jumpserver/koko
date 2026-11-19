@@ -3,6 +3,7 @@ package agentexec
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,7 +79,7 @@ func TestJournalRestartPreservesDispatchAndAuditIdentity(t *testing.T) {
 	if err := j.Recover(); err != nil {
 		t.Fatal(err)
 	}
-	waiting, err := j.Unfinished(1)
+	waiting, _, err := j.Unfinished(1)
 	if err != nil || len(waiting) != 1 || waiting[0].Action.ID != "human" {
 		t.Fatal("recovery lost its human reconciliation record")
 	}
@@ -260,11 +261,11 @@ func TestJournalCoreSyncNeverDropsUndeliveredEvidence(t *testing.T) {
 	if err := j.PutAction(Action{ID: "later", Status: "queued"}, "capability"); err != nil {
 		t.Fatal(err)
 	}
-	first, err := j.Unfinished(1)
+	first, _, err := j.Unfinished(1)
 	if err != nil || len(first) != 1 {
 		t.Fatal("missing unfinished page")
 	}
-	second, err := j.Unfinished(1)
+	second, _, err := j.Unfinished(1)
 	if err != nil || len(second) != 1 || second[0].Action.ID == first[0].Action.ID {
 		t.Fatal("unfinished pagination starved later operations")
 	}
@@ -310,6 +311,44 @@ func TestJournalPruneReleasesCapacityOnlyAfterDeliveryAndRetention(t *testing.T)
 	}
 	if err := j.PutAction(second, "capability"); err != nil {
 		t.Fatalf("deleted pages did not release capacity: %v", err)
+	}
+}
+
+func TestJournalMaintenanceRotatesPastIneligibleRecords(t *testing.T) {
+	j, err := OpenJournal(t.TempDir(), 16<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer j.Close()
+	for index := range 128 {
+		if err := j.PutAction(Action{ID: fmt.Sprintf("fresh-%03d", index), Status: "succeeded", AuditStatus: "delivered"}, "capability"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := j.PutAction(Action{ID: "z-expired", Status: "succeeded", AuditStatus: "delivered"}, "capability"); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	if err := j.update("z-expired", func(rec *record) error {
+		rec.ExpiresAt, rec.Artifact = now.Add(-time.Second), "/journal/files/expired.data"
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := j.PutAction(Action{ID: "z-waiting", Status: "awaiting_input"}, "capability"); err != nil {
+		t.Fatal(err)
+	}
+	if paths, err := j.Prune(now); err != nil || len(paths) != 0 {
+		t.Fatal("pruning exceeded its scan budget or removed retained evidence")
+	}
+	if paths, err := j.Prune(now); err != nil || len(paths) != 1 || paths[0] != "/journal/files/expired.data" {
+		t.Fatal("ineligible records starved later pruning")
+	}
+	if waiting, more, err := j.Unfinished(1); err != nil || len(waiting) != 0 || !more {
+		t.Fatal("unfinished query scanned beyond its budget")
+	}
+	if waiting, more, err := j.Unfinished(1); err != nil || len(waiting) != 1 || waiting[0].Action.ID != "z-waiting" || more {
+		t.Fatal("completed records starved later reconciliation")
 	}
 }
 

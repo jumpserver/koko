@@ -109,9 +109,9 @@ func NewServer(
 	jmsService *service.JMService,
 	lionRuntime *lion.Runtime,
 ) *Server {
-	srv := &Server{apiClient: jmsService, agentRequests: make(chan struct{}, 32)}
-	eng := createRouter(jmsService, srv, lionRuntime)
 	conf := config.GetConf()
+	srv := &Server{apiClient: jmsService, agentRequests: make(chan struct{}, conf.MCPMaxRequests+conf.MCPControlRequests)}
+	eng := createRouter(jmsService, srv, lionRuntime)
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
 	srv.Srv = &http.Server{Addr: addr, Handler: eng}
 	srv.startAgentRefresh()

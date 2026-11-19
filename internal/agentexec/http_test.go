@@ -74,6 +74,70 @@ func httpTestEndpoint(t *testing.T, scheme string) (*Runtime, *HTTP, *atomic.Int
 	return r, endpoint, &introspections, remote
 }
 
+func TestControlRequestsRemainAvailableWhenWorkIsFull(t *testing.T) {
+	r, endpoint, _, _ := httpTestEndpoint(t, "http")
+	r.opts.MaxRequests, r.opts.ControlRequests = 1, 1
+	core := r.core
+	r.core = coreFunc(func(ctx context.Context, path string, body, out any) error {
+		if path == "actions/approval/cancel/" {
+			return respond(out, Action{ID: "approval", Status: "cancelled"})
+		}
+		return core.Call(ctx, path, body, out)
+	})
+	release, err := r.acquireHTTPRequest(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	server := httptest.NewServer(endpoint.Handler)
+	defer server.Close()
+	clientHTTP := server.Client()
+	clientHTTP.Transport = authorizedTransport{base: clientHTTP.Transport, token: "valid"}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	client := mcp.NewClient(&mcp.Implementation{Name: "capacity-test", Version: "1"}, nil)
+	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: server.URL + endpoint.Path, HTTPClient: clientHTTP}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+	blocked, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "search_assets", Arguments: map[string]any{}})
+	if err != nil || blocked == nil || !blocked.IsError {
+		t.Fatal("work bypassed its full quota", err)
+	}
+	var failure struct{ Error ToolError }
+	data, err := json.Marshal(blocked.StructuredContent)
+	if err != nil || json.Unmarshal(data, &failure) != nil || failure.Error.Code != "capacity_exceeded" || failure.Error.NextStep != "wait_capacity" {
+		t.Fatal("request capacity was reported as an argument error")
+	}
+	for _, call := range []mcp.CallToolParams{
+		{Name: "query_sessions", Arguments: map[string]any{"operation": "list"}},
+		{Name: "query_actions", Arguments: map[string]any{"operation": "get", "action_id": "approval"}},
+		{Name: "cancel_action", Arguments: map[string]any{"action_id": "approval"}},
+		{Name: "disconnect_asset", Arguments: map[string]any{"session_id": "session"}},
+	} {
+		r.sessions["session"].connection = nil
+		result, err := session.CallTool(ctx, &call)
+		if err != nil || result == nil || result.IsError {
+			t.Fatalf("control request %s was blocked: result=%v error=%v", call.Name, result, err)
+		}
+	}
+	reserved, err := r.acquireHTTPRequest(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reserved()
+	refreshed, err := NewHTTP(r, endpoint.Resource, endpoint.Issuer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	refreshed.Metadata.ServeHTTP(response, httptest.NewRequest("GET", server.URL+refreshed.MetadataPath, nil))
+	if response.Code != http.StatusTooManyRequests {
+		t.Fatal("configuration refresh bypassed the reserved quota")
+	}
+}
+
 func TestHTTPRejectsInvalidPublicResource(t *testing.T) {
 	for _, address := range []string{
 		"https://host/mcp%", "https://host/mcp%2F", "https://host/mcp%00", "https://host/mcp%7F", "https://host/mcp%ff",

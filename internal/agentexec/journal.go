@@ -68,6 +68,10 @@ type Journal struct {
 	scanAfter    string
 	pendingMu    sync.Mutex
 	pendingAfter string
+	pruneMu      sync.Mutex
+	pruneAfter   string
+	sessionMu    sync.Mutex
+	sessionAfter string
 }
 
 func OpenJournal(directory string, maxBytes int64) (*Journal, error) {
@@ -577,15 +581,27 @@ func (j *Journal) SyncCore(action Action) (bool, error) {
 	return adopted && err == nil, err
 }
 
-// Prune deletes at most 128 completed records per call, only after every audit
+// Prune scans at most 128 records per call, only deleting after every audit
 // event was acknowledged and its 24-hour retention elapsed. Returned artifact
 // paths may be deleted by the runtime after the transaction commits.
 func (j *Journal) Prune(now time.Time) ([]string, error) {
+	j.pruneMu.Lock()
+	defer j.pruneMu.Unlock()
 	var artifacts []string
+	last := j.pruneAfter
 	err := j.db.Update(func(tx *bolt.Tx) error {
 		var ids []string
 		cursor := tx.Bucket(actionsBucket).Cursor()
-		for key, data := cursor.First(); key != nil && len(ids) < 128; key, data = cursor.Next() {
+		key, data := cursor.First()
+		if last != "" {
+			key, data = cursor.Seek([]byte(last))
+			if string(key) == last {
+				key, data = cursor.Next()
+			}
+		}
+		for scanned := 0; key != nil && scanned < 128; key, data = cursor.Next() {
+			scanned++
+			last = string(key)
 			var rec record
 			if err := j.open(data, &rec); err != nil {
 				return err
@@ -598,6 +614,9 @@ func (j *Journal) Prune(now time.Time) ([]string, error) {
 				artifacts = append(artifacts, rec.Artifact)
 			}
 		}
+		if key == nil {
+			last = ""
+		}
 		for _, id := range ids {
 			if err := j.put(tx, actionsBucket, []byte(id), nil, true); err != nil {
 				return err
@@ -608,6 +627,7 @@ func (j *Journal) Prune(now time.Time) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	j.pruneAfter = last
 	return artifacts, nil
 }
 
@@ -625,31 +645,46 @@ func (j *Journal) DeleteSession(id string) error {
 	return j.db.Update(func(tx *bolt.Tx) error { return j.put(tx, sessionsBucket, []byte(id), nil, true) })
 }
 
-func (j *Journal) Sessions() (sessions []Session, err error) {
-	err = j.db.View(func(tx *bolt.Tx) error {
-		return tx.Bucket(sessionsBucket).ForEach(func(_, data []byte) error {
-			var session Session
-			if err := j.open(data, &session); err != nil {
-				return err
+// NextSession advances only one record so a slow close cannot skip the rest
+// of a prefetched page. A nil result ends this pass and resets the cursor.
+func (j *Journal) NextSession() (*Session, error) {
+	j.sessionMu.Lock()
+	defer j.sessionMu.Unlock()
+	var session *Session
+	last := j.sessionAfter
+	err := j.db.View(func(tx *bolt.Tx) error {
+		cursor := tx.Bucket(sessionsBucket).Cursor()
+		key, data := cursor.First()
+		if last != "" {
+			key, data = cursor.Seek([]byte(last))
+			if string(key) == last {
+				key, data = cursor.Next()
 			}
-			sessions = append(sessions, session)
+		}
+		if key == nil {
+			last = ""
 			return nil
-		})
+		}
+		last = string(key)
+		session = &Session{}
+		return j.open(data, session)
 	})
-	return
+	if err == nil {
+		j.sessionAfter = last
+	}
+	return session, err
 }
 
-// Unfinished rotates through bounded pages so long-lived human handoffs cannot
-// starve later actions that need cancellation or terminal-state reconciliation.
-func (j *Journal) Unfinished(limit int) ([]record, error) {
+// Unfinished scans at most 128 records per call. More indicates that this pass
+// has unscanned records, including when a page contains only completed actions.
+func (j *Journal) Unfinished(limit int) (records []record, more bool, err error) {
 	if limit < 1 || limit > 128 {
-		return nil, errors.New("unfinished action page limit must be between 1 and 128")
+		return nil, false, errors.New("unfinished action page limit must be between 1 and 128")
 	}
 	j.scanMu.Lock()
 	defer j.scanMu.Unlock()
-	var records []record
 	last := j.scanAfter
-	err := j.db.View(func(tx *bolt.Tx) error {
+	err = j.db.View(func(tx *bolt.Tx) error {
 		cursor := tx.Bucket(actionsBucket).Cursor()
 		key, value := cursor.First()
 		if last != "" {
@@ -658,7 +693,8 @@ func (j *Journal) Unfinished(limit int) ([]record, error) {
 				key, value = cursor.Next()
 			}
 		}
-		for ; key != nil && len(records) < limit; key, value = cursor.Next() {
+		for scanned := 0; key != nil && scanned < 128 && len(records) < limit; key, value = cursor.Next() {
+			scanned++
 			last = string(key)
 			var rec record
 			if err := j.open(value, &rec); err != nil {
@@ -668,7 +704,8 @@ func (j *Journal) Unfinished(limit int) ([]record, error) {
 				records = append(records, rec)
 			}
 		}
-		if key == nil {
+		more = key != nil
+		if !more {
 			last = ""
 		}
 		return nil
@@ -676,7 +713,7 @@ func (j *Journal) Unfinished(limit int) ([]record, error) {
 	if err == nil {
 		j.scanAfter = last
 	}
-	return records, err
+	return records, more, err
 }
 
 func (j *Journal) Recover() error {

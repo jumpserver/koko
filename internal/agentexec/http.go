@@ -61,6 +61,21 @@ func NewHTTP(r *Runtime, resourceURL, issuerURL string) (*HTTP, error) {
 	r.registerTools(server, issuer)
 	server.AddReceivingMiddleware(func(next mcp.MethodHandler) mcp.MethodHandler {
 		return func(ctx context.Context, method string, request mcp.Request) (mcp.Result, error) {
+			control := method != "tools/call"
+			if call, ok := request.(*mcp.CallToolRequest); ok && call.Params != nil {
+				switch call.Params.Name {
+				case "query_actions", "query_sessions", "cancel_action", "disconnect_asset":
+					control = true
+				}
+			}
+			release, err := r.acquireHTTPRequest(control)
+			if err != nil {
+				if method == "tools/call" {
+					return toolFailureResult(err), nil
+				}
+				return nil, err
+			}
+			defer release()
 			result, err := next(ctx, method, request)
 			if failure, ok := result.(*mcp.CallToolResult); method == "tools/call" && ok && failure != nil && failure.IsError && failure.StructuredContent == nil {
 				message := "Invalid tool arguments"
@@ -80,7 +95,7 @@ func NewHTTP(r *Runtime, resourceURL, issuerURL string) (*HTTP, error) {
 	metadataAddress.Path = metadataPath
 	metadataAddress.RawPath = resource.EscapedPath() + "/.well-known/oauth-protected-resource"
 	metadataURL := metadataAddress.String()
-	metadata := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	metadata := r.withHTTPRequest(true, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		if req.Method != "GET" {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -88,7 +103,7 @@ func NewHTTP(r *Runtime, resourceURL, issuerURL string) (*HTTP, error) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"resource": resourceURL, "authorization_servers": []string{issuer}, "scopes_supported": []string{"agent:access"}, "bearer_methods_supported": []string{"header"}})
-	})
+	}))
 	verify := func(ctx context.Context, token string, req *http.Request) (*auth.TokenInfo, error) {
 		p, err := r.Introspect(ctx, token, resourceURL)
 		if err != nil {
@@ -111,9 +126,11 @@ func NewHTTP(r *Runtime, resourceURL, issuerURL string) (*HTTP, error) {
 		case resource.Path:
 			stream.ServeHTTP(w, req)
 		case resource.Path + "/files/upload":
-			r.uploadHTTP(w, req, issuer)
+			r.withHTTPRequest(false, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				r.uploadHTTP(w, req, issuer)
+			})).ServeHTTP(w, req)
 		case resource.Path + "/files/download":
-			r.downloadHTTP(w, req)
+			r.withHTTPRequest(false, http.HandlerFunc(r.downloadHTTP)).ServeHTTP(w, req)
 		default:
 			http.NotFound(w, req)
 		}
@@ -129,6 +146,44 @@ func NewHTTP(r *Runtime, resourceURL, issuerURL string) (*HTTP, error) {
 		secured.ServeHTTP(w, req)
 	})
 	return &HTTP{Resource: resourceURL, Issuer: issuer, Handler: handler, Metadata: metadata, Path: resource.Path, MetadataPath: metadataPath}, nil
+}
+
+// Quotas belong to the runtime, so refreshing discovery cannot reset active work.
+// Control calls use reserved slots only after the shared work slots are occupied.
+func (r *Runtime) acquireHTTPRequest(control bool) (func(), error) {
+	r.httpOnce.Do(func() {
+		options := r.opts
+		options.defaults()
+		r.httpRequests = make(chan struct{}, options.MaxRequests)
+		r.controlRequests = make(chan struct{}, options.ControlRequests)
+	})
+	select {
+	case r.httpRequests <- struct{}{}:
+		return func() { <-r.httpRequests }, nil
+	default:
+	}
+	if control {
+		select {
+		case r.controlRequests <- struct{}{}:
+			return func() { <-r.controlRequests }, nil
+		default:
+		}
+	}
+	return nil, capacityError("MCP request capacity reached")
+}
+
+func (r *Runtime) withHTTPRequest(control bool, handler http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		release, err := r.acquireHTTPRequest(control)
+		if err != nil {
+			w.Header().Set("Cache-Control", "no-store")
+			w.Header().Set("Retry-After", "2")
+			http.Error(w, err.Error(), http.StatusTooManyRequests)
+			return
+		}
+		defer release()
+		handler.ServeHTTP(w, req)
+	}
 }
 
 // Koko's HTTP adapter supplies the IP resolved by its shared ClientIP policy.

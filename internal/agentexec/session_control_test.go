@@ -22,7 +22,7 @@ func TestIdleAuthorityChecksRotateAndCloseOnlyRevokedConnections(t *testing.T) {
 		id := fmt.Sprintf("session-%02d", index)
 		connection := &assetexec.Connection{}
 		connections[id] = connection
-		r.sessions[id] = &liveSession{info: Session{ID: id, SessionToken: "capability"}, connection: connection}
+		r.addSessionLocked(&liveSession{info: Session{ID: id, SessionToken: "capability"}, connection: connection})
 	}
 	checked := map[string]bool{}
 	r.core = coreFunc(func(_ context.Context, path string, _ any, out any) error {
@@ -66,7 +66,8 @@ func TestQueuedAuthorityRevocationClosesTransportBeforeDispatch(t *testing.T) {
 				connection := &assetexec.Connection{}
 				s := &liveSession{info: Session{ID: "session", SessionToken: "capability", Status: "active"},
 					connection: connection, active: 1, gate: make(chan struct{}, 1)}
-				r.sessions = map[string]*liveSession{s.info.ID: s}
+				r.sessions = make(map[string]*liveSession)
+				r.addSessionLocked(s)
 				r.jobs = map[string]context.CancelFunc{a.ID: cancel}
 				r.running = make(chan struct{}, 1)
 				r.running <- struct{}{}

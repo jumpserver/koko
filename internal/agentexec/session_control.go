@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/jumpserver-dev/sdk-go/model"
@@ -18,27 +17,15 @@ func (r *Runtime) checkSessionAuthorities(parent context.Context) {
 	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	defer cancel()
 	r.mu.Lock()
-	ids := make([]string, 0, len(r.sessions))
-	for id := range r.sessions {
-		ids = append(ids, id)
-	}
+	count := min(len(r.sessions), 16)
 	r.mu.Unlock()
-	slices.Sort(ids)
-	start, _ := slices.BinarySearch(ids, r.authorityAfter)
-	if start < len(ids) && ids[start] == r.authorityAfter {
-		start++
-	}
-	if start == len(ids) {
-		start = 0
-	}
-	for index := start; index < len(ids) && index < start+16 && ctx.Err() == nil; index++ {
-		id := ids[index]
-		r.authorityAfter = id
-		r.mu.Lock()
-		s := r.sessions[id]
-		r.mu.Unlock()
+	for range count {
+		if ctx.Err() != nil {
+			return
+		}
+		s := r.nextSession(&r.authorityNext)
 		if s == nil {
-			continue
+			return
 		}
 		s.mu.Lock()
 		info, releasing := s.info, s.closingNow

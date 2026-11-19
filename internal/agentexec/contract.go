@@ -20,9 +20,19 @@ type ToolError struct {
 	RetryAfterMS int    `json:"retry_after_ms,omitempty"`
 }
 
+type capacityError string
+
+func (e capacityError) Error() string { return string(e) }
+
 func toolError(err error) ToolError {
 	result := ToolError{Code: "invalid_arguments", Message: err.Error(), RetryMode: "correct_arguments", NextStep: "correct_arguments"}
 	var rejected *CoreError
+	var capacity capacityError
+	if errors.As(err, &capacity) {
+		result.Code, result.HTTPStatus = "capacity_exceeded", http.StatusTooManyRequests
+		result.RetryMode, result.NextStep, result.RetryAfterMS = "query_existing", "wait_capacity", 1000
+		return result
+	}
 	if errors.As(err, &rejected) {
 		result.Code, _ = rejected.guidance()
 		result.HTTPStatus = rejected.Status

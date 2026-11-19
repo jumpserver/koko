@@ -24,6 +24,9 @@ func (s *Server) initializeAgent(ctx context.Context, enabled bool) error {
 		return nil
 	}
 	conf := config.GetConf()
+	if err := conf.ValidateMCP(); err != nil {
+		return err
+	}
 	directory := filepath.Join(conf.DataFolderPath, "agent")
 	if !enabled {
 		// Recover pending evidence even when Core is disabled or unavailable.
@@ -42,7 +45,11 @@ func (s *Server) initializeAgent(ctx context.Context, enabled bool) error {
 	if err != nil {
 		return err
 	}
-	runtime, err := agentexec.New(core, s.apiClient, agentexec.Options{Directory: directory})
+	runtime, err := agentexec.New(core, s.apiClient, agentexec.Options{
+		Directory: directory, MaxSessions: conf.MCPMaxSessions, MaxPending: conf.MCPMaxPending,
+		MaxRunning: conf.MCPMaxRunning, QueueTimeout: time.Duration(conf.MCPQueueTimeout) * time.Second,
+		MaxRequests: conf.MCPMaxRequests, ControlRequests: conf.MCPControlRequests,
+	})
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package agentexec
 
 import (
+	"container/list"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -18,6 +19,7 @@ import (
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/internal/assetexec"
+	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/session"
 	gossh "golang.org/x/crypto/ssh"
@@ -26,25 +28,34 @@ import (
 const agentLoginFrom = "AG"
 
 type Options struct {
-	Directory      string
-	MaxSessions    int
-	MaxPending     int
-	MaxRunning     int
-	MaxOutputBytes int64
-	MaxFileBytes   int64
-	JournalBytes   int64
-	IdleTimeout    time.Duration
+	Directory       string
+	MaxSessions     int
+	MaxPending      int
+	MaxRunning      int
+	QueueTimeout    time.Duration
+	MaxRequests     int
+	ControlRequests int
+	MaxOutputBytes  int64
+	MaxFileBytes    int64
+	JournalBytes    int64
+	IdleTimeout     time.Duration
 }
 
 func (o *Options) defaults() {
-	if o.MaxSessions <= 0 {
-		o.MaxSessions = 128
+	if o.MaxPending == 0 {
+		o.MaxPending = config.DefaultMCPMaxPending
 	}
-	if o.MaxPending <= 0 {
-		o.MaxPending = 64
+	if o.MaxRunning == 0 {
+		o.MaxRunning = config.DefaultMCPMaxRunning
 	}
-	if o.MaxRunning <= 0 {
-		o.MaxRunning = 20
+	if o.QueueTimeout == 0 {
+		o.QueueTimeout = time.Duration(config.DefaultMCPQueueTimeout) * time.Second
+	}
+	if o.MaxRequests == 0 {
+		o.MaxRequests = config.DefaultMCPMaxRequests
+	}
+	if o.ControlRequests == 0 {
+		o.ControlRequests = config.DefaultMCPControlRequests
 	}
 	if o.MaxOutputBytes <= 0 {
 		o.MaxOutputBytes = 8 << 20
@@ -72,6 +83,7 @@ type liveSession struct {
 	key           string
 	connectCancel context.CancelFunc
 	gate          chan struct{}
+	element       *list.Element
 }
 
 type Runtime struct {
@@ -83,13 +95,18 @@ type Runtime struct {
 	cancel           context.CancelFunc
 	mu               sync.Mutex
 	sessions         map[string]*liveSession
+	sessionOrder     list.List
+	idleNext         *list.Element
+	authorityNext    *list.Element
 	jobs             map[string]context.CancelFunc
 	running          chan struct{}
+	httpOnce         sync.Once
+	httpRequests     chan struct{}
+	controlRequests  chan struct{}
 	wg               sync.WaitGroup
 	flushMu          sync.Mutex
 	closing          bool
 	storageErr       error
-	authorityAfter   string
 	lastAuditFailure time.Time
 }
 
@@ -98,7 +115,10 @@ func New(core Core, jms *service.JMService, options Options) (*Runtime, error) {
 	if core == nil || jms == nil || options.Directory == "" {
 		return nil, errors.New("agent runtime dependencies are required")
 	}
-	if options.MaxSessions > 256 || options.MaxPending > 256 || options.MaxRunning > 64 || options.MaxOutputBytes > 8<<20 || options.MaxFileBytes > 100<<20 || options.JournalBytes > 1<<30 {
+	if options.MaxSessions < 0 || options.MaxPending < 1 || options.MaxRunning < 1 || options.QueueTimeout < 0 || options.MaxRequests < 1 || options.ControlRequests < 1 {
+		return nil, errors.New("agent session limit must be non-negative; other capacities and queue timeout must be positive")
+	}
+	if options.MaxOutputBytes > 8<<20 || options.MaxFileBytes > 100<<20 || options.JournalBytes > 1<<30 {
 		return nil, errors.New("agent capacity exceeds supported single-node limits")
 	}
 	journal, err := OpenJournal(options.Directory, options.JournalBytes)
@@ -184,7 +204,7 @@ func (r *Runtime) Connect(ctx context.Context, p Principal, asset, account, prot
 		return nil, errors.New("unsupported agent protocol")
 	}
 	r.mu.Lock()
-	full := len(r.sessions) >= r.opts.MaxSessions
+	full := r.opts.MaxSessions > 0 && len(r.sessions) >= r.opts.MaxSessions
 	if full {
 		for _, existing := range r.sessions {
 			if existing.key == key && existing.owner == owner(p) {
@@ -195,7 +215,7 @@ func (r *Runtime) Connect(ctx context.Context, p Principal, asset, account, prot
 	}
 	r.mu.Unlock()
 	if full {
-		return nil, errors.New("asset session capacity reached")
+		return nil, capacityError("asset session capacity reached")
 	}
 	var info Session
 	err := r.core.Call(ctx, "sessions/", map[string]any{"context_token": p.ContextToken, "asset_id": asset, "account": account,
@@ -236,17 +256,17 @@ func (r *Runtime) Connect(ctx context.Context, p Principal, asset, account, prot
 		r.mu.Unlock()
 		return nil, readErr
 	}
-	if len(r.sessions) >= r.opts.MaxSessions || r.closing {
+	if (r.opts.MaxSessions > 0 && len(r.sessions) >= r.opts.MaxSessions) || r.closing {
 		r.mu.Unlock()
 		if saveErr := r.journal.PutAction(Action{ID: info.ActionID, ActionID: info.ActionID, SessionID: info.ID, Kind: "connect_asset", Status: "accepted"}, info.SessionToken); saveErr == nil {
 			_ = r.journal.SaveSession(info)
 			r.finish(info.ActionID, "rejected", map[string]any{"error": "asset session capacity reached"})
 		}
-		return nil, errors.New("asset session capacity reached")
+		return nil, capacityError("asset session capacity reached")
 	}
 	connectCtx, connectCancel := context.WithTimeout(r.ctx, 10*time.Minute)
 	s := &liveSession{info: info, owner: owner(p), key: key, lastUsed: time.Now(), active: 1, gate: make(chan struct{}, 1), connectCancel: connectCancel}
-	r.sessions[info.ID] = s
+	r.addSessionLocked(s)
 	r.wg.Add(1)
 	r.mu.Unlock()
 	if err = r.journal.SaveSession(info); err != nil {
@@ -316,7 +336,52 @@ func (r *Runtime) publicSession(s Session) map[string]any {
 	return result
 }
 
-func (r *Runtime) removeSession(id string) { r.mu.Lock(); delete(r.sessions, id); r.mu.Unlock() }
+// Caller holds r.mu; the index permits bounded maintenance without sorting or
+// copying every live session when the configured session count is unlimited.
+func (r *Runtime) addSessionLocked(s *liveSession) {
+	r.sessions[s.info.ID] = s
+	s.element = r.sessionOrder.PushBack(s)
+}
+
+func (r *Runtime) nextSession(next **list.Element) *liveSession {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if *next == nil {
+		*next = r.sessionOrder.Front()
+	}
+	current := *next
+	if current == nil {
+		return nil
+	}
+	*next = current.Next()
+	if *next == nil {
+		*next = r.sessionOrder.Front()
+	}
+	return current.Value.(*liveSession)
+}
+
+func (r *Runtime) removeSession(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if s := r.sessions[id]; s != nil && s.element != nil {
+		next := s.element.Next()
+		if next == nil {
+			next = r.sessionOrder.Front()
+		}
+		if next == s.element {
+			next = nil
+		}
+		if r.idleNext == s.element {
+			r.idleNext = next
+		}
+		if r.authorityNext == s.element {
+			r.authorityNext = next
+		}
+		r.sessionOrder.Remove(s.element)
+		s.element = nil
+	}
+	delete(r.sessions, id)
+}
 
 func (r *Runtime) sessionCall(ctx context.Context, s Session, operation string, extra map[string]any, result any) error {
 	path, err := operationPath("sessions", s.ID, operation)
@@ -607,11 +672,15 @@ func (r *Runtime) enqueue(action Action, s *liveSession) error {
 		r.mu.Unlock()
 		return nil
 	}
-	if len(r.jobs) >= r.opts.MaxPending || r.closing || r.storageErr != nil {
+	if r.closing || r.storageErr != nil {
 		r.mu.Unlock()
-		return errors.New("operation queue capacity reached")
+		return errors.New("execution service is unavailable")
 	}
-	ctx, cancel := context.WithTimeout(r.ctx, 20*time.Minute)
+	if len(r.jobs) >= r.opts.MaxPending {
+		r.mu.Unlock()
+		return capacityError("operation queue capacity reached")
+	}
+	ctx, cancel := context.WithCancel(r.ctx)
 	r.jobs[action.ID] = cancel
 	s.mu.Lock()
 	if s.closing || (s.connection == nil && action.Kind != "open_terminal") {
@@ -643,14 +712,24 @@ func (r *Runtime) enqueue(action Action, s *liveSession) error {
 }
 
 func (r *Runtime) run(ctx context.Context, action Action, s *liveSession) {
+	queueTimeout := r.opts.QueueTimeout
+	if queueTimeout == 0 {
+		queueTimeout = time.Duration(config.DefaultMCPQueueTimeout) * time.Second
+	}
+	queueCtx, stopWaiting := context.WithTimeout(ctx, queueTimeout)
+	defer stopWaiting()
 	s.mu.Lock()
 	info := s.info
 	s.mu.Unlock()
 	finish := func(state string, result map[string]any) { r.finish(action.ID, state, result) }
 	for {
-		checked, err := r.authorize(ctx, action, info)
+		checked, err := r.authorize(queueCtx, action, info)
 		if err != nil {
-			finish("rejected", map[string]any{"error": err.Error()})
+			if queueCtx.Err() != nil {
+				finish("expired", map[string]any{"error": "approval or queue timeout"})
+			} else {
+				finish("rejected", map[string]any{"error": err.Error()})
+			}
 			return
 		}
 		if terminalState(checked.Status) {
@@ -668,7 +747,7 @@ func (r *Runtime) run(ctx context.Context, action Action, s *liveSession) {
 			break
 		}
 		select {
-		case <-ctx.Done():
+		case <-queueCtx.Done():
 			finish("expired", map[string]any{"error": "approval or queue timeout"})
 			return
 		case <-time.After(2 * time.Second):
@@ -677,7 +756,7 @@ func (r *Runtime) run(ctx context.Context, action Action, s *liveSession) {
 	select {
 	case s.gate <- struct{}{}:
 		defer func() { <-s.gate }()
-	case <-ctx.Done():
+	case <-queueCtx.Done():
 		finish("expired", map[string]any{"error": "session queue timeout"})
 		return
 	}
@@ -686,10 +765,15 @@ func (r *Runtime) run(ctx context.Context, action Action, s *liveSession) {
 	select {
 	case r.running <- struct{}{}:
 		defer func() { <-r.running }()
-	case <-ctx.Done():
+	case <-queueCtx.Done():
 		finish("expired", map[string]any{"error": "queue timeout"})
 		return
 	}
+	if queueCtx.Err() != nil {
+		finish("expired", map[string]any{"error": "queue timeout"})
+		return
+	}
+	stopWaiting()
 	s.mu.Lock()
 	unavailable := action.Kind != "open_terminal" && (s.connection == nil || s.info.Status != "active")
 	s.mu.Unlock()
@@ -1088,15 +1172,13 @@ func (r *Runtime) flush(parent context.Context) {
 	}
 }
 
-func (r *Runtime) reconcile(parent context.Context) {
-	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
-	defer cancel()
-	sessions, err := r.journal.Sessions()
-	if err != nil {
-		return
-	}
-	for _, info := range sessions {
+func (r *Runtime) reconcileSessions(ctx context.Context) {
+	for range 128 {
 		if ctx.Err() != nil {
+			return
+		}
+		info, err := r.journal.NextSession()
+		if err != nil || info == nil {
 			return
 		}
 		r.mu.Lock()
@@ -1105,18 +1187,33 @@ func (r *Runtime) reconcile(parent context.Context) {
 		if active {
 			continue
 		}
-		if err = r.sessionCall(ctx, info, "close", nil, &map[string]any{}); err == nil {
+		if err = r.sessionCall(ctx, *info, "close", nil, &map[string]any{}); err == nil {
 			_ = r.journal.DeleteSession(info.ID)
 		}
 	}
-	waiting, err := r.journal.Unfinished(128)
-	if err != nil {
-		return
-	}
-	for _, rec := range waiting {
+}
+
+func (r *Runtime) reconcile(parent context.Context) {
+	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
+	defer cancel()
+	// Reserve time for actions even when closing an orphaned session is slow.
+	sessionCtx, stop := context.WithTimeout(ctx, 2*time.Second)
+	r.reconcileSessions(sessionCtx)
+	stop()
+	more := true
+	for page := 0; page < 128 && more; page++ {
 		if ctx.Err() != nil {
 			return
 		}
+		waiting, hasMore, err := r.journal.Unfinished(1)
+		if err != nil {
+			return
+		}
+		more = hasMore
+		if len(waiting) == 0 {
+			continue
+		}
+		rec := waiting[0]
 		// Authorization returns existing final states without re-executing or
 		// requesting credentials. Active workers own their own state updates.
 		r.mu.Lock()
@@ -1128,6 +1225,26 @@ func (r *Runtime) reconcile(parent context.Context) {
 		}
 		if action, err := r.authorize(ctx, rec.Action, Session{ID: rec.Action.SessionID, SessionToken: rec.SessionToken}); err == nil {
 			_, _ = r.journal.SyncCore(action)
+		}
+	}
+}
+
+func (r *Runtime) expireIdleSessions() {
+	r.mu.Lock()
+	count := min(len(r.sessions), 128)
+	r.mu.Unlock()
+	now := time.Now()
+	for range count {
+		s := r.nextSession(&r.idleNext)
+		if s == nil {
+			return
+		}
+		s.mu.Lock()
+		expired := !s.info.ExpiresAt.IsZero() && !s.info.ExpiresAt.After(now)
+		closeIt := s.active == 0 && (s.closing || expired || now.Sub(s.lastUsed) > r.opts.IdleTimeout)
+		s.mu.Unlock()
+		if closeIt {
+			r.closeSession(s)
 		}
 	}
 }
@@ -1148,21 +1265,7 @@ func (r *Runtime) maintain() {
 				r.checkSessionAuthorities(r.ctx)
 				lastAuthorityCheck = time.Now()
 			}
-			r.mu.Lock()
-			sessions := make([]*liveSession, 0, len(r.sessions))
-			for _, s := range r.sessions {
-				sessions = append(sessions, s)
-			}
-			r.mu.Unlock()
-			for _, s := range sessions {
-				s.mu.Lock()
-				expired := !s.info.ExpiresAt.IsZero() && !s.info.ExpiresAt.After(time.Now())
-				closeIt := s.active == 0 && (s.closing || expired || time.Since(s.lastUsed) > r.opts.IdleTimeout)
-				s.mu.Unlock()
-				if closeIt {
-					r.closeSession(s)
-				}
-			}
+			r.expireIdleSessions()
 			if time.Since(lastCleanup) > 30*time.Second {
 				r.reconcile(r.ctx)
 				r.cleanupFiles()
