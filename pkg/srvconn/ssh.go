@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -155,17 +156,49 @@ var (
 
 func getAvailableProxyClient(cfgs ...SSHClientOptions) (*SSHClient, error) {
 	for i := range cfgs {
-		if proxyClient, err := NewSSHClientWithCfg(&cfgs[i]); err == nil {
+		cfg := &cfgs[i]
+		var nextAuth gossh.ClientAuthCallback
+		if (cfg.PrivateKey != "" || cfg.PrivateAuth != nil) && cfg.Password == "" && cfg.keyboardAuth == nil {
+			nextAuth = gatewayKeyCompletion
+		}
+		if proxyClient, err := newSSHClientWithCfg(cfg, nextAuth); err == nil {
 			return proxyClient, nil
 		}
 	}
 	return nil, ErrNoAvailable
 }
 
+// Some gateways require a keyboard-interactive exchange with no questions
+// after accepting the client's public key.
+func gatewayKeyCompletion(ctx *gossh.ClientAuthContext) (gossh.AuthMethod, error) {
+	if len(ctx.PartialSuccessMethods) == 0 {
+		return nil, nil // Use the configured key for the initial authentication.
+	}
+	if len(ctx.PartialSuccessMethods) != 1 || ctx.PartialSuccessMethods[0] != "publickey" ||
+		!slices.Contains(ctx.AllowedMethods, "keyboard-interactive") ||
+		slices.Contains(ctx.TriedMethods, "keyboard-interactive") {
+		return nil, errors.New("unsupported SSH gateway authentication sequence")
+	}
+
+	answered := false
+	return gossh.KeyboardInteractive(func(_, _ string, questions []string, _ []bool) ([]string, error) {
+		if answered || len(questions) != 0 {
+			return nil, errors.New("SSH gateway requires interactive authentication")
+		}
+		answered = true
+		return []string{}, nil
+	}), nil
+}
+
 func NewSSHClientWithCfg(cfg *SSHClientOptions) (*SSHClient, error) {
+	return newSSHClientWithCfg(cfg, nil)
+}
+
+func newSSHClientWithCfg(cfg *SSHClientOptions, nextAuth gossh.ClientAuthCallback) (*SSHClient, error) {
 	gosshCfg := gossh.ClientConfig{
 		User:            cfg.Username,
 		Auth:            cfg.AuthMethods(),
+		AuthCallback:    nextAuth,
 		Timeout:         time.Duration(cfg.Timeout) * time.Second,
 		HostKeyCallback: common.NewTrustHostKeyCallback(),
 		Config:          createSSHConfig(),
