@@ -1359,3 +1359,12 @@ msgstr "請求失敗（HTTP %d）。"
 
 msgid "Invalid response from server."
 msgstr "伺服器回應無效。"
+
+#: pkg/proxy/command_review.go
+#, c-format
+msgid "Command review submission failed. The command was not executed. Reason: %s"
+msgstr "命令審批提交失敗，命令未執行。原因：%s"
+
+#: pkg/proxy/command_review.go
+msgid "Command review submission failed. The command was not executed. Please contact your administrator."
+msgstr "命令審批提交失敗，命令未執行。請聯絡管理員檢查。"

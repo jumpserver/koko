@@ -281,7 +281,7 @@ func (s *Server) ReviewCommand(
 	if err := ctx.Err(); err != nil {
 		return decision, err
 	}
-	ticket, err := s.jmsService.SubmitCommandReview(s.ID, decision.ACLID, command)
+	ticket, err := submitCommandReview(s.jmsService, s.ID, decision.ACLID, command, s.connOpts.getLang())
 	if err != nil {
 		return decision, err
 	}

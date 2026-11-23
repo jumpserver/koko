@@ -1135,10 +1135,11 @@ type CommandRule struct {
 func (p *Parser) waitCommandConfirm() {
 	cmd := p.confirmStatus.Cmd
 	rule := p.confirmStatus.Rule
-	resp, err := p.jmsService.SubmitCommandReview(p.id, rule.Acl.ID, p.confirmStatus.Cmd)
+	resp, err := submitCommandReview(p.jmsService, p.id, rule.Acl.ID, p.confirmStatus.Cmd, i18n.NewLang(p.i18nLang))
 	if err != nil {
-		logger.Errorf("Session %s: submit command confirm api err: %s", p.id, err)
-		p.confirmStatus.SetAction(model.ActionReject)
+		p.srvOutputChan <- []byte("\r\n" + utils.WrapperString(err.Error(), utils.Red))
+		// Submission failures cancel review; only an actual denial is ReviewReject.
+		p.confirmStatus.SetAction(model.ActionUnknown)
 		return
 	}
 	lang := i18n.NewLang(p.i18nLang)
