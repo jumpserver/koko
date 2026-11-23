@@ -15,6 +15,7 @@ const (
 	DefaultMCPQueueTimeout    = 1200
 	DefaultMCPMaxRequests     = 32
 	DefaultMCPControlRequests = 4
+	DefaultMCPJournalMaxSize  = 1024 // MiB
 )
 
 func (c *Config) mcpLimits() []struct {
@@ -33,6 +34,7 @@ func (c *Config) mcpLimits() []struct {
 		{"MCP_QUEUE_TIMEOUT", &c.MCPQueueTimeout, 1},
 		{"MCP_MAX_REQUESTS", &c.MCPMaxRequests, 1},
 		{"MCP_CONTROL_REQUESTS", &c.MCPControlRequests, 1},
+		{"MCP_JOURNAL_MAX_SIZE", &c.MCPJournalMaxSize, 16},
 	}
 }
 
@@ -62,7 +64,8 @@ func (c *Config) ValidateMCP() error {
 		}
 	}
 	if c.MCPMaxRequests > int(^uint(0)>>1)-c.MCPControlRequests ||
-		int64(c.MCPQueueTimeout) > int64((1<<63-1)/time.Second) {
+		int64(c.MCPQueueTimeout) > int64((1<<63-1)/time.Second) ||
+		int64(c.MCPJournalMaxSize) > (1<<63-1)>>20 {
 		return fmt.Errorf("MCP capacity configuration exceeds supported integer ranges")
 	}
 	return nil

@@ -176,13 +176,22 @@ func TestSessionQueueLeavesCapacityForOtherSessions(t *testing.T) {
 }
 
 func TestConfiguredCapacityAboveLegacyCeilings(t *testing.T) {
-	r, err := New(coreFunc(func(context.Context, string, any, any) error { return nil }), &service.JMService{}, Options{
-		Directory: t.TempDir(), MaxSessions: 1024, MaxPending: 512, MaxRunning: 128,
-	})
-	if err != nil {
-		t.Fatal(err)
+	for _, journalBytes := range []int64{0, 4 << 30} {
+		r, err := New(coreFunc(func(context.Context, string, any, any) error { return nil }), &service.JMService{}, Options{
+			Directory: t.TempDir(), MaxSessions: 1024, MaxPending: 512, MaxRunning: 128, JournalBytes: journalBytes,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer r.Close()
+		want := journalBytes
+		if want == 0 {
+			want = 1 << 30
+		}
+		if r.journal.maxBytes != want {
+			t.Fatalf("journal capacity: got %d, want %d", r.journal.maxBytes, want)
+		}
 	}
-	defer r.Close()
 }
 
 func TestUnlimitedSessionsStillRequireCoreAuthorization(t *testing.T) {

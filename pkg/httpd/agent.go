@@ -49,6 +49,7 @@ func (s *Server) initializeAgent(ctx context.Context, enabled bool) error {
 		Directory: directory, MaxSessions: conf.MCPMaxSessions, MaxPending: conf.MCPMaxPending,
 		MaxRunning: conf.MCPMaxRunning, QueueTimeout: time.Duration(conf.MCPQueueTimeout) * time.Second,
 		MaxRequests: conf.MCPMaxRequests, ControlRequests: conf.MCPControlRequests,
+		JournalBytes: int64(conf.MCPJournalMaxSize) << 20,
 	})
 	if err != nil {
 		return err

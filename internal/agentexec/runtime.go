@@ -64,7 +64,7 @@ func (o *Options) defaults() {
 		o.MaxFileBytes = 100 << 20
 	}
 	if o.JournalBytes <= 0 {
-		o.JournalBytes = 256 << 20
+		o.JournalBytes = int64(config.DefaultMCPJournalMaxSize) << 20
 	}
 	if o.IdleTimeout <= 0 {
 		o.IdleTimeout = 15 * time.Minute
@@ -118,7 +118,7 @@ func New(core Core, jms *service.JMService, options Options) (*Runtime, error) {
 	if options.MaxSessions < 0 || options.MaxPending < 1 || options.MaxRunning < 1 || options.QueueTimeout < 0 || options.MaxRequests < 1 || options.ControlRequests < 1 {
 		return nil, errors.New("agent session limit must be non-negative; other capacities and queue timeout must be positive")
 	}
-	if options.MaxOutputBytes > 8<<20 || options.MaxFileBytes > 100<<20 || options.JournalBytes > 1<<30 {
+	if options.MaxOutputBytes > 8<<20 || options.MaxFileBytes > 100<<20 {
 		return nil, errors.New("agent capacity exceeds supported single-node limits")
 	}
 	journal, err := OpenJournal(options.Directory, options.JournalBytes)

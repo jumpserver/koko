@@ -238,7 +238,8 @@ func (j *Journal) put(tx *bolt.Tx, bucket, key, value []byte, terminal bool) err
 		return errors.New("invalid audit capacity accounting")
 	}
 	next := used - old + entryBytes(key, value)
-	limit := uint64(j.maxBytes * 9 / 10)
+	// Divide first so large configured budgets cannot overflow.
+	limit := uint64(j.maxBytes/10)*9 + uint64(j.maxBytes%10)*9/10
 	if terminal {
 		limit = uint64(j.maxBytes)
 	}

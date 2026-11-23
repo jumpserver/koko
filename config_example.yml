@@ -28,6 +28,8 @@ WEB_PROXY_FFMPEG_PATH: ffmpeg
 # Agent MCP 的启用和地址在 Core 页面配置，Koko 每 60 秒同步。
 # 本地容量和排队时限使用 MCP_MAX_*、MCP_QUEUE_TIMEOUT、MCP_CONTROL_REQUESTS；
 # 默认值、部署和统一远程 MCP 接入说明见 docs/agent-mcp.md。
+# 本地审计 journal 逻辑额度，单位 MiB；默认 1 GiB，至少 16，可按需调大。
+# MCP_JOURNAL_MAX_SIZE: 1024
 
 # 设置日志级别 [DEBUG, INFO, WARN, ERROR, FATAL, CRITICAL]
 # LOG_LEVEL: INFO

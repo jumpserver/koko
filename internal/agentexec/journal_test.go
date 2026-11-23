@@ -2,6 +2,7 @@ package agentexec
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
@@ -311,6 +312,29 @@ func TestJournalPruneReleasesCapacityOnlyAfterDeliveryAndRetention(t *testing.T)
 	}
 	if err := j.PutAction(second, "capability"); err != nil {
 		t.Fatalf("deleted pages did not release capacity: %v", err)
+	}
+}
+
+func TestJournalLargeCapacityReservesFinalState(t *testing.T) {
+	j, err := OpenJournal(t.TempDir(), 20<<56)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer j.Close()
+	if err := j.PutAction(Action{ID: "running", Status: "queued"}, "capability"); err != nil {
+		t.Fatal(err)
+	}
+	// Seed 90% logical usage without allocating a large database or overflowing size arithmetic.
+	if err := j.db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(metadataBucket).Put(logicalSizeKey, binary.BigEndian.AppendUint64(nil, 18<<56))
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := j.PutAction(Action{ID: "next", Status: "queued"}, "capability"); !errors.Is(err, ErrJournalFull) {
+		t.Fatalf("large journal did not reserve final-state capacity: %v", err)
+	}
+	if err := j.Append("running", "succeeded", nil); err != nil {
+		t.Fatal("reserved final-state capacity was unavailable", err)
 	}
 }
 
