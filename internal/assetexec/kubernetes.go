@@ -23,9 +23,9 @@ import (
 )
 
 type kubernetesConnection struct {
-	binary, limiter, directory, namespace string
-	ctx                                   context.Context
-	cancel                                context.CancelFunc
+	binary, directory, namespace string
+	ctx                          context.Context
+	cancel                       context.CancelFunc
 }
 
 func (c *Connection) openKubernetes(ctx context.Context, token *model.ConnectToken) error {
@@ -55,10 +55,6 @@ func (c *Connection) openKubernetes(ctx context.Context, token *model.ConnectTok
 	if err != nil {
 		return fmt.Errorf("%w: kubectl is unavailable", ErrUnsupported)
 	}
-	limiter, err := exec.LookPath("prlimit")
-	if err != nil {
-		return fmt.Errorf("%w: prlimit is required for bounded Kubernetes execution", ErrUnsupported)
-	}
 	serverName := address.Hostname()
 	if token.Gateway != nil {
 		port := address.Port()
@@ -80,7 +76,7 @@ func (c *Connection) openKubernetes(ctx context.Context, token *model.ConnectTok
 		return err
 	}
 	lifetime, closeConnection := context.WithCancel(context.Background())
-	kube := &kubernetesConnection{binary: binary, limiter: limiter, directory: directory, namespace: namespace, ctx: lifetime, cancel: closeConnection}
+	kube := &kubernetesConnection{binary: binary, directory: directory, namespace: namespace, ctx: lifetime, cancel: closeConnection}
 	c.kubernetes = kube
 	// Keep the existing K8s self-signed certificate behavior when no CA is
 	// supplied. A supplied CA enables verification with the original TLS name,
@@ -123,10 +119,9 @@ func (k *kubernetesConnection) run(ctx context.Context, args []string, stdout, s
 	if remaining < time.Millisecond {
 		return Result{}, context.DeadlineExceeded
 	}
-	args = append([]string{k.binary, "--kubeconfig=" + filepath.Join(k.directory, "config"),
+	args = append([]string{"--kubeconfig=" + filepath.Join(k.directory, "config"),
 		"--cache-dir=" + filepath.Join(k.directory, "cache"), "--request-timeout=" + remaining.Truncate(time.Millisecond).String()}, args...)
-	args = append([]string{"--as=2147483648", "--data=134217728", "--cpu=15", "--core=0", "--nofile=128", "--fsize=1048576", "--"}, args...)
-	command := exec.CommandContext(ctx, k.limiter, args...)
+	command := exec.CommandContext(ctx, k.binary, args...)
 	command.Dir = k.directory
 	command.Env = []string{"PATH=" + filepath.Dir(k.binary), "LANG=C.UTF-8", "KUBERC=off", "KUBECTL_KUBERC=false", "GOMAXPROCS=1", "GOMEMLIMIT=64MiB"}
 	command.Stdout, command.Stderr = stdout, stderr

@@ -14,15 +14,12 @@ func TestKubernetesConnectionsRunConcurrently(t *testing.T) {
 	if err != nil {
 		t.Skip("echo not installed")
 	}
-	limiter, err := exec.LookPath("prlimit")
-	if err != nil {
-		t.Skip("prlimit not installed")
-	}
+	t.Setenv("PATH", t.TempDir())
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	reader, writer := io.Pipe()
 	stop := context.AfterFunc(ctx, func() { _ = reader.CloseWithError(ctx.Err()) })
 	defer stop()
-	first := &kubernetesConnection{binary: binary, limiter: limiter, directory: t.TempDir(), ctx: ctx}
+	first := &kubernetesConnection{binary: binary, directory: t.TempDir(), ctx: ctx}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -40,7 +37,7 @@ func TestKubernetesConnectionsRunConcurrently(t *testing.T) {
 	if _, err := io.ReadFull(reader, started[:]); err != nil {
 		t.Fatal("first Kubernetes process did not produce output", err)
 	}
-	second := &kubernetesConnection{binary: binary, limiter: limiter, directory: t.TempDir(), ctx: ctx}
+	second := &kubernetesConnection{binary: binary, directory: t.TempDir(), ctx: ctx}
 	if result, err := second.run(ctx, nil, io.Discard, io.Discard); err != nil || !result.Completed {
 		t.Fatalf("independent Kubernetes connection could not run concurrently: %+v %v", result, err)
 	}

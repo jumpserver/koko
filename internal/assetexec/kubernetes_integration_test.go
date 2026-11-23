@@ -104,10 +104,6 @@ func TestKubernetesCancellationDoesNotConfirmRemoteStop(t *testing.T) {
 	if err != nil {
 		t.Skip("kubectl not installed")
 	}
-	limiter, err := exec.LookPath("prlimit")
-	if err != nil {
-		t.Skip("prlimit not installed")
-	}
 	started := make(chan struct{}, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
@@ -118,7 +114,7 @@ func TestKubernetesCancellationDoesNotConfirmRemoteStop(t *testing.T) {
 	}))
 	defer server.Close()
 	lifetime, closeConnection := context.WithCancel(context.Background())
-	kube := &kubernetesConnection{binary: binary, limiter: limiter, directory: t.TempDir(), ctx: lifetime, cancel: closeConnection}
+	kube := &kubernetesConnection{binary: binary, directory: t.TempDir(), ctx: lifetime, cancel: closeConnection}
 	defer kube.close()
 	config := clientcmdapi.Config{Clusters: map[string]*clientcmdapi.Cluster{"test": {Server: server.URL}},
 		Contexts: map[string]*clientcmdapi.Context{"test": {Cluster: "test"}}, CurrentContext: "test"}
