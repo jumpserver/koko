@@ -78,3 +78,31 @@ func TestMCPJournalCapacityConfiguration(t *testing.T) {
 		t.Fatal("MCP journal capacity overflowed its byte representation")
 	}
 }
+
+func TestMCPStagedFileCapacityConfiguration(t *testing.T) {
+	t.Chdir(t.TempDir())
+	conf := getDefaultConfig()
+	if conf.MCPMaxStagedFiles != 128 || conf.ValidateMCP() != nil {
+		t.Fatal("MCP staged files should default to 128")
+	}
+	t.Setenv("MCP_MAX_STAGED_FILES", "256")
+	environment := viper.New()
+	environment.AutomaticEnv()
+	if err := conf.loadMCPLimits(environment); err != nil || conf.MCPMaxStagedFiles != 256 || conf.ValidateMCP() != nil {
+		t.Fatal("MCP staged file environment override was not loaded", err)
+	}
+	file := viper.New()
+	file.SetConfigType("yaml")
+	if err := file.ReadConfig(strings.NewReader("MCP_MAX_STAGED_FILES: 512\n")); err != nil {
+		t.Fatal(err)
+	}
+	if err := conf.loadMCPLimits(file); err != nil || conf.MCPMaxStagedFiles != 512 || conf.ValidateMCP() != nil {
+		t.Fatal("MCP staged file YAML override was not loaded", err)
+	}
+	for _, value := range []any{0, -1, true, 1.5, "unlimited"} {
+		file.Set("MCP_MAX_STAGED_FILES", value)
+		if err := conf.loadMCPLimits(file); err == nil {
+			t.Fatalf("invalid MCP staged file capacity accepted: %v", value)
+		}
+	}
+}

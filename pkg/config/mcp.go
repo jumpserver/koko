@@ -16,6 +16,7 @@ const (
 	DefaultMCPMaxRequests     = 32
 	DefaultMCPControlRequests = 4
 	DefaultMCPJournalMaxSize  = 1024 // MiB
+	DefaultMCPMaxStagedFiles  = 128
 )
 
 func (c *Config) mcpLimits() []struct {
@@ -35,6 +36,7 @@ func (c *Config) mcpLimits() []struct {
 		{"MCP_MAX_REQUESTS", &c.MCPMaxRequests, 1},
 		{"MCP_CONTROL_REQUESTS", &c.MCPControlRequests, 1},
 		{"MCP_JOURNAL_MAX_SIZE", &c.MCPJournalMaxSize, 16},
+		{"MCP_MAX_STAGED_FILES", &c.MCPMaxStagedFiles, 1},
 	}
 }
 

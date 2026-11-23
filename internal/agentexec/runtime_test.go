@@ -178,7 +178,7 @@ func TestSessionQueueLeavesCapacityForOtherSessions(t *testing.T) {
 func TestConfiguredCapacityAboveLegacyCeilings(t *testing.T) {
 	for _, journalBytes := range []int64{0, 4 << 30} {
 		r, err := New(coreFunc(func(context.Context, string, any, any) error { return nil }), &service.JMService{}, Options{
-			Directory: t.TempDir(), MaxSessions: 1024, MaxPending: 512, MaxRunning: 128, JournalBytes: journalBytes,
+			Directory: t.TempDir(), MaxSessions: 1024, MaxPending: 512, MaxRunning: 128, JournalBytes: journalBytes, MaxStagedFiles: 512,
 		})
 		if err != nil {
 			t.Fatal(err)

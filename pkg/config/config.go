@@ -39,6 +39,7 @@ type Config struct {
 	MCPMaxRequests           int    `mapstructure:"MCP_MAX_REQUESTS"`
 	MCPControlRequests       int    `mapstructure:"MCP_CONTROL_REQUESTS"`
 	MCPJournalMaxSize        int    `mapstructure:"MCP_JOURNAL_MAX_SIZE"`
+	MCPMaxStagedFiles        int    `mapstructure:"MCP_MAX_STAGED_FILES"`
 
 	LogLevel string `mapstructure:"LOG_LEVEL"`
 
@@ -186,6 +187,7 @@ func getDefaultConfig() Config {
 		MCPMaxRequests:           DefaultMCPMaxRequests,
 		MCPControlRequests:       DefaultMCPControlRequests,
 		MCPJournalMaxSize:        DefaultMCPJournalMaxSize,
+		MCPMaxStagedFiles:        DefaultMCPMaxStagedFiles,
 		HTTPPort:                 "5000",
 		WebProxyEnabled:          true,
 		WebProxyBindHost:         "127.0.0.1",

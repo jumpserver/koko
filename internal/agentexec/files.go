@@ -58,7 +58,7 @@ func (r *Runtime) reserveFile(id string, size int64) (*os.File, error) {
 		}
 		total += info.Size()
 	}
-	if len(entries) >= 128 || total+size > 1<<30 {
+	if len(entries) >= r.opts.MaxStagedFiles || total+size > 1<<30 {
 		return nil, errors.New("file staging capacity reached")
 	}
 	path, err := r.artifactPath(id, ".part")

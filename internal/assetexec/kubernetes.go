@@ -22,9 +22,6 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-// Bound local kubectl resource use independently of the other asset adapters.
-var kubernetesProcesses = make(chan struct{}, 1)
-
 type kubernetesConnection struct {
 	binary, limiter, directory, namespace string
 	ctx                                   context.Context
@@ -121,12 +118,6 @@ func (k *kubernetesConnection) run(ctx context.Context, args []string, stdout, s
 	defer cancel()
 	stop := context.AfterFunc(k.ctx, cancel)
 	defer stop()
-	select {
-	case kubernetesProcesses <- struct{}{}:
-		defer func() { <-kubernetesProcesses }()
-	case <-ctx.Done():
-		return Result{}, ctx.Err()
-	}
 	deadline, _ := ctx.Deadline()
 	remaining := time.Until(deadline)
 	if remaining < time.Millisecond {

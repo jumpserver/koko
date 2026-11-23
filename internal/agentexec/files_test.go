@@ -26,7 +26,27 @@ func fileTestRuntime(t *testing.T) *Runtime {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = journal.Close() })
-	return &Runtime{journal: journal, opts: Options{Directory: dir, MaxFileBytes: 100 << 20}}
+	return &Runtime{journal: journal, opts: Options{Directory: dir, MaxFileBytes: 100 << 20, MaxStagedFiles: 128}}
+}
+
+func TestFileReservationsUseConfiguredCount(t *testing.T) {
+	r := fileTestRuntime(t)
+	r.opts.MaxStagedFiles = 1
+	first, err := r.reserveFile("first", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	if extra, err := r.reserveFile("second", 0); err == nil {
+		_ = extra.Close()
+		t.Fatal("file count limit was not enforced")
+	}
+	r.opts.MaxStagedFiles = 2
+	second, err := r.reserveFile("second", 0)
+	if err != nil {
+		t.Fatal("larger file count limit was not applied", err)
+	}
+	defer second.Close()
 }
 
 func TestFileReservationsIncludeUnwrittenBytes(t *testing.T) {

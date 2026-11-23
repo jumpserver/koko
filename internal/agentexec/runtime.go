@@ -37,6 +37,7 @@ type Options struct {
 	ControlRequests int
 	MaxOutputBytes  int64
 	MaxFileBytes    int64
+	MaxStagedFiles  int
 	JournalBytes    int64
 	IdleTimeout     time.Duration
 }
@@ -62,6 +63,9 @@ func (o *Options) defaults() {
 	}
 	if o.MaxFileBytes <= 0 {
 		o.MaxFileBytes = 100 << 20
+	}
+	if o.MaxStagedFiles == 0 {
+		o.MaxStagedFiles = config.DefaultMCPMaxStagedFiles
 	}
 	if o.JournalBytes <= 0 {
 		o.JournalBytes = int64(config.DefaultMCPJournalMaxSize) << 20
@@ -115,7 +119,7 @@ func New(core Core, jms *service.JMService, options Options) (*Runtime, error) {
 	if core == nil || jms == nil || options.Directory == "" {
 		return nil, errors.New("agent runtime dependencies are required")
 	}
-	if options.MaxSessions < 0 || options.MaxPending < 1 || options.MaxRunning < 1 || options.QueueTimeout < 0 || options.MaxRequests < 1 || options.ControlRequests < 1 {
+	if options.MaxSessions < 0 || options.MaxPending < 1 || options.MaxRunning < 1 || options.QueueTimeout < 0 || options.MaxRequests < 1 || options.ControlRequests < 1 || options.MaxStagedFiles < 1 {
 		return nil, errors.New("agent session limit must be non-negative; other capacities and queue timeout must be positive")
 	}
 	if options.MaxOutputBytes > 8<<20 || options.MaxFileBytes > 100<<20 {

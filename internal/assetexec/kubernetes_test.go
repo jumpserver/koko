@@ -2,9 +2,49 @@ package assetexec
 
 import (
 	"context"
+	"io"
+	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestKubernetesConnectionsRunConcurrently(t *testing.T) {
+	binary, err := exec.LookPath("echo")
+	if err != nil {
+		t.Skip("echo not installed")
+	}
+	limiter, err := exec.LookPath("prlimit")
+	if err != nil {
+		t.Skip("prlimit not installed")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	reader, writer := io.Pipe()
+	stop := context.AfterFunc(ctx, func() { _ = reader.CloseWithError(ctx.Err()) })
+	defer stop()
+	first := &kubernetesConnection{binary: binary, limiter: limiter, directory: t.TempDir(), ctx: ctx}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, err := first.run(ctx, nil, writer, io.Discard)
+		_ = writer.CloseWithError(err)
+	}()
+	defer func() {
+		cancel()
+		_ = reader.Close()
+		_ = writer.Close()
+		<-done
+	}()
+	// Leave the first run blocked on its remaining output while the second runs.
+	var started [1]byte
+	if _, err := io.ReadFull(reader, started[:]); err != nil {
+		t.Fatal("first Kubernetes process did not produce output", err)
+	}
+	second := &kubernetesConnection{binary: binary, limiter: limiter, directory: t.TempDir(), ctx: ctx}
+	if result, err := second.run(ctx, nil, io.Discard, io.Discard); err != nil || !result.Completed {
+		t.Fatalf("independent Kubernetes connection could not run concurrently: %+v %v", result, err)
+	}
+}
 
 func TestKubernetesCommandValidationAndCanonicalization(t *testing.T) {
 	for _, command := range []string{
