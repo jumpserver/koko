@@ -1225,3 +1225,12 @@ msgstr "Request failed (HTTP %d)."
 
 msgid "Invalid response from server."
 msgstr "Invalid response from server."
+
+#: pkg/proxy/command_review.go
+#, c-format
+msgid "Command review submission failed. The command was not executed. Reason: %s"
+msgstr "Command review submission failed. The command was not executed. Reason: %s"
+
+#: pkg/proxy/command_review.go
+msgid "Command review submission failed. The command was not executed. Please contact your administrator."
+msgstr "Command review submission failed. The command was not executed. Please contact your administrator."
