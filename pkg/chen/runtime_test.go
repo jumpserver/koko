@@ -1,0 +1,29 @@
+package chen
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jumpserver/koko/pkg/chen/engine"
+)
+
+func TestManagedWorkspaceRoutes(t *testing.T) {
+	app := engine.New(nil, engine.Options{StateDir: t.TempDir()})
+	t.Cleanup(app.Close)
+	router := gin.New()
+	(&Runtime{app: app}).RegisterRoutes(router)
+
+	for path, status := range map[string]int{
+		"/koko/chen/api/v1/capabilities":      http.StatusOK,
+		"/koko/chen/api/v1/sessions/s/events": http.StatusUnauthorized,
+		"/chen/api/v1/capabilities":           http.StatusNotFound,
+	} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != status {
+			t.Errorf("GET %s returned %d, want %d", path, response.Code, status)
+		}
+	}
+}

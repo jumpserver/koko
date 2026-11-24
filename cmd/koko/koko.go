@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/jumpserver/koko/pkg/chen"
 	"github.com/jumpserver/koko/pkg/koko"
 )
 
@@ -25,6 +28,13 @@ func init() {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "chen" {
+		if err := chen.RunCommand(os.Args[2:], Version, os.Stdout); err != nil && !errors.Is(err, flag.ErrHelp) {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 	flag.Parse()
 	if infoFlag {
 		fmt.Printf("Version:             %s\n", Version)

@@ -16,6 +16,12 @@ Koko 使用 Golang 来实现，名字来自 Dota 英雄 [Kunkka](https://www.dot
 - web文件管理
 - [Agent MCP 接入、常用客户端配置与排障](./docs/agent-mcp.md#用户接入与操作流程)
 
+## Chen 数据库工作台
+
+Koko 在自己的 HTTP 端口通过 `/koko/chen/api/v1/` 提供 Luna 数据库工作台。代理需要关闭 SSE 响应缓冲，覆盖客户端传入的 `X-Forwarded-For`，并将同一会话的后续请求转发到创建它的实例。数据库会话、审批与审计使用 Koko 的 Core 身份。每个 Koko 实例单独持久化 `CHEN_STATE_DIR`，默认目录为 `data/chen`。替换原 Chen 部署时，先让原服务完成已有会话和待传审计，再停止服务。
+
+独立模式使用 `koko chen single --backends /path/to/backends.yml --web-dir /path/to/luna/.output/public`。配置文件使用[独立后端格式](pkg/chen/standalone/standalone_backends_example.yaml)，仅赋予文件所有者读写权限。Luna 静态资源由 `pnpm generate:chen` 生成。默认页面为 `http://127.0.0.1:8082/luna/chen/?selector=NAME`。选择器用于定位本地数据库连接，独立模式只应对预期用户开放。
+
 ## 直连个人凭据
 
 直连用户名支持 `平台用户#个人凭据ID#资产IP或ID`、`平台用户#协议#个人凭据ID#资产IP或ID`，也支持使用 `@` 分隔。资产必须唯一匹配。Koko 使用本次 SSH 登录的本人 Bearer 查询凭据元数据并创建连接令牌，沿用 Core 的资产账号授权和 ACL。Bearer 过期时需要重新建立 SSH 连接。原有资产账号用户名优先匹配；个人凭据 ID 仅用于直连，不加入交互式资产菜单。

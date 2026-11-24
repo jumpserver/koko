@@ -24,7 +24,8 @@ const (
 )
 
 type DomainGateway struct {
-	DstAddr string // 10.0.0.1:3389
+	DstAddr  string // 10.0.0.1:3389
+	BindHost string // Optional local address for clients in the same process namespace.
 
 	sshClient       *gossh.Client
 	jumpClient      *gossh.Client
@@ -115,7 +116,10 @@ func (d *DomainGateway) StartContext(ctx context.Context) (err error) {
 			d.closeOnce()
 		}
 	}()
-	localIP := common.CurrentLocalIP()
+	localIP := d.BindHost
+	if localIP == "" {
+		localIP = common.CurrentLocalIP()
+	}
 	ln, err = net.Listen("tcp", net.JoinHostPort(localIP, "0"))
 	if err != nil {
 		return err

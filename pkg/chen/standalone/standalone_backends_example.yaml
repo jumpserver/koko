@@ -1,0 +1,35 @@
+# Copy to a private file, replace these placeholder credentials, then chmod 600.
+# URL selectors are public routing names, not passwords or an authorization layer.
+# Run single mode only behind your chosen access boundary.
+version: 1
+backends:
+  - selector: local-mysql
+    name: Development MySQL
+    protocol: mysql
+    host: 127.0.0.1
+    port: 3306
+    user: chen
+    password: replace-me
+    database: app
+    use_ssl: false
+
+  - selector: local-pg
+    name: Development PostgreSQL
+    protocol: postgresql
+    host: 127.0.0.1
+    port: 5432
+    user: chen
+    password: replace-me
+    database: app
+    use_ssl: false
+    # For TLS, set use_ssl: true and optionally:
+    # ssl_mode: verify-full
+    # server_name: db.example.internal
+    # ca_cert: |
+    #   -----BEGIN CERTIFICATE-----
+    #   ...
+    #   -----END CERTIFICATE-----
+    # client_cert: |  # Client certificate and key must be provided together.
+    #   ...
+    # client_key: |
+    #   ...

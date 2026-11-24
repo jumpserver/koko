@@ -34,6 +34,7 @@ define make_artifact_full
 	cp entrypoint.sh $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/entrypoint.sh
 	cp utils/init-kubectl.sh $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/init-kubectl.sh
 	cp -r locale/* $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/locale/
+	$(MAKE) chen-resources DESTDIR="$(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)"
 
 	cd $(BUILDDIR) && tar -czvf $(NAME)-$(VERSION)-$(1)-$(2).tar.gz $(NAME)-$(VERSION)-$(1)-$(2)
 	rm -rf $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(1)-$(2)
@@ -43,6 +44,13 @@ endef
 build:
 	mkdir -p $(BUILDDIR)
 	GOARCH=$(GOARCH) GOOS=$(GOOS) $(KOKOBUILD) -o $(BUILDDIR)/$(NAME) $(KOKOSRCFILE)
+
+.PHONY: chen-resources
+chen-resources:
+	test -n "$(DESTDIR)"
+	mkdir -p "$(DESTDIR)/licenses/chen"
+	cp pkg/chen/standalone/standalone_backends_example.yaml "$(DESTDIR)/"
+	for driver in omni go-db2 go-ora; do cp "pkg/chen/third_party/$$driver/LICENSE" "$(DESTDIR)/licenses/chen/$$driver-LICENSE" || exit 1; done
 
 all:
 	$(call make_artifact_full,darwin,arm64)

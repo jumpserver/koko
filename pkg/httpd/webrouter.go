@@ -7,6 +7,7 @@ import (
 
 	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/pkg/auth"
+	"github.com/jumpserver/koko/pkg/chen"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/lion"
 	"github.com/jumpserver/koko/pkg/lion/middleware"
@@ -16,6 +17,7 @@ func createRouter(
 	jmsService *service.JMService,
 	webSrv *Server,
 	lionRuntime *lion.Runtime,
+	chenRuntimes ...*chen.Runtime,
 ) *gin.Engine {
 	if lionRuntime != nil {
 		webSrv.lionMonitor = lionRuntime
@@ -68,6 +70,9 @@ func createRouter(
 		debugGroup.GET("/heap", gin.WrapF(pprof.Handler("heap").ServeHTTP))
 		debugGroup.GET("/mutex", gin.WrapF(pprof.Handler("mutex").ServeHTTP))
 		debugGroup.GET("/threadcreate", gin.WrapF(pprof.Handler("threadcreate").ServeHTTP))
+	}
+	if len(chenRuntimes) > 0 && chenRuntimes[0] != nil {
+		chenRuntimes[0].RegisterRoutes(eng)
 	}
 	webSrv.registerAgentRoutes(eng)
 	return eng

@@ -20,6 +20,7 @@ import (
 	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/internal/agentexec"
 	"github.com/jumpserver/koko/pkg/auth"
+	"github.com/jumpserver/koko/pkg/chen"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/httpd/ws"
@@ -108,10 +109,11 @@ var upGrader = websocket.Upgrader{
 func NewServer(
 	jmsService *service.JMService,
 	lionRuntime *lion.Runtime,
+	chenRuntimes ...*chen.Runtime,
 ) *Server {
 	conf := config.GetConf()
 	srv := &Server{apiClient: jmsService, agentRequests: make(chan struct{}, conf.MCPMaxRequests+conf.MCPControlRequests)}
-	eng := createRouter(jmsService, srv, lionRuntime)
+	eng := createRouter(jmsService, srv, lionRuntime, chenRuntimes...)
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
 	srv.Srv = &http.Server{Addr: addr, Handler: eng}
 	srv.startAgentRefresh()

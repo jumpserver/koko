@@ -27,6 +27,8 @@ func newAgentDB2DamengConnector(config DatabaseConfig) (*agentSQLRelayConnector,
 		cfg := db2.NewConfig()
 		cfg.User, cfg.Password, cfg.Database = config.Username, config.Password, config.Database
 		cfg.UseSSL = config.UseSSL
+		// Core's asset policy selects the transport, including password login without TLS.
+		cfg.AllowPlaintextAuth = !config.UseSSL
 		if config.UseSSL {
 			if config.AllowInvalidCert {
 				return nil, errors.New("Db2 requires server certificate verification")
@@ -83,9 +85,8 @@ func newAgentDB2DamengConnector(config DatabaseConfig) (*agentSQLRelayConnector,
 	return c, nil
 }
 
-// Both pinned drivers need a loopback relay: Db2 has no injectable dialer,
-// and DM drops the caller's context while connecting. Only one local socket
-// is accepted, forwarding solely to the authorized, budgeted asset transport.
+// The relay accepts one local driver connection and forwards it solely to the
+// authorized, budgeted asset transport. Canceling the context closes both sockets.
 type agentSQLRelayConnector struct {
 	driver    driver.Driver
 	address   string

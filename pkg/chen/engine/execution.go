@@ -1,0 +1,1291 @@
+package engine
+
+import (
+	"context"
+	"database/sql"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
+	"math"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync/atomic"
+	"time"
+
+	"github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jumpserver/koko/pkg/chen/core"
+	"github.com/jumpserver/koko/pkg/chen/sqlservice"
+)
+
+func (v *Server) executionStatus(w http.ResponseWriter, r *http.Request) {
+	s := v.auth(w, r, true)
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	if s.closed || s.ctx.Err() != nil {
+		s.mu.Unlock()
+		fail(w, 410, "session_closed", "Session is closed")
+		return
+	}
+	e := s.executions[r.PathValue("eid")]
+	s.mu.Unlock()
+	if e == nil {
+		fail(w, 404, "not_found", "Execution not found")
+		return
+	}
+	writeJSON(w, 200, e.snapshot())
+}
+func (v *Server) cancelExecution(w http.ResponseWriter, r *http.Request) {
+	v.cancelExecutionWithResponse(w, r, func(view ExecutionView) any { return view })
+}
+
+// Export cancellation shares the execution policy and state transition, while
+// returning the export resource expected by the endpoint's client.
+func (v *Server) cancelExecutionWithResponse(w http.ResponseWriter, r *http.Request, response func(ExecutionView) any) {
+	s := v.auth(w, r, true)
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	if s.closed || s.ctx.Err() != nil {
+		s.mu.Unlock()
+		fail(w, 410, "session_closed", "Session is closed")
+		return
+	}
+	e := s.executions[r.PathValue("eid")]
+	var c *console
+	if e != nil {
+		c = s.consoles[e.view.ConsoleID]
+	}
+	s.mu.Unlock()
+	if e == nil {
+		fail(w, 404, "not_found", "Execution not found")
+		return
+	}
+	e.mu.Lock()
+	if terminal(e.view.Status) {
+		view := e.view
+		e.mu.Unlock()
+		writeJSON(w, 200, response(view))
+		return
+	}
+	if e.cancelRequested.Load() {
+		e.mu.Unlock()
+		writeJSON(w, 202, response(e.snapshot()))
+		return
+	}
+	if !supportsActiveCancellation(s.grant.Config.Dialect) && e.view.Status != "queued" && e.view.Status != "waiting_review" {
+		e.mu.Unlock()
+		fail(w, 409, "cancel_unsupported", "The installed database driver cannot cancel an active query")
+		return
+	}
+	if e.transactionAction != "" && e.view.Status != "queued" && e.view.Status != "waiting_review" {
+		e.mu.Unlock()
+		fail(w, 409, "transaction_cancel_unsupported", "Transaction boundaries cannot be canceled")
+		return
+	}
+	e.cancelRequested.Store(true)
+	e.view.Status = "cancel_requested"
+	e.view.Revision++
+	if e.databaseDone != nil && c != nil && s.db != nil && supportsBackendInterrupt(s.grant.Config.Dialect) {
+		go interruptDatabaseWork(s, c, e, e.databaseDone)
+	} else {
+		e.cancel()
+		close(e.cancelDone)
+	}
+	e.mu.Unlock()
+	s.emit("execution.updated", e.snapshot())
+	writeJSON(w, 202, response(e.snapshot()))
+}
+func (v *Server) worker(s *session, c *console) {
+	defer s.workers.Done()
+	defer s.releaseClosedConsoleResults(c)
+	timer := time.NewTimer(time.Hour)
+	timer.Stop()
+	defer timer.Stop()
+	var idle <-chan time.Time
+	for {
+		select {
+		case e := <-c.queue:
+			timer.Stop()
+			// A queued commit and the timeout can become ready together. Check
+			// the actual deadline before accepting work on an expired transaction.
+			if idle != nil {
+				v.expireManualTransaction(s, c)
+			}
+			idle = nil
+			v.run(s, c, e)
+			c.mu.Lock()
+			if c.manualTx != nil && !c.lost.Load() && !c.closed.Load() && v.opts.TransactionIdleTimeout > 0 {
+				timer.Reset(time.Until(c.transactionActivity.Add(v.opts.TransactionIdleTimeout)))
+				idle = timer.C
+			}
+			c.mu.Unlock()
+		case <-idle:
+			idle = nil
+			v.expireManualTransaction(s, c)
+		case <-c.ctx.Done():
+			for {
+				select {
+				case e := <-c.queue:
+					v.run(s, c, e)
+				default:
+					return
+				}
+			}
+		}
+	}
+}
+func (v *Server) update(s *session, e *execution, fn func(*ExecutionView)) {
+	e.mu.Lock()
+	fn(&e.view)
+	e.view.Revision++
+	e.mu.Unlock()
+	s.emit("execution.updated", e.snapshot())
+	if e.export != nil {
+		e.export.emit()
+	}
+}
+
+func interruptExecutionBackend(s *session, c *console, e *execution) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := cancelBackend(ctx, s, c, e); err != nil {
+		slog.Warn("database_interrupt_failed", "dialect", s.grant.Config.Dialect, "execution", e.view.ID, "error", err)
+	}
+}
+
+func (v *Server) run(s *session, c *console, e *execution) {
+	if e.edit != nil {
+		v.runEdits(s, c, e)
+		return
+	}
+	if e.export != nil && v.acquireExportSlot(e.ctx) {
+		defer func() { <-v.exportSlots }()
+	}
+	c.mu.Lock()
+	initialMySQL := c.initialMySQL
+	c.initialMySQL = nil
+	userSQLStarted := false
+	preflightStartedTransaction := false
+	var db2CancelCheckpoint uint64
+	if s.grant.Config.Dialect == "db2" {
+		db2CancelCheckpoint = db2CancellationCheckpoint(c)
+	}
+	// A canceled mysql driver context closes the client TCP connection; that
+	// alone does not prove that a server-side write stopped. Cover timeouts,
+	// admin/session/console closure as well as the explicit HTTP cancel path.
+	var databaseTouched atomic.Bool
+	databaseCancelDone := make(chan struct{})
+	stopDatabaseCancel := context.AfterFunc(e.ctx, func() {
+		defer close(databaseCancelDone)
+		if (!core.IsMySQLWire(s.grant.Config.Dialect) && s.grant.Config.Dialect != "clickhouse") || !databaseTouched.Load() || e.cancelRequested.Load() {
+			return
+		}
+		interruptExecutionBackend(s, c, e)
+	})
+	databaseCancelJoined := false
+	joinDatabaseCancel := func() {
+		if databaseCancelJoined {
+			return
+		}
+		databaseCancelJoined = true
+		if !stopDatabaseCancel() {
+			<-databaseCancelDone
+		}
+	}
+	defer func() {
+		// Stop the callback before normal completion cancels e.ctx. Join a
+		// running KILL before releasing the connection to any next execution.
+		joinDatabaseCancel()
+		e.stopDeadline()
+		e.cancel()
+		if e.cancelRequested.Load() {
+			<-e.cancelDone
+		}
+		if userSQLStarted && c.manualTx != nil {
+			c.transactionActivity = time.Now()
+		}
+		c.mu.Unlock()
+	}()
+	if e.planMode != "" {
+		e.mu.Lock()
+		identity := *e.view.Plan
+		scope := c.currentContext()
+		identity.Database, identity.Schema = scope.Database, scope.Schema
+		e.view.Plan = &identity
+		e.mu.Unlock()
+	}
+	start := time.Now()
+	audit := core.AuditRecord{ID: e.view.ID, SQL: e.sql, StartedAt: start, RiskClassified: true}
+	var runErr error
+	currentInFlight := false
+	completedStatements := 0
+	confirmedCancel := false
+	triggeredWarnings := map[string]core.AuditRecord{}
+	auditStatus := "recorded"
+	auditPending := true
+	finishAudit := func(succeeded bool) error {
+		if !auditPending {
+			return nil
+		}
+		auditPending = false
+		defer func() { e.replayOutput, e.auditRows = "", 0 }()
+		audit.FinishedAt = time.Now()
+		view := e.snapshot()
+		state := view.Status
+		if succeeded {
+			state = "succeeded"
+		}
+		if audit.Output == "" && e.replayOutput != "" {
+			audit.Output = fmt.Sprintf("Query OK, %d rows discovered", e.auditRows)
+		}
+		audit.ReplayOutput = e.replayOutput
+		audit.Output += fmt.Sprintf(" execution_id=%s state=%s completed_statements=%d", view.ID, state, completedStatements)
+		if view.Transaction != nil {
+			audit.Output += fmt.Sprintf(" transaction_mode=%t transaction_state=%s transaction_outcome=%s prior_committed=%t", view.Transaction.Manual, view.Transaction.State, view.Transaction.Outcome, view.Transaction.PriorCommitted)
+		}
+		if e.queryPage != nil {
+			audit.Output += queryPageAudit(e.queryPage)
+		}
+		if view.Plan != nil {
+			audit.Output += fmt.Sprintf(" plan_mode=%s generated_sql=%q auxiliary_sql=%q", view.Plan.Mode, e.planSQL, planAuthorizationSQL(s.grant.Config.Dialect, e.planSQL))
+		}
+		if e.export != nil {
+			out := e.export.snapshot()
+			audit.Output += fmt.Sprintf(" export_id=%s format=%s rows=%d bytes=%d", out.ID, out.Format, out.Rows, out.Bytes)
+		}
+		if runErr != nil {
+			if view.Error != nil {
+				audit.Error = audit.Output + "; " + view.Error.Message
+			} else {
+				audit.Error = audit.Output + "; " + runErr.Error()
+			}
+		}
+		ctx, stop := context.WithTimeout(context.Background(), 5*time.Second)
+		defer stop()
+		recordErr := v.provider.Record(ctx, s.grant, audit)
+		for _, warning := range triggeredWarnings {
+			if audit.RiskLevel == warning.RiskLevel && audit.ACLID == warning.ACLID && audit.GroupID == warning.GroupID {
+				continue
+			}
+			warning.StartedAt, warning.FinishedAt = audit.StartedAt, audit.FinishedAt
+			warning.Output = audit.Output + "; policy_warning"
+			warning.Error = audit.Error
+			if err := v.provider.Record(ctx, s.grant, warning); err != nil {
+				recordErr = errors.Join(recordErr, err)
+			}
+		}
+		if recordErr != nil {
+			auditStatus = "failed"
+		}
+		return recordErr
+	}
+	defer func() {
+		_ = finishAudit(false)
+		end := time.Now()
+		v.update(s, e, func(x *ExecutionView) { x.AuditStatus = auditStatus; x.FinishedAt = &end })
+		if err := v.journal(s, e, "finished"); err != nil {
+			v.update(s, e, func(x *ExecutionView) { x.AuditStatus = "failed" })
+		}
+		if e.export != nil {
+			e.export.finishExecution()
+		}
+		if databaseTouched.Load() && runErr != nil && !c.closed.Load() && !c.lost.Load() {
+			ping, done := context.WithTimeout(context.Background(), time.Second)
+			defer done()
+			if c.conn.PingContext(ping) != nil {
+				invalidateEditConnection(s, c)
+			}
+		}
+	}()
+	failure := func(err error, api *APIError) {
+		e.finishDatabaseWork()
+		if errors.Is(err, context.Canceled) && e.deadlineExpired.Load() {
+			err = context.DeadlineExceeded
+			api = safeDatabaseError(err)
+		}
+		runErr = err
+		if s.grant.Config.Dialect == "db2" && db2CancellationAcknowledged(c, db2CancelCheckpoint) {
+			confirmedCancel = true
+		}
+		var maskedDiagnostic bool
+		if isServerError(err) {
+			api, maskedDiagnostic = v.maskDatabaseDiagnostic(s, api)
+		}
+		status := "failed"
+		if confirmedCancel {
+			status = "canceled"
+		} else if currentInFlight {
+			if !isServerError(err) {
+				status = "unknown"
+				api = &APIError{"execution_unknown", "The database outcome is unknown; do not automatically repeat this SQL"}
+			}
+		} else if e.ctx.Err() != nil || e.cancelRequested.Load() {
+			status = "canceled"
+		}
+		rolledBack := false
+		if c.manual && e.transactionAction == "" && (userSQLStarted || preflightStartedTransaction) && c.manualTx != nil {
+			joinDatabaseCancel()
+			var rollbackErr error
+			if preflightStartedTransaction && !userSQLStarted {
+				rollbackErr = v.rollbackSourcePreflight(s, c, e)
+			} else {
+				rollbackErr = v.finishManualTransaction(s, c, e, false)
+			}
+			if err := rollbackErr; err != nil {
+				status = "unknown"
+				api = &APIError{"transaction_outcome_unknown", err.Error()}
+			} else {
+				rolledBack = true
+				if status == "unknown" {
+					status = "failed"
+				}
+			}
+		}
+		if restoreErr := e.restoreSourceReadContext(); restoreErr != nil {
+			runErr = errors.Join(runErr, restoreErr)
+			status = "unknown"
+			api = sourceContextError(restoreErr)
+		}
+		if completedStatements > 0 && !rolledBack {
+			message := fmt.Sprintf("%d earlier statement(s) completed and may already have taken effect. Do not automatically repeat the whole script. ", completedStatements)
+			if status == "unknown" {
+				api = &APIError{"execution_unknown", message + api.Message}
+			} else {
+				code := "script_partial_failure"
+				if status == "canceled" {
+					code = "script_partial_cancel"
+				}
+				api = &APIError{code, message + api.Message}
+			}
+		}
+		if api.Code == "transaction_outcome_unknown" {
+			status = "unknown"
+		}
+		v.update(s, e, func(x *ExecutionView) {
+			x.Status = status
+			x.Error = api
+			x.maskedDiagnostic = maskedDiagnostic && status == "failed"
+			if current := c.transaction.Load(); current != nil {
+				if x.Transaction == nil {
+					x.Transaction = &TransactionOutcome{Action: e.transactionAction}
+				}
+				x.Transaction.TransactionView = *current
+			}
+		})
+		if (s.grant.Config.Dialect == "dameng" || s.grant.Config.Dialect == "db2") && databaseTouched.Load() && (e.ctx.Err() != nil || e.cancelRequested.Load() || confirmedCancel) {
+			invalidateEditConnection(s, c)
+		}
+	}
+	if err := e.ctx.Err(); err != nil {
+		failure(err, safeDatabaseError(err))
+		return
+	}
+	if c.lost.Load() || c.closed.Load() {
+		failure(errors.New("connection_lost"), &APIError{"connection_lost", "Open a new console; connection state was lost"})
+		return
+	}
+	if err := s.grant.Check(); err != nil {
+		failure(err, &APIError{"session_unavailable", err.Error()})
+		return
+	}
+	s.grant.SetBusy(true)
+	defer s.grant.SetBusy(false)
+	if err := v.journal(s, e, "accepted"); err != nil {
+		failure(err, &APIError{"audit_persistence_failed", "Execution intent could not be recorded; SQL was not sent"})
+		return
+	}
+	if e.transactionAction != "" {
+		if current := c.transaction.Load(); current == nil || current.Revision != e.transactionRevision {
+			failure(errors.New("transaction_changed"), &APIError{"transaction_changed", "Transaction state changed; review it before retrying"})
+			return
+		}
+		v.update(s, e, func(x *ExecutionView) { x.Status = "running"; x.StartedAt = &start })
+		if err := v.transactionAction(s, c, e, &audit); err != nil {
+			api := safeDatabaseError(err)
+			var typed *APIError
+			if errors.As(err, &typed) {
+				api = typed
+			}
+			failure(err, api)
+			return
+		}
+		v.update(s, e, func(x *ExecutionView) { x.Status = "succeeded"; x.StartedAt = &start })
+		return
+	}
+	if err := e.beginDatabaseWork(); err != nil {
+		failure(err, safeDatabaseError(err))
+		return
+	}
+	if core.IsMySQLWire(s.grant.Config.Dialect) {
+		databaseTouched.Store(true)
+	}
+	dialect := s.grant.Config.Dialect
+	var mysqlState *mysqlSessionState
+	var mysqlHint *resultStarSource
+	if dialect == "mysql" && initialMySQL == nil && e.browse == nil && e.queryPage == nil && e.planMode == "" && e.export == nil {
+		if target, ok := sqlservice.MySQLStarHint(e.sql); ok {
+			state, hint, err := readMySQLStarSession(e.ctx, c.conn, target)
+			if err == nil {
+				initialMySQL, mysqlHint = &state, hint
+			}
+		}
+	}
+	readOptions := func() (sqlservice.AnalyzeOptions, error) {
+		if dialect != "mysql" {
+			return liveOptions(e.ctx, c, dialect)
+		}
+		if initialMySQL != nil {
+			mysqlState, initialMySQL = initialMySQL, nil
+			return mysqlState.options, nil
+		}
+		state, err := readMySQLSession(e.ctx, c.conn)
+		if err != nil {
+			if e.cancelRequested.Load() {
+				return sqlservice.AnalyzeOptions{}, context.Canceled
+			}
+			// Some compatible servers support SQL mode but not every paging
+			// variable. Ordinary SQL can still run without replay metadata.
+			mysqlState = nil
+			return liveOptions(e.ctx, c, dialect)
+		}
+		mysqlState = &state
+		return state.options, nil
+	}
+	opts, err := readOptions()
+	if err != nil {
+		failure(err, safeDatabaseError(err))
+		return
+	}
+	sourceContext := ""
+	if e.queryPage != nil {
+		sourceContext = e.queryPage.context
+	} else if e.browse != nil && e.browse.plan != nil {
+		sourceContext = e.browse.plan.context
+	}
+	if sourceContext != "" && (mysqlState == nil || mysqlState.fingerprint != sourceContext) {
+		guard, err := prepareSourceReadContext(e.ctx, c, s.grant.Config.Dialect, sourceContext)
+		if err != nil {
+			failure(err, sourceContextError(err))
+			return
+		}
+		if guard != nil {
+			// PostgreSQL LOCAL settings must live inside the eventual manual
+			// transaction. Otherwise a later rollback could undo restoration
+			// and leave the connection in the result's old search_path.
+			if s.grant.Config.Dialect == "postgresql" && c.manual {
+				wasIdle := c.manualTx == nil
+				if err := v.beginManualTransaction(s, c, e); err != nil {
+					failure(err, safeDatabaseError(err))
+					return
+				}
+				preflightStartedTransaction = wasIdle
+			}
+			e.restoreReadContext = func() error {
+				// A late KILL must finish before USE/SET restores the namespace.
+				e.finishDatabaseWork()
+				joinDatabaseCancel()
+				return guard.restore(s)
+			}
+			databaseTouched.Store(true)
+			if err := guard.enter(e.ctx); err != nil {
+				failure(err, sourceContextError(err))
+				return
+			}
+		}
+	}
+	runSQL := e.sql
+	planVersion := ""
+	var browseArgs []any
+	if e.browse != nil && e.browse.plan != nil {
+		p := e.browse.plan
+		contextMatches := sourceContext != ""
+		if !contextMatches {
+			scope, scopeErr := liveContext(e.ctx, c, s.grant.Config.Dialect)
+			contextMatches = scopeErr == nil && scope.Database == p.view.Database
+		}
+		if !contextMatches || (p.view.Supported && opts != p.options) {
+			failure(errors.New("browse_context_changed"), &APIError{"browse_context_changed", "Database or SQL mode changed; apply the browse conditions again"})
+			return
+		}
+		if p.view.Supported && p.view.ServerVersion != "" {
+			version, reason, err := browseVendorContext(e.ctx, c, s.grant.Config.Dialect, opts)
+			if err != nil || reason != "" || version != p.view.ServerVersion {
+				failure(errors.New("browse_context_changed"), &APIError{"browse_context_changed", "Server capabilities changed; reopen this table"})
+				return
+			}
+		}
+		isView, kindErr := sqlservice.BrowseRelationIsView(e.ctx, c.conn, sqlservice.Dialect(s.grant.Config.Dialect), sqlservice.CatalogColumnRequest{Schema: p.view.Schema, Table: p.view.Table})
+		if kindErr != nil || isView != p.table.View || (isView && !p.reexecutionConfirmed) {
+			failure(errors.New("browse_source_changed"), &APIError{"browse_source_changed", "The table or view changed; reopen it before browsing"})
+			return
+		}
+		if err := validateBrowseWhere(e.ctx, c, s.grant.Config.Dialect, p); err != nil {
+			failure(err, &APIError{"invalid_browse", err.Error()})
+			return
+		}
+		if p.action == "append" {
+			if _, err := v.browseAppendSource(s, c.id, p); err != nil {
+				failure(err, &APIError{"invalid_browse", err.Error()})
+				return
+			}
+		}
+		runSQL, browseArgs = p.sql, p.args
+	}
+	if e.planMode != "" {
+		runSQL, planVersion, err = estimatedPlanSQL(e.ctx, c, s.grant.Config.Dialect, e.sql, opts)
+		if err != nil {
+			api := &APIError{err.Error(), "Estimated plans require a supported database and one read SELECT without INTO, locking clauses or nested EXPLAIN"}
+			var explicit *APIError
+			if errors.As(err, &explicit) {
+				api = explicit
+			} else if !strings.HasPrefix(err.Error(), "explain_") {
+				api = safeDatabaseError(err)
+			}
+			failure(err, api)
+			return
+		}
+		e.mu.Lock()
+		e.planSQL = runSQL
+		e.mu.Unlock()
+	}
+	if e.queryPage != nil {
+		if err := validateQueryPage(e.ctx, c, s.grant.Config.Dialect, e.queryPage, opts, sourceContext != ""); err != nil {
+			failure(err, &APIError{"query_page_context_changed", err.Error()})
+			return
+		}
+		runSQL = e.queryPage.generated
+	}
+	analyze := sqlservice.AnalyzeWithOptions
+	if e.consoleMode {
+		analyze = sqlservice.AnalyzeConsole
+	}
+	analysis, err := analyze(sqlservice.Dialect(s.grant.Config.Dialect), runSQL, opts)
+	// Generated windows may exceed the pinned TiDB grammar. Their source was
+	// admitted by the AST; only server-owned wrapping and bounded integers differ.
+	if e.queryPage != nil {
+		analysis = sqlservice.Analysis{Statements: []sqlservice.Statement{{SQL: runSQL, Kind: "select", ReturnsRows: true}}}
+		err = nil
+	}
+	if e.planMode != "" && specialPlanDialect(s.grant.Config.Dialect) {
+		analysis = sqlservice.Analysis{Statements: []sqlservice.Statement{{SQL: runSQL, Kind: "explain", ReturnsRows: true}}}
+		err = nil
+	}
+	if err != nil {
+		failure(err, &APIError{"sql_parse_error", err.Error()})
+		return
+	}
+	if len(analysis.Statements) == 0 {
+		failure(errors.New("statement_limit"), &APIError{"statement_limit", "A script must contain at least one statement"})
+		return
+	}
+	if e.export != nil {
+		if !s.grant.Permissions.Download {
+			failure(errors.New("download_permission_denied"), &APIError{"download_permission_denied", "Result download is not permitted"})
+			return
+		}
+		confirmedQuery := e.queryPage != nil && e.queryPage.view.RequiresReexecution && e.queryPage.reexecutionConfirmed
+		if len(analysis.Statements) != 1 || analysis.Statements[0].MayWrite && !confirmedQuery || !analysis.Statements[0].ReturnsRows || (analysis.Statements[0].Kind != "select" && analysis.Statements[0].Kind != "setopr") {
+			failure(errors.New("export_requires_single_select"), &APIError{"export_requires_single_select", "Full export requires exactly one read query"})
+			return
+		}
+	}
+	implicitCommit := false
+	if c.manual && e.planMode == "" {
+		for _, statement := range analysis.Statements {
+			if statement.Kind == "raw" {
+				failure(errors.New("raw_console_manual_mode"), &APIError{"raw_console_manual_mode", "This raw command has unknown transaction behavior; switch to automatic transaction mode before executing it"})
+				return
+			}
+			risk, control := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement)
+			if control {
+				failure(errors.New("transaction_control_sql"), &APIError{"transaction_control_sql", "Use the toolbar to change transactions; transaction and session-control SQL is unavailable in manual mode"})
+				return
+			}
+			implicitCommit = implicitCommit || risk
+		}
+		if implicitCommit && !e.confirmImplicitCommit {
+			failure(errors.New("implicit_commit_confirmation_required"), &APIError{"implicit_commit_confirmation_required", "This SQL may commit the current transaction and cannot be rolled back; confirmation is required"})
+			return
+		}
+		if implicitCommit && (c.transaction.Load() == nil || c.transaction.Load().Revision != e.transactionRevision) {
+			failure(errors.New("transaction_changed"), &APIError{"transaction_changed", "Transaction state changed; review the SQL and confirm again"})
+			return
+		}
+	}
+	if err := e.ctx.Err(); err != nil {
+		failure(err, safeDatabaseError(err))
+		return
+	}
+	if e.cancelRequested.Load() {
+		failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
+		return
+	}
+	executionStart := time.Now()
+	var startErr error
+	v.update(s, e, func(x *ExecutionView) {
+		startErr = e.ctx.Err()
+		if startErr == nil && e.cancelRequested.Load() {
+			startErr = context.Canceled
+		}
+		if startErr == nil {
+			x.Status, x.StartedAt = "running", &executionStart
+		}
+	})
+	if startErr != nil {
+		failure(startErr, safeDatabaseError(startErr))
+		return
+	}
+	for statementIndex, statement := range analysis.Statements {
+		audit = core.AuditRecord{ID: fmt.Sprintf("%s:statement:%d", e.view.ID, statementIndex+1), SQL: statement.SQL, StartedAt: time.Now(), RiskClassified: true}
+		if e.browse != nil || e.queryPage != nil || e.planMode != "" {
+			audit.SQL = e.sql
+		}
+		auditPending = true
+		e.replayOutput, e.auditRows = "", 0
+		triggeredWarnings = map[string]core.AuditRecord{}
+		if err := e.ctx.Err(); err != nil {
+			failure(err, safeDatabaseError(err))
+			return
+		}
+		if e.cancelRequested.Load() {
+			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
+			return
+		}
+		if err := s.grant.Check(); err != nil {
+			failure(err, &APIError{"session_unavailable", err.Error()})
+			return
+		}
+		// The first statement still owns the connection on which admission
+		// read the parser settings. Earlier statements in a script can SET
+		// sql_mode (or change database), so take a new snapshot after each.
+		current := opts
+		if statementIndex > 0 {
+			if err := e.beginDatabaseWork(); err != nil {
+				failure(err, safeDatabaseError(err))
+				return
+			}
+			current, err = readOptions()
+			if err != nil {
+				failure(err, safeDatabaseError(err))
+				return
+			}
+		}
+		if (e.planMode != "" || e.browse != nil || e.queryPage != nil) && current != opts {
+			failure(errors.New("sql_context_changed"), &APIError{"sql_context_changed", "SQL mode changed during admission; submit a new request"})
+			return
+		}
+		// AST facts remain valid while parser options are unchanged. Reuse them
+		// for dispatch and edit provenance instead of reparsing each consumer.
+		if e.queryPage == nil && !(e.planMode != "" && specialPlanDialect(s.grant.Config.Dialect)) && (statement.Facts == nil || current != opts) {
+			checked, err := analyze(sqlservice.Dialect(s.grant.Config.Dialect), statement.SQL, current)
+			if err != nil || len(checked.Statements) != 1 {
+				failure(errors.New("sql_context_changed"), &APIError{"sql_context_changed", "Statement boundaries changed with the connection SQL mode; run statements separately"})
+				return
+			}
+
+			statement = checked.Statements[0]
+		}
+
+		// Match Java's statement boundary: a later rejection or confirmation
+		// cannot prevent an earlier statement from executing, nor replay it.
+		commands := statementSQL([]sqlservice.Statement{statement})
+		if e.browse != nil || e.queryPage != nil || e.planMode != "" {
+			commands = append([]string{e.sql}, commands...)
+		}
+		if c.manual {
+			if risk, _ := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement); risk {
+				commands = append(commands, "COMMIT")
+			}
+		}
+		if e.planMode != "" {
+			commands = append(commands, planAuthorizationSQL(s.grant.Config.Dialect, runSQL)...)
+		}
+		e.finishDatabaseWork()
+		if e.cancelRequested.Load() {
+			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
+			return
+		}
+		if err := v.authorizeExecution(s, e, commands, &audit); err != nil {
+			var pe *core.PolicyError
+			code := "command_denied"
+			if errors.As(err, &pe) {
+				audit.RiskLevel, audit.ACLID, audit.GroupID = pe.RiskLevel, pe.ACLID, pe.GroupID
+				code = pe.Code
+			}
+			failure(err, &APIError{code, err.Error()})
+			return
+		}
+		v.update(s, e, func(view *ExecutionView) { view.Status = "running" })
+
+		if err := e.beginDatabaseWork(); err != nil {
+			failure(err, safeDatabaseError(err))
+			return
+		}
+		var starSource *resultStarSource
+		if statement.ReturnsRows && e.planMode == "" && e.queryPage == nil && e.browse == nil {
+			if mysqlHint != nil {
+				e.mu.RLock()
+				// A later statement or an approval wait may have outlived
+				// the dictionary read. Recheck the source after authorization.
+				if len(analysis.Statements) != 1 || e.view.Review != nil || len(e.confirmationDecisions) != 0 {
+					mysqlHint = nil
+				}
+				e.mu.RUnlock()
+			}
+			starSource = v.captureQuerySQLSource(s, c, e, current, statement, mysqlState, mysqlHint)
+			if e.cancelRequested.Load() {
+				failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
+				return
+			}
+			if err := e.ctx.Err(); err != nil {
+				failure(err, safeDatabaseError(err))
+				return
+			}
+		}
+		for _, command := range commands {
+			if warning, ok := e.policyWarnings[command]; ok {
+				key := warning.ACLID + ":" + warning.GroupID
+				triggeredWarnings[key] = core.AuditRecord{ID: audit.ID + ":warning:" + key, SQL: command, RiskLevel: warning.RiskLevel, ACLID: warning.ACLID, GroupID: warning.GroupID}
+				if warning.RiskLevel > audit.RiskLevel {
+					audit.RiskLevel, audit.ACLID, audit.GroupID = warning.RiskLevel, warning.ACLID, warning.GroupID
+				}
+			}
+		}
+		if c.manual && e.planMode == "" {
+			if statement.Kind == "raw" {
+				failure(errors.New("raw_console_manual_mode"), &APIError{"raw_console_manual_mode", "This raw command has unknown transaction behavior; switch to automatic transaction mode before executing it"})
+				return
+			}
+			risk, control := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement)
+			if control || (risk && !e.confirmImplicitCommit) {
+				failure(errors.New("transaction_changed"), &APIError{"transaction_changed", "SQL transaction behavior changed; submit again"})
+				return
+			}
+			if risk {
+				pending := c.manualTx != nil
+				if err := v.finishManualTransaction(s, c, e, true); err != nil {
+					failure(err, &APIError{"transaction_outcome_unknown", err.Error()})
+					return
+				}
+				v.publishTransaction(s, c, e, "implicit_commit")
+				if pending {
+					v.update(s, e, func(x *ExecutionView) { x.Transaction.PriorCommitted = true })
+				}
+			} else {
+				if err := sqlservice.CheckTransactionTables(e.ctx, c.conn, sqlservice.Dialect(s.grant.Config.Dialect), statement, current); err != nil {
+					api := safeDatabaseError(err)
+					if api.Code != "MYSQL_1146" && api.Code != "OCEANBASE_1146" {
+						api = &APIError{"transaction_table_unsupported", "Manual writes require verifiable transactional base tables"}
+					}
+					failure(err, api)
+					return
+				}
+				wasIdle := c.manualTx == nil
+				if err := v.beginManualTransaction(s, c, e); err != nil {
+					failure(err, safeDatabaseError(err))
+					return
+				}
+				preflightStartedTransaction = preflightStartedTransaction || wasIdle
+			}
+		}
+		// Metadata probes can absorb an interrupt as a recoverable error. Do
+		// not send the user's SQL if cancellation arrived during that work.
+		if e.cancelRequested.Load() {
+			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
+			return
+		}
+		userSQLStarted = true
+		currentInFlight = true
+		databaseTouched.Store(true)
+		if e.planMode != "" {
+			err := v.runEstimatedPlan(s, c, e, statement.SQL, planVersion)
+			if err != nil {
+				var api *APIError
+				if errors.As(err, &api) && !c.lost.Load() {
+					currentInFlight = false
+				}
+				confirmedCancel = isServerCancellation(err) || driverConfirmedCancellation(s.grant.Config.Dialect, err)
+				failure(err, planAPIError(err))
+				return
+			}
+		} else if statement.ReturnsRows {
+			e.resultSQL = statement.SQL
+			e.resultAnalysis = statement.Facts
+			rows, err := c.conn.QueryContext(executionContext(e.ctx, s.grant.Config.Dialect, e.view.ID), statement.SQL, browseArgs...)
+			if err != nil {
+				confirmedCancel = isServerCancellation(err) || driverConfirmedCancellation(s.grant.Config.Dialect, err)
+				failure(err, safeDatabaseError(err))
+				return
+			}
+			var collectErr error
+			if e.queryPage != nil && e.queryPage.action == "count" {
+				collectErr = v.collectQueryCount(s, e, rows)
+			} else if e.browse != nil && e.browse.plan != nil && e.browse.plan.action == "count" {
+				var total string
+				if !rows.Next() {
+					collectErr = errors.New("Count returned no value")
+				} else {
+					collectErr = rows.Scan(&total)
+				}
+				if collectErr == nil {
+					collectErr = rows.Err()
+				}
+				rows.Close()
+				if collectErr == nil {
+					collectErr = e.restoreSourceReadContext()
+				}
+				if collectErr == nil {
+					v.update(s, e, func(x *ExecutionView) {
+						x.BrowseCount = &BrowseCount{SourceResultID: e.browse.plan.sourceResultID, Total: total}
+					})
+				}
+			} else if e.browse != nil && e.browse.plan != nil && e.browse.plan.action == "append" {
+				collectErr = v.collectBrowseAppend(s, e, rows)
+			} else if e.export != nil {
+				collectErr = v.collectExport(s, c, e, rows)
+			} else {
+				collectErr = v.collectResults(s, e, rows, starSource)
+			}
+			if err := collectErr; err != nil {
+				// database/sql can replace a driver's Rows error with ctx.Err().
+				// That alone does not prove the server acknowledged cancellation.
+				confirmedCancel = isServerCancellation(err)
+				failure(err, sourceContextError(err))
+				return
+			}
+		} else {
+			result, err := c.conn.ExecContext(executionContext(e.ctx, s.grant.Config.Dialect, e.view.ID), statement.SQL)
+			if err != nil {
+				confirmedCancel = isServerCancellation(err) || driverConfirmedCancellation(s.grant.Config.Dialect, err)
+				failure(err, safeDatabaseError(err))
+				return
+			}
+			affected, _ := result.RowsAffected()
+			audit.Output = fmt.Sprintf("Query OK, %d rows affected", affected)
+			v.update(s, e, func(x *ExecutionView) {
+				x.StatementResults = append(x.StatementResults, StatementResult{RowsAffected: strconv.FormatInt(affected, 10)})
+			})
+		}
+		if c.manual && e.planMode == "" {
+			risk, _ := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement)
+			if risk {
+				state, probeErr := editTransactionState(e.ctx, c, s.grant.Config.Dialect)
+				if probeErr != nil || state != editTxIdle {
+					invalidateEditConnection(s, c)
+					v.publishTransaction(s, c, e, "unknown")
+					failure(errors.New("transaction_outcome_unknown"), &APIError{"transaction_outcome_unknown", "SQL left an unverified transaction state; reconnect and verify the data"})
+					return
+				}
+			}
+		}
+		currentInFlight = false
+		// MySQL SLEEP can return a normal row after KILL QUERY. An accepted
+		// cancellation must not become a successful read just because the
+		// driver returned no error. Completed writes are still counted below.
+		if !statement.MayWrite && (e.cancelRequested.Load() || e.ctx.Err() != nil) {
+			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
+			return
+		}
+		completedStatements++
+		// Read the actual scope on the pinned connection, including transaction rollback
+		// of a PostgreSQL search_path. Never publish the name requested by the client.
+		if sqlservice.ChangesConsoleContext(sqlservice.Dialect(s.grant.Config.Dialect), statement) {
+			scope, err := liveContext(e.ctx, c, s.grant.Config.Dialect)
+			if err != nil {
+				failure(err, safeDatabaseError(err))
+				return
+			}
+			c.publishContext(s, scope)
+		}
+		// A cancel racing a completed write must preserve its completed count;
+		// the failure path rolls back only a transaction owned by this console.
+		if e.cancelRequested.Load() || e.ctx.Err() != nil {
+			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
+			return
+		}
+		e.finishDatabaseWork()
+		if err := finishAudit(true); err != nil {
+			failure(err, &APIError{"audit_persistence_failed", "The completed statement could not be audited; remaining statements were not sent"})
+			return
+		}
+	}
+	if c.manual && e.planMode == "" {
+		outcome := ""
+		if tx := e.snapshot().Transaction; tx != nil {
+			outcome = tx.Outcome
+		}
+		// Every successful submission changes the confirmation snapshot, even
+		// when it reused the same open transaction.
+		v.publishTransaction(s, c, e, outcome)
+	}
+	v.update(s, e, func(x *ExecutionView) { x.Status = "succeeded" })
+}
+func statementSQL(stmts []sqlservice.Statement) []string {
+	out := make([]string, 0, len(stmts))
+	for _, s := range stmts {
+		out = append(out, s.SQL)
+		out = append(out, s.PolicySQL...)
+	}
+	return out
+}
+func liveOptions(ctx context.Context, c *console, dialect string) (sqlservice.AnalyzeOptions, error) {
+	var o sqlservice.AnalyzeOptions
+	if core.IsMySQLDialect(dialect) {
+		var version string
+		if err := c.conn.QueryRowContext(ctx, "SELECT @@session.sql_mode, VERSION()").Scan(&o.MySQLSQLMode, &version); err != nil {
+			return o, err
+		}
+		o = mysqlAnalyzeOptions(o.MySQLSQLMode, version)
+	}
+	return o, nil
+}
+func isServerCancellation(err error) bool {
+	var me *mysql.MySQLError
+	if errors.As(err, &me) {
+		return me.Number == 1317
+	}
+	var pe *pgconn.PgError
+	return errors.As(err, &pe) && pe.Code == "57014" || extraServerCancellation(err)
+}
+
+func isServerError(err error) bool {
+	var me *mysql.MySQLError
+	var pe *pgconn.PgError
+	return errors.As(err, &me) || errors.As(err, &pe) || extraDatabaseError(err) != nil
+}
+
+func binaryResultType(dbType string) bool {
+	dbType = strings.ToUpper(dbType)
+	return strings.Contains(dbType, "BLOB") || strings.Contains(dbType, "BINARY") || dbType == "BYTEA" || dbType == "RAW" || dbType == "LONG RAW" || dbType == "IMAGE"
+}
+
+func normalizeValue(value any, dbType string) any {
+	dbType = strings.ToUpper(dbType)
+	switch x := value.(type) {
+	case int64:
+		return strconv.FormatInt(x, 10)
+	case uint64:
+		return strconv.FormatUint(x, 10)
+	case []byte:
+		if x == nil {
+			return nil
+		}
+		if binaryResultType(dbType) || !validTextBytes(x) {
+			return "0x" + hex.EncodeToString(x)
+		}
+		return string(x)
+	case time.Time:
+		switch dbType {
+		case "DATE":
+			return x.Format("2006-01-02")
+		case "DATETIME", "TIMESTAMP":
+			return x.Format("2006-01-02 15:04:05.999999999")
+		default:
+			return x.Format(time.RFC3339Nano)
+		}
+	case float64:
+		if math.IsNaN(x) {
+			return "NaN"
+		}
+		if math.IsInf(x, 1) {
+			return "Infinity"
+		}
+		if math.IsInf(x, -1) {
+			return "-Infinity"
+		}
+		return x
+	default:
+		return normalizeComposite(value, dbType)
+	}
+}
+func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows, starSource *resultStarSource) (err error) {
+	var collected []*Result
+	defer func() {
+		rows.Close()
+		// Once the rows have drained, an already requested interrupt must
+		// finish before source metadata uses the same physical connection.
+		if e.cancelRequested.Load() {
+			e.finishDatabaseWork()
+		}
+		if e.resultSQL != "" {
+			v.bindResultEditSource(s, e, collected, starSource)
+		}
+		e.finishDatabaseWork()
+		// Source resolution above must see the original namespace. No result
+		// may become visible until the user's current namespace is restored.
+		if err == nil {
+			err = e.restoreSourceReadContext()
+		}
+		if err != nil && e.restoreReadContext != nil {
+			s.mu.Lock()
+			for _, result := range collected {
+				s.resultBytes -= result.memoryBytes
+			}
+			s.mu.Unlock()
+			return
+		}
+		for _, result := range collected {
+			s.mu.Lock()
+			s.results[result.ID] = result
+			s.mu.Unlock()
+			v.update(s, e, func(x *ExecutionView) {
+				x.ResultIDs = append(x.ResultIDs, result.ID)
+				x.StatementResults = append(x.StatementResults, StatementResult{ResultID: result.ID, SourceSQL: result.SourceSQL})
+			})
+		}
+	}()
+	for {
+		var browse *browsePlan
+		if e.browse != nil {
+			browse = e.browse.plan
+		}
+		// Reuse the bounded row reader without publishing a table-browse identity.
+		if e.queryPage != nil && e.queryPage.action == "page" {
+			browse = &browsePlan{view: BrowsePage{Supported: true, PageSize: e.queryPage.view.PageSize}}
+		}
+		result, err := v.readRowsWithMask(s, rows, func(labels []string) []string {
+			return e.resultMaskColumns(s.grant.Config.Dialect, labels)
+		}, browse)
+		if err != nil {
+			return err
+		}
+		if e.consoleMode && len(result.Columns) == 0 {
+			// QueryContext is also used for opaque commands that return no row
+			// set. Do not invent an empty table or an unknown affected-row count.
+			if !rows.NextResultSet() {
+				return rows.Err()
+			}
+			continue
+		}
+		result.consoleID, result.sourceSQL, result.browse = e.view.ConsoleID, e.resultSQL, e.browse
+		result.sourceAnalysis = e.resultAnalysis
+		result.querySource = e.querySource
+		if e.queryPage != nil {
+			p := *e.queryPage
+			if result.Browse != nil {
+				p.view.HasMore = result.Browse.HasMore
+			}
+			result.querySource = &p
+			result.sourceSQL = p.original
+			// The page wrapper only selects a window of the original projection.
+			// Resolve and freeze that original source before publishing rows, using
+			// the same column, primary-key and masking checks as the initial query.
+			result.sourceAnalysis = nil
+			result.Browse = nil
+		}
+		result.SourceSQL = result.sourceSQL
+		if result.querySource != nil {
+			view := result.querySource.view
+			result.QueryPage = &view
+		}
+		appendResultReplay(e, result)
+		collected = append(collected, result)
+		if !rows.NextResultSet() {
+			return rows.Err()
+		}
+	}
+}
+func (v *Server) readRows(s *session, rows *sql.Rows, plans ...*browsePlan) (*Result, error) {
+	return v.readRowsWithMask(s, rows, func(labels []string) []string { return labels }, plans...)
+}
+func (v *Server) readRowsWithMask(s *session, rows *sql.Rows, maskColumns func([]string) []string, plans ...*browsePlan) (*Result, error) {
+	reserved := 0
+	complete := false
+	defer func() {
+		if !complete && reserved > 0 {
+			s.mu.Lock()
+			s.resultBytes -= reserved
+			s.mu.Unlock()
+		}
+	}()
+	types, err := rows.ColumnTypes()
+	if err != nil {
+		return nil, err
+	}
+	result := &Result{ID: newID("res_"), Columns: []Column{}, Rows: [][]any{}}
+	limit := v.opts.MaxRows
+	if len(plans) > 0 && plans[0] != nil {
+		view := plans[0].view
+		if view.Supported {
+			limit = view.PageSize
+			if plans[0].fetchSize > 0 {
+				limit = plans[0].fetchSize
+			}
+			more := false
+			view.HasMore = &more
+		}
+		result.Browse = &view
+	}
+	labels := make([]string, len(types))
+	for i, column := range types {
+		result.Columns = append(result.Columns, Column{column.Name(), column.DatabaseTypeName()})
+		labels[i] = column.Name()
+	}
+	sources := make([]string, len(types))
+	if maskColumns != nil {
+		sources = maskColumns(labels)
+	}
+	for rows.Next() {
+		if result.Browse != nil && result.Browse.Supported && len(result.Rows) >= limit {
+			more := true
+			result.Browse.HasMore = &more
+			break
+		}
+		raw := make([]any, len(types))
+		targets := make([]any, len(types))
+		for i := range raw {
+			targets[i] = &raw[i]
+		}
+		if err := rows.Scan(targets...); err != nil {
+			return nil, err
+		}
+		copyLossy := make([]bool, len(raw))
+		for i := range raw {
+			if data, ok := raw[i].([]byte); ok && data != nil && !binaryResultType(types[i].DatabaseTypeName()) && !validTextBytes(data) {
+				copyLossy[i] = true
+			}
+			raw[i], err = materializeValue(raw[i], types[i].DatabaseTypeName(), v.opts.MaxResultBytes, s.grant.Config.Dialect)
+			if err != nil {
+				return nil, err
+			}
+		}
+		original := append([]any(nil), raw...)
+		masked := make([]bool, len(raw))
+		extra := 0
+		for i := range raw {
+			raw[i], masked[i] = v.provider.Mask(s.grant, sources[i], types[i].Name(), raw[i])
+			if masked[i] {
+				b, encodeErr := json.Marshal(original[i])
+				if encodeErr != nil {
+					return nil, encodeErr
+				}
+				extra += len(b)
+			}
+		}
+		encoded, err := json.Marshal(raw)
+		if err != nil {
+			return nil, err
+		}
+		s.mu.Lock()
+		space := v.opts.MaxResultBytes <= 0 || s.resultBytes+len(encoded)+extra <= v.opts.MaxResultBytes
+		if len(result.Rows) < limit && space {
+			s.resultBytes += len(encoded) + extra
+			reserved += len(encoded) + extra
+		}
+		s.mu.Unlock()
+		if len(result.Rows) >= limit || !space {
+			if result.Browse != nil && result.Browse.Supported {
+				result.Browse.HasMore = nil
+			}
+			result.Truncated = true
+			break
+		}
+		result.Rows = append(result.Rows, raw)
+		result.original = append(result.original, original)
+		result.masked = append(result.masked, masked)
+		result.copyLossy = append(result.copyLossy, copyLossy)
+		result.rowRefs = append(result.rowRefs, newID("row_"))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if result.Browse != nil && result.Browse.Supported {
+		if result.Truncated {
+			result.Browse.LimitReached = "bytes"
+		} else if len(result.Rows) >= v.opts.MaxRows && result.Browse.HasMore != nil && *result.Browse.HasMore {
+			result.Browse.LimitReached = "rows"
+		}
+	}
+	result.TotalRows = len(result.Rows)
+	result.memoryBytes = reserved
+	complete = true
+	return result, nil
+}
+func (v *Server) resultRows(w http.ResponseWriter, r *http.Request) {
+	s := v.auth(w, r, false)
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	if s.closed || s.ctx.Err() != nil {
+		s.mu.Unlock()
+		fail(w, 410, "session_closed", "Session is closed")
+		return
+	}
+	result := s.results[r.PathValue("rid")]
+	if result == nil {
+		s.mu.Unlock()
+		fail(w, 404, "not_found", "Result not found")
+		return
+	}
+	page := *result
+	offset := positiveInt(r.URL.Query().Get("offset"), 0, len(result.Rows))
+	limit := positiveInt(r.URL.Query().Get("limit"), 200, 1000)
+	if limit == 0 {
+		limit = 200
+	}
+	end := min(offset+limit, len(result.Rows))
+	page.Rows = append([][]any{}, result.Rows[offset:end]...)
+	page.Offset = offset
+	if end < len(result.Rows) {
+		page.NextOffset = &end
+	}
+	s.mu.Unlock()
+	writeJSON(w, 200, page)
+}
+func (v *Server) journal(s *session, e *execution, phase string) error {
+	dir := v.opts.StateDir
+	if dir == "" {
+		dir = "data/go"
+	}
+	dir = filepath.Join(dir, "executions")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return err
+	}
+	entry := map[string]any{"session_id": s.id, "core_session_id": s.grant.ID, "execution": e.snapshot(), "sql": e.sql, "phase": phase, "recovery": "An unfinished intent has unknown outcome; never replay SQL"}
+	if e.planMode != "" {
+		entry["generated_sql"] = e.planSQL
+		entry["auxiliary_sql"] = planAuthorizationSQL(s.grant.Config.Dialect, e.planSQL)
+	}
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return err
+	}
+	f, err := os.CreateTemp(dir, ".intent-")
+	if err != nil {
+		return err
+	}
+	name := f.Name()
+	defer os.Remove(name)
+	if err = f.Chmod(0600); err == nil {
+		_, err = f.Write(data)
+	}
+	if err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	if err := os.Rename(name, filepath.Join(dir, e.view.ID+".json")); err != nil {
+		return err
+	}
+	directory, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer directory.Close()
+	return directory.Sync()
+}

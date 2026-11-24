@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 
@@ -40,6 +41,13 @@ type Config struct {
 	MCPControlRequests       int    `mapstructure:"MCP_CONTROL_REQUESTS"`
 	MCPJournalMaxSize        int    `mapstructure:"MCP_JOURNAL_MAX_SIZE"`
 	MCPMaxStagedFiles        int    `mapstructure:"MCP_MAX_STAGED_FILES"`
+
+	ChenStateDir               string        `mapstructure:"CHEN_STATE_DIR"`
+	ChenAllowedOrigins         string        `mapstructure:"CHEN_ALLOWED_ORIGINS"`
+	ChenQueryTimeout           time.Duration `mapstructure:"CHEN_QUERY_TIMEOUT"`
+	ChenTransactionIdleTimeout time.Duration `mapstructure:"CHEN_TRANSACTION_IDLE_TIMEOUT"`
+	ChenMaxRows                int           `mapstructure:"CHEN_MAX_ROWS"`
+	ChenMaxResultBytes         int           `mapstructure:"CHEN_MAX_RESULT_BYTES"`
 
 	LogLevel string `mapstructure:"LOG_LEVEL"`
 
@@ -208,6 +216,10 @@ func getDefaultConfig() Config {
 		FTPFilePath:              ftpFileFolderPath,
 		SessionFolderPath:        sessionFolderPath,
 		LanguageCode:             "en",
+
+		ChenStateDir:               filepath.Join(dataFolderPath, "chen"),
+		ChenTransactionIdleTimeout: 5 * time.Minute,
+		ChenMaxRows:                10000,
 
 		Comment:                "KOKO",
 		UploadFailedReplay:     true,

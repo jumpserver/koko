@@ -14,7 +14,7 @@ RUN /opt/koko/bin/usql --drivers | grep -qx mongodb \
     && set -x && ls -al . \
     && mv /opt/koko/build/koko /opt/koko/koko
 
-RUN mkdir /opt/koko/release \
+RUN make chen-resources DESTDIR=/opt/koko/release \
     && mv /opt/koko/locale /opt/koko/release \
     && mv /opt/koko/config_example.yml /opt/koko/release \
     && mv /opt/koko/entrypoint.sh /opt/koko/release \
