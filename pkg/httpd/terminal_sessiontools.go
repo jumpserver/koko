@@ -119,22 +119,8 @@ func (c *terminalToolController) attachWinRM(conn *srvconn.WinRMConnection) {
 }
 
 func (c *terminalToolController) attachDatabase(info proxy.DatabaseConnectionInfo) {
-	config := sessiontools.DatabaseConfig{
-		Protocol:     info.Protocol,
-		PlatformType: info.PlatformType, TenantMode: info.TenantMode,
-		Host: info.Host, Port: info.Port, ServerName: info.ServerName,
-		Username: info.Username, Password: info.Password,
-		Database: info.Database, UseSSL: info.UseSSL,
-		PGSSLMode: info.PGSSLMode,
-		CACert:    info.CACert, ClientCert: info.ClientCert, ClientKey: info.ClientKey,
-		AllowInvalidCert: info.AllowInvalidCert,
-		Encrypt:          info.Encrypt, DisableEncrypt: info.DisableEncrypt,
-		ClusterMode: info.ClusterMode, AuthSource: info.AuthSource,
-		ConnectionOpts: info.ConnectionOpts, ProxyURL: info.ProxyURL,
-		DataMaskingRules: append(
-			[]model.DataMaskingRule(nil), info.DataMaskingRules...,
-		),
-	}
+	config := info
+	config.DataMaskingRules = append([]model.DataMaskingRule(nil), info.DataMaskingRules...)
 	c.attach(func(ctx context.Context) (sessiontools.CommandExecutor, error) {
 		return sessiontools.NewDatabaseExecutor(ctx, config)
 	})

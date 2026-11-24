@@ -203,12 +203,11 @@ func (p *CoreProvider) Open(ctx context.Context, token, remoteAddr string) (resu
 	if host, _, err := net.SplitHostPort(remoteAddr); err == nil {
 		remoteAddr = host
 	}
-	id, err := randomID()
+	sess, err := session.NewConnectionInfo(&data, remoteAddr, model.LoginFromWeb, "db_workbench")
 	if err != nil {
 		return nil, err
 	}
-	sess := data.CreateSession(remoteAddr, model.LoginFromWeb, "db_workbench")
-	sess.ID = id
+	id := sess.ID
 	sess.Asset = data.Asset.Name
 	sess.OrgID = data.Asset.OrgID
 	sess.ErrReason = ""
@@ -279,11 +278,10 @@ func (p *CoreProvider) Open(ctx context.Context, token, remoteAddr string) (resu
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if data.FaceMonitorToken != "" {
-		err = p.client.JoinFaceMonitor(service.JoinFaceMonitorRequest{FaceMonitorToken: data.FaceMonitorToken, SessionId: g.ID})
-		if err != nil {
-			return nil, errors.New("face_monitor_join_failed")
-		}
+	if err := session.BindConnection(p.client, g.ID, &data, func(error) {
+		p.report("session_ticket_relation_failed")
+	}); err != nil {
+		return nil, errors.New("face_monitor_join_failed")
 	}
 	if err = p.replays.start(g); err != nil {
 		return nil, errors.Join(ErrAuditDisk, err)

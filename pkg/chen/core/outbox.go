@@ -2,8 +2,6 @@ package core
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jumpserver-dev/sdk-go/model"
 	bolt "go.etcd.io/bbolt"
 	bolterrors "go.etcd.io/bbolt/errors"
@@ -151,17 +150,6 @@ func readEnvelope(path string) (envelope, error) {
 	return entry, nil
 }
 
-func randomID() (string, error) {
-	var data [16]byte
-	if _, err := rand.Read(data[:]); err != nil {
-		return "", errors.New("secure_random_unavailable")
-	}
-	data[6] = data[6]&0x0f | 0x40
-	data[8] = data[8]&0x3f | 0x80
-	encoded := hex.EncodeToString(data[:])
-	return encoded[:8] + "-" + encoded[8:12] + "-" + encoded[12:16] + "-" + encoded[16:20] + "-" + encoded[20:], nil
-}
-
 func closeEnvelope(g *Grant, reason string, connected bool) envelope {
 	result := envelope{Finish: &finishRequest{SessionID: g.ID, DateEnd: time.Now().Unix(), Connected: connected}}
 	if connected {
@@ -173,7 +161,7 @@ func closeEnvelope(g *Grant, reason string, connected bool) envelope {
 func (o *outbox) put(value envelope) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	id, err := randomID()
+	id, err := uuid.NewRandom()
 	if err != nil {
 		return err
 	}

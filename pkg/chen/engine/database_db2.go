@@ -7,11 +7,11 @@ import (
 	"database/sql/driver"
 	"errors"
 	"net"
-	"strings"
 	"sync/atomic"
 	"time"
 
 	db2 "github.com/go-db2/go-db2"
+	"github.com/jumpserver/koko/internal/dbconn"
 	"github.com/jumpserver/koko/pkg/chen/core"
 )
 
@@ -27,31 +27,12 @@ func (pool databasePool) openDB2(c core.ConnectionConfig, t *tls.Config) (*sql.D
 }
 
 func db2Config(c core.ConnectionConfig, t *tls.Config) (*db2.Config, error) {
-	// DRDA's RDBNAM field is 18 bytes; the driver otherwise truncates it.
-	if c.Host == "" || c.Database == "" || len(c.Database) > 18 || c.Port < 1 || c.Port > 65535 {
-		return nil, errors.New("invalid Db2 connection configuration")
+	cfg, err := dbconn.DB2Config(c, t)
+	if err != nil {
+		return nil, err
 	}
-	for _, value := range []string{c.Host, c.Database, c.User, c.Password} {
-		if strings.ContainsRune(value, 0) {
-			return nil, errors.New("invalid Db2 connection configuration")
-		}
-	}
-	cfg := db2.NewConfig()
-	cfg.Host, cfg.Port, cfg.Database = c.Host, c.Port, c.Database
-	// The pinned driver's dialer formats host:port directly.
-	if net.ParseIP(c.Host) != nil && strings.Contains(c.Host, ":") {
-		cfg.Host = "[" + c.Host + "]"
-	}
-	cfg.User, cfg.Password = c.User, c.Password
 	cfg.Timeout = time.Minute
 	cfg.ClientApplName = "Chen Go"
-	if t != nil {
-		cfg.UseSSL, cfg.TLSConfig = true, t.Clone()
-	} else {
-		// The trusted Core/single configuration explicitly selected plain TCP.
-		// Credentials are assigned directly, never interpolated into a DSN.
-		cfg.AllowPlaintextAuth = true
-	}
 	return cfg, nil
 }
 

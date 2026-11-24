@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/url"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -82,12 +81,14 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		assetName = connOpts.k8sContainer.K8sName(asset.Name)
 	}
 
-	apiSession := connOpts.authInfo.CreateSession(
+	apiSession, err := session.NewConnectionInfo(connOpts.authInfo,
 		conn.RemoteAddr(),
 		model.LabelField(conn.LoginFrom()),
 		model.NORMALType,
 	)
-	apiSession.ID = common.UUID()
+	if err != nil {
+		return nil, err
+	}
 	apiSession.Asset = assetName
 	apiSession.LangCode = connOpts.i18nLang
 	apiSessionRef := &apiSession
@@ -99,8 +100,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		return nil, ErrPermission
 	}
 
-	commandACLs := cloneCommandACLs(connOpts.authInfo.CommandFilterACLs)
-	sort.Sort(commandACLs)
+	commandACLs := session.OrderedCommandACLs(connOpts.authInfo.CommandFilterACLs)
 	return &Server{
 		ID:            apiSessionRef.ID,
 		UserConn:      conn,
@@ -151,7 +151,7 @@ type Server struct {
 	agentToolGrantMu         sync.Mutex
 	agentToolGrant           *agentToolCommandGrant
 	operationPaused          atomic.Bool
-	permissionInvalid        atomic.Bool
+	permission               session.PermissionGrace
 	backgroundActiveAt       atomic.Int64
 
 	cacheSSHConnection *srvconn.SSHConnection
@@ -203,17 +203,6 @@ type agentToolCommandGrant struct {
 	command  string
 	decision CommandACLDecision
 	expires  time.Time
-}
-
-func cloneCommandACLs(source []model.CommandACL) model.CommandACLs {
-	result := make(model.CommandACLs, len(source))
-	for index := range source {
-		result[index] = source[index]
-		result[index].CommandGroups = append(
-			[]model.CommandFilterItem(nil), source[index].CommandGroups...,
-		)
-	}
-	return result
 }
 
 func (s *Server) MatchCommandACL(command string) CommandACLDecision {
@@ -281,7 +270,7 @@ func (s *Server) ReviewCommand(
 	if err := ctx.Err(); err != nil {
 		return decision, err
 	}
-	ticket, err := submitCommandReview(s.jmsService, s.ID, decision.ACLID, command, s.connOpts.getLang())
+	ticket, err := session.SubmitCommandReview(s.jmsService, s.ID, decision.ACLID, command, s.connOpts.getLang())
 	if err != nil {
 		return decision, err
 	}
@@ -289,40 +278,47 @@ func (s *Server) ReviewCommand(
 	decision.Reviewers = ticket.Reviewers
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
-	for {
+	status, err := session.PollCommandReview(func() (model.TicketState, error) {
 		if onProgress != nil {
 			onProgress(decision)
 		}
 		select {
 		case <-ctx.Done():
-			_ = s.jmsService.CancelConfirmByRequestInfo(ticket.CloseReq)
-			return decision, ctx.Err()
+			return model.TicketState{}, ctx.Err()
 		case <-ticker.C:
 		}
 		status, checkErr := s.jmsService.CheckConfirmStatusByRequestInfo(ticket.CheckReq)
-		if err = ctx.Err(); err != nil {
-			_ = s.jmsService.CancelConfirmByRequestInfo(ticket.CloseReq)
-			return decision, err
+		if err := ctx.Err(); err != nil {
+			return status, err
 		}
-		if checkErr != nil {
-			logger.Errorf("Session %s: check agent tool command review failed: %s", s.ID, checkErr)
-			continue
+		if checkErr == nil {
+			decision.Processor = status.Processor
 		}
-		decision.Processor = status.Processor
-		switch status.State {
-		case model.TicketOpen:
-			continue
-		case model.TicketApproved:
-			decision.Action = model.ActionAccept
-			decision.Reviewed = true
-			return decision, nil
-		case model.TicketRejected, model.TicketClosed:
-			decision.Action = model.ActionReject
-			return decision, nil
-		default:
+		return status, checkErr
+	}, func(status model.TicketState, err error) bool {
+		if ctx.Err() != nil {
+			return false
+		}
+		if errors.Is(err, session.ErrUnknownCommandReviewState) {
 			logger.Errorf("Session %s: unknown agent tool review status %s", s.ID, status.Status)
+		} else {
+			logger.Errorf("Session %s: check agent tool command review failed: %s", s.ID, err)
 		}
+		return true
+	})
+	if err != nil {
+		_ = s.jmsService.CancelConfirmByRequestInfo(ticket.CloseReq)
+		if contextErr := ctx.Err(); contextErr != nil {
+			err = contextErr
+		}
+		return decision, err
 	}
+	decision.Action = model.ActionReject
+	if status.State == model.TicketApproved {
+		decision.Action = model.ActionAccept
+		decision.Reviewed = true
+	}
+	return decision, nil
 }
 
 func (s *Server) RecordBackgroundCommand(
@@ -431,7 +427,7 @@ func (s *Server) CheckAgentToolExecution() error {
 	switch {
 	case s.operationPaused.Load():
 		return errors.New("the terminal session is paused")
-	case s.permissionInvalid.Load(), s.CheckPermissionExpired(time.Now()):
+	case s.permission.Revoked(), s.CheckPermissionExpired(time.Now()):
 		return errors.New("the terminal session permission is invalid")
 	default:
 		return nil
@@ -497,16 +493,13 @@ func (s *Server) GetFilterParser() (*Parser, error) {
 	zParser := zmodem.New()
 	zParser.FileEventCallback = s.ZmodemFileTransferEvent
 	protocol := s.connOpts.authInfo.Protocol
-	filterRules := s.connOpts.authInfo.CommandFilterACLs
 	platform := s.connOpts.authInfo.Platform
-	// 过滤规则排序
-	sort.Sort(model.CommandACLs(filterRules))
 	pty := s.UserConn.Pty()
 	parser := Parser{
 		id:             s.ID,
 		protocolType:   protocol,
 		jmsService:     s.jmsService,
-		cmdFilterACLs:  filterRules,
+		cmdFilterACLs:  s.commandACLs,
 		enableDownload: enableDownload,
 		enableUpload:   enableUpload,
 		zmodemParser:   zParser,
@@ -810,86 +803,21 @@ func (s *Server) getContainerConn(clusterServer string) (
 }
 
 func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.RedisConn, err error) {
-	asset := s.connOpts.authInfo.Asset
-	protocol := s.connOpts.authInfo.Protocol
-	platform := s.connOpts.authInfo.Platform
-	host := asset.Address
-	port := asset.ProtocolPort(protocol)
-	if localTunnelAddr != nil {
-		host = localIP
-		port = localTunnelAddr.Port
-	}
-	username := s.account.Username
-	isAuthUsername := false
-	isClusterMode := false
-	if platformProtocol, ok := platform.GetProtocolSetting("redis"); ok {
-		protocolSetting := platformProtocol.GetSetting()
-		isAuthUsername = protocolSetting.AuthUsername
-
-		// 解析集群模式配置 TODO: 将优化 sdk-go 的 ProtocolSetting 加上 enable_cluster_mode
-		if useCluster, exists := platformProtocol.Setting["enable_cluster_mode"]; exists {
-			isClusterMode = parseBoolValue(useCluster)
-		}
-	}
-	if s.account.IsNull() || !isAuthUsername {
-		username = ""
-	}
-	srvConn, err = srvconn.NewRedisConnection(
-		srvconn.SqlHost(host),
-		srvconn.SqlPort(port),
-		srvconn.SqlUsername(username),
-		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlClusterMode(isClusterMode),
-		srvconn.SqlDBName(asset.SpecInfo.DBName),
-		srvconn.SqlUseSSL(asset.SpecInfo.UseSSL),
-		srvconn.SqlCaCert(asset.SecretInfo.CaCert),
-		srvconn.SqlClientCert(asset.SecretInfo.ClientCert),
-		srvconn.SqlCertKey(asset.SecretInfo.ClientKey),
-		srvconn.SqlPtyWin(srvconn.Windows{
-			Width:  s.UserConn.Pty().Window.Width,
-			Height: s.UserConn.Pty().Window.Height,
-		}),
-	)
+	info := s.databaseConnectionInfo(localTunnelAddr)
+	opts := append(s.databaseCLIOptions(info), srvconn.SqlClusterMode(info.ClusterMode))
+	srvConn, err = srvconn.NewRedisConnection(opts...)
 	return
 }
 
 func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.MongoDBConn, err error) {
-	asset := s.connOpts.authInfo.Asset
-	protocol := s.connOpts.authInfo.Protocol
-	host := asset.Address
-	port := asset.ProtocolPort(protocol)
-	platform := s.connOpts.authInfo.Platform
-
-	authSource := ""
-	connectionOpts := ""
-	proxyURL := ""
-	if platformProtocol, ok := platform.GetProtocolSetting("mongodb"); ok {
-		protocolSetting := platformProtocol.GetSetting()
-		authSource = protocolSetting.AuthSource
-		connectionOpts = protocolSetting.ConnectionOpts
-	}
-	if localTunnelAddr != nil {
-		proxyURL = fmt.Sprintf("http://%s", localTunnelAddr.String())
-	}
-
-	srvConn, err = srvconn.NewMongoDBConnection(
-		srvconn.SqlHost(host),
-		srvconn.SqlPort(port),
-		srvconn.SqlUsername(s.account.Username),
-		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.SpecInfo.DBName),
-		srvconn.SqlUseSSL(asset.SpecInfo.UseSSL),
-		srvconn.SqlCaCert(asset.SecretInfo.CaCert),
-		srvconn.SqlCertKey(asset.SecretInfo.ClientKey),
-		srvconn.SqlAllowInvalidCert(asset.SpecInfo.AllowInvalidCert),
-		srvconn.SqlAuthSource(authSource),
-		srvconn.SqlConnectionOptions(connectionOpts),
-		srvconn.SqlProxyURL(proxyURL),
-		srvconn.SqlPtyWin(srvconn.Windows{
-			Width:  s.UserConn.Pty().Window.Width,
-			Height: s.UserConn.Pty().Window.Height,
-		}),
+	info := s.databaseConnectionInfo(localTunnelAddr)
+	opts := append(s.databaseCLIOptions(info),
+		srvconn.SqlAllowInvalidCert(info.AllowInvalidCert),
+		srvconn.SqlAuthSource(info.AuthSource),
+		srvconn.SqlConnectionOptions(info.ConnectionOpts),
+		srvconn.SqlProxyURL(info.ProxyURL),
 	)
+	srvConn, err = srvconn.NewMongoDBConnection(opts...)
 	return
 }
 
@@ -1333,31 +1261,16 @@ func (s *Server) Proxy() {
 			logger.Errorf("Conn[%s] update session %s err: %+v", s.UserConn.ID(), s.ID, err)
 		}
 	}()
-	if s.connOpts.authInfo.Ticket != nil {
-		reviewTicketId := s.connOpts.authInfo.Ticket.ID
-		msg := fmt.Sprintf("Conn[%s] create session %s ticket %s relation",
-			s.UserConn.ID(), s.ID, reviewTicketId)
-		logger.Info(msg)
-		if err := s.jmsService.CreateSessionTicketRelation(s.sessionInfo.ID, reviewTicketId); err != nil {
-			logger.Errorf("%s err: %s", msg, err)
+	if err := session.BindConnection(s.jmsService, s.sessionInfo.ID, s.connOpts.authInfo, func(err error) {
+		logger.Errorf("Conn[%s] create session %s ticket relation failed: %s", s.UserConn.ID(), s.ID, err)
+	}); err != nil {
+		logger.Errorf("Conn[%s] join face monitor err: %s", s.UserConn.ID(), err)
+		s.ConnectionError = err
+		s.sendConnectErrorMsg(err)
+		if callbackErr := s.ConnectedFailedCallback(err); callbackErr != nil {
+			logger.Errorf("Conn[%s] update failed face monitor session err: %s", s.UserConn.ID(), callbackErr)
 		}
-	}
-	if s.connOpts.authInfo.FaceMonitorToken != "" {
-		faceMonitorToken := s.connOpts.authInfo.FaceMonitorToken
-		faceReq := service.JoinFaceMonitorRequest{
-			FaceMonitorToken: faceMonitorToken,
-			SessionId:        s.sessionInfo.ID,
-		}
-		logger.Infof("Conn[%s] join face monitor %s", s.UserConn.ID(), faceMonitorToken)
-		if err := s.jmsService.JoinFaceMonitor(faceReq); err != nil {
-			logger.Errorf("Conn[%s] join face monitor err: %s", s.UserConn.ID(), err)
-			s.ConnectionError = err
-			s.sendConnectErrorMsg(err)
-			if callbackErr := s.ConnectedFailedCallback(err); callbackErr != nil {
-				logger.Errorf("Conn[%s] update failed face monitor session err: %s", s.UserConn.ID(), callbackErr)
-			}
-			return
-		}
+		return
 	}
 
 	traceSession := session.NewSession(sw.p.sessionInfo, func(task *model.TerminalTask) error {

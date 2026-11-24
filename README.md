@@ -20,8 +20,6 @@ Koko is implemented using Golang, and the name comes from a Dota hero [Kunkka](h
 
 Koko serves Luna's SQL workspace at `/koko/chen/api/v1/` using HTTP and SSE. Route this prefix to the Koko HTTP listener, disable proxy response buffering, and route each session back to its owning instance. The proxy must replace client-supplied `X-Forwarded-For`. Koko uses its own Core credentials for authorization, approvals and audit. Persist `CHEN_STATE_DIR` (default `data/chen`) per instance. When replacing an existing Chen server, drain its managed sessions and pending audits before stopping the old service.
 
-For local databases, run `koko chen single --backends /path/to/backends.yml --web-dir /path/to/luna/.output/public`. The configuration uses the [standalone backend format](pkg/chen/standalone/standalone_backends_example.yaml) and should be owner-readable only. Build the Luna assets with `pnpm generate:chen`. The standalone page opens at `http://127.0.0.1:8082/luna/chen/?selector=NAME`. The selector identifies a configured connection. Keep this listener private.
-
 ## Direct connections with personal credentials
 
 Direct connection usernames support `platform_user#personal_credential_id#asset_ip_or_id` and `platform_user#protocol#personal_credential_id#asset_ip_or_id`, with `@` also supported as a separator. The asset must match uniquely. Koko uses the user's Bearer token from the current SSH login to retrieve credential metadata and create a connection token, preserving Core's asset account permissions and ACLs. If the Bearer token expires, establish a new SSH connection. Existing asset account usernames take precedence. Personal credential IDs are supported only in direct connection formats and are not added to the interactive asset menu.

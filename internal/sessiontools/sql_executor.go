@@ -15,9 +15,9 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/jumpserver/koko/internal/dbconn"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	mssql "github.com/microsoft/go-mssqldb"
-	go_ora "github.com/sijms/go-ora/v2"
 )
 
 const maxNativeSQLRows = 1000
@@ -345,39 +345,17 @@ func buildSQLServerDSN(config DatabaseConfig) (string, func(), error) {
 }
 
 func newOracleDatabase(config DatabaseConfig) (*sql.DB, error) {
-	host := config.Host
-	var dialer *fixedAddressDialer
-	if config.DialContext != nil || (config.ServerName != "" && config.ServerName != config.Host) {
-		if config.ServerName != "" {
-			host = config.ServerName
-		}
-		dialer = &fixedAddressDialer{
-			address:     net.JoinHostPort(config.Host, strconv.Itoa(config.Port)),
-			dialContext: config.DialContext,
-		}
-	}
 	options := map[string]string{}
+	var secure *tls.Config
 	if config.UseSSL {
 		options["SSL"] = "true"
-	}
-	dsn := go_ora.BuildUrl(
-		host, config.Port, config.Database, config.Username, config.Password, options,
-	)
-	connector, ok := go_ora.NewConnector(dsn).(*go_ora.OracleConnector)
-	if !ok {
-		return nil, fmt.Errorf("configure Oracle background connection")
-	}
-	if dialer != nil {
-		connector.Dialer(dialer)
-	}
-	if config.UseSSL {
-		tlsConfig, err := databaseTLSConfig(config)
+		var err error
+		secure, err = databaseTLSConfig(config)
 		if err != nil {
 			return nil, fmt.Errorf("configure Oracle TLS: %w", err)
 		}
-		connector.WithTLSConfig(tlsConfig)
 	}
-	return sql.OpenDB(connector), nil
+	return sql.OpenDB(dbconn.OracleConnector(config.connectionConfig(), secure, options)), nil
 }
 
 func newClickHouseDatabase(config DatabaseConfig) (*sql.DB, error) {
@@ -405,20 +383,4 @@ func newClickHouseDatabase(config DatabaseConfig) (*sql.DB, error) {
 		options.Settings = clickhouse.Settings{"max_result_rows": 1000, "max_result_bytes": 8 << 20, "result_overflow_mode": "throw"}
 	}
 	return clickhouse.OpenDB(options), nil
-}
-
-type fixedAddressDialer struct {
-	address     string
-	dialer      net.Dialer
-	dialContext databaseDialer
-}
-
-func (d *fixedAddressDialer) DialContext(
-	ctx context.Context,
-	network, _ string,
-) (net.Conn, error) {
-	if d.dialContext != nil {
-		return d.dialContext(ctx, network, d.address)
-	}
-	return d.dialer.DialContext(ctx, network, d.address)
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver/koko/pkg/session"
 )
 
 func (p *CoreProvider) AuthorizeCommand(ctx context.Context, g *Grant, request AuthorizationRequest) (AuthorizationDecision, error) {
@@ -108,46 +109,53 @@ func (p *CoreProvider) waitCommandReview(parent context.Context, g *Grant, decis
 	status.TicketURL = safeTicketURL(info.TicketDetailUrl)
 	status.Reviewers = append([]string(nil), info.Reviewers...)
 	notify()
-	for {
-		if err := reviewContextError(ctx, time.Now()); err != nil {
-			return contextFailure(err)
+	first := true
+	var grantErr error
+	response, err := session.PollCommandReview(func() (model.TicketState, error) {
+		if !first && !waitContext(ctx, p.options.ReviewPollInterval) {
+			return model.TicketState{}, reviewContextError(ctx, time.Now())
 		}
+		first = false
+		if err := reviewContextError(ctx, time.Now()); err != nil {
+			return model.TicketState{}, err
+		}
+		if grantErr = g.Check(); grantErr != nil {
+			return model.TicketState{}, grantErr
+		}
+		response, err := callCore(ctx, p, func() (model.TicketState, error) { return p.client.CheckConfirmStatusByRequestInfo(info.CheckReq) }, nil)
+		if contextErr := reviewContextError(ctx, time.Now()); contextErr != nil {
+			return response, contextErr
+		}
+		if err == nil {
+			status.Processor = response.Processor
+		}
+		return response, err
+	}, nil)
+	if err != nil {
+		if contextErr := reviewContextError(ctx, time.Now()); contextErr != nil {
+			return contextFailure(contextErr)
+		}
+		if grantErr != nil {
+			return finish("canceled", grantErr.Error(), model.ReviewCancel)
+		}
+		return finish("failed", "command_review_failed", model.ReviewReject)
+	}
+	terminal = true
+	switch response.State {
+	case model.TicketApproved:
+		// An approval arriving concurrently with lock/revocation/expiry is
+		// not permission to execute. The engine checks again before sending SQL.
 		if err := g.Check(); err != nil {
 			return finish("canceled", err.Error(), model.ReviewCancel)
 		}
-		response, err := callCore(ctx, p, func() (model.TicketState, error) { return p.client.CheckConfirmStatusByRequestInfo(info.CheckReq) }, nil)
 		if err := reviewContextError(ctx, time.Now()); err != nil {
 			return contextFailure(err)
 		}
-		if err != nil {
-			return finish("failed", "command_review_failed", model.ReviewReject)
-		}
-		status.Processor = response.Processor
-		switch response.State {
-		case model.TicketOpen:
-			if !waitContext(ctx, p.options.ReviewPollInterval) {
-				return contextFailure(reviewContextError(ctx, time.Now()))
-			}
-		case model.TicketApproved:
-			terminal = true
-			// An approval arriving concurrently with lock/revocation/expiry is
-			// not permission to execute. The engine checks again before sending SQL.
-			if err := g.Check(); err != nil {
-				return finish("canceled", err.Error(), model.ReviewCancel)
-			}
-			if err := reviewContextError(ctx, time.Now()); err != nil {
-				return contextFailure(err)
-			}
-			return finish("approved", "", model.ReviewAccept)
-		case model.TicketRejected:
-			terminal = true
-			return finish("rejected", "command_review_rejected", model.ReviewReject)
-		case model.TicketClosed:
-			terminal = true
-			return finish("canceled", "command_review_canceled", model.ReviewCancel)
-		default:
-			return finish("failed", "command_review_failed", model.ReviewReject)
-		}
+		return finish("approved", "", model.ReviewAccept)
+	case model.TicketRejected:
+		return finish("rejected", "command_review_rejected", model.ReviewReject)
+	default: // The poller only returns approved, rejected or closed without an error.
+		return finish("canceled", "command_review_canceled", model.ReviewCancel)
 	}
 }
 
@@ -171,7 +179,7 @@ func (p *CoreProvider) createReviewTicket(ctx context.Context, sessionID, aclID,
 	// A create can succeed after cancellation. Always inspect its returned close
 	// descriptor before releasing ownership, so a late ticket is canceled.
 	info, err := callCore(ctx, p, func() (model.CommandTicketInfo, error) {
-		return p.client.SubmitCommandReview(sessionID, aclID, command)
+		return session.SubmitCommandReview(p.client, sessionID, aclID, command, "")
 	}, func(late model.CommandTicketInfo) {
 		if validTicketRequest(late.CloseReq, false) {
 			if err := p.enqueueTicketCancel(late.CloseReq); err != nil {
@@ -225,5 +233,3 @@ func (p *CoreProvider) enqueueTicketCancel(request model.ReqInfo) error {
 	p.signal()
 	return nil
 }
-
-var _ CommandAuthorizer = (*CoreProvider)(nil)

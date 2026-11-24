@@ -1,6 +1,4 @@
-// Package core defines Chen's server-side connection authorization
-// contract. Managed deployments obtain credentials directly from Core;
-// standalone deployments supply private, operator-managed configuration.
+// Package core authorizes database workbench sessions through JumpServer Core.
 package core
 
 import (
@@ -10,10 +8,14 @@ import (
 	"time"
 
 	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver/koko/internal/dbconn"
 	"github.com/jumpserver/koko/pkg/lion/gateway"
+	"github.com/jumpserver/koko/pkg/session"
 )
 
 type Provider interface {
+	Ready(context.Context) error
+	AuthorizeCommand(context.Context, *Grant, AuthorizationRequest) (AuthorizationDecision, error)
 	Open(context.Context, string, string) (*Grant, error)
 	Connected(context.Context, *Grant) error
 	Authorize(context.Context, *Grant, string) error
@@ -21,13 +23,6 @@ type Provider interface {
 	Close(context.Context, *Grant) error
 	Watch(context.Context, *Grant, func(Control))
 	Mask(*Grant, string, string, any) (any, bool)
-}
-
-// CommandAuthorizer adds interactive review without widening Provider (local
-// mode and non-interactive providers need no ticket implementation). Approval is
-// scoped to this call's immutable batch; it is never cached on a Grant.
-type CommandAuthorizer interface {
-	AuthorizeCommand(context.Context, *Grant, AuthorizationRequest) (AuthorizationDecision, error)
 }
 
 type AuthorizationRequest struct {
@@ -58,28 +53,9 @@ type ReviewStatus struct {
 
 // ConnectionConfig is server-only. Even accidental JSON encoding must not reveal
 // credentials, keys or the database address to the browser.
-type ConnectionConfig struct {
-	Dialect      string    `json:"-"`
-	OracleSYSDBA bool      `json:"-"`
-	Host         string    `json:"-"`
-	Port         int       `json:"-"`
-	User         string    `json:"-"`
-	Password     string    `json:"-"`
-	Database     string    `json:"-"`
-	Schema       string    `json:"-"`
-	Transport    string    `json:"-"`
-	TLS          TLSConfig `json:"-"`
-}
+type ConnectionConfig = dbconn.Config
 
-type TLSConfig struct {
-	Enabled            bool   `json:"-"`
-	ServerName         string `json:"-"`
-	InsecureSkipVerify bool   `json:"-"`
-	Mode               string `json:"-"`
-	CACert             string `json:"-"`
-	ClientCert         string `json:"-"`
-	ClientKey          string `json:"-"`
-}
+type TLSConfig = dbconn.TLSConfig
 
 type Permissions struct {
 	Connect  bool `json:"connect"`
@@ -115,7 +91,7 @@ type Grant struct {
 	closed             bool
 	connected          bool
 	closeReason        string
-	dynamicEnd         time.Time
+	permission         session.PermissionGrace
 	watchers           map[uint64]chan Control
 	nextWatcher        uint64
 	closeMu            sync.Mutex
@@ -137,28 +113,6 @@ var (
 	ErrControlNotReady = errors.New("session_control_not_ready")
 )
 
-// NewLocalGrant initializes the same connection lifetime accounting used by
-// managed grants, without a Core session. Identity display
-// fields may be set by the caller before publishing the returned grant.
-func NewLocalGrant(id string, config ConnectionConfig, permissions Permissions, maxIdle, maxDuration time.Duration) (*Grant, error) {
-	if id == "" || maxIdle <= 0 || maxDuration <= 0 || maxIdle > maxDuration {
-		return nil, errors.New("invalid_local_grant_lifetime")
-	}
-	now := time.Now()
-	return &Grant{ID: id, Config: config, Permissions: permissions, ExpiresAt: now.Add(maxDuration), MaxIdle: maxIdle, MaxDuration: maxDuration, created: now, lastActive: now, watchers: make(map[uint64]chan Control)}, nil
-}
-
-// CloseLocal revokes a local grant immediately. The standalone resource owner
-// remains responsible for persisting its close audit before forgetting identity.
-func (g *Grant) CloseLocal() {
-	if g == nil {
-		return
-	}
-	g.mu.Lock()
-	g.closed = true
-	g.mu.Unlock()
-}
-
 // Check is intentionally independent of the browser connection. Call it before
 // all operations, including metadata and result reads, not only SQL execution.
 func (g *Grant) Check() error {
@@ -176,7 +130,7 @@ func (g *Grant) checkLocked(now time.Time) error {
 		return ErrClosed
 	case !g.ExpiresAt.IsZero() && !now.Before(g.ExpiresAt):
 		return ErrExpired
-	case !g.dynamicEnd.IsZero() && !now.Before(g.dynamicEnd):
+	case g.permission.Expired(now):
 		return ErrRevoked
 	case g.MaxDuration > 0 && !now.Before(g.created.Add(g.MaxDuration)):
 		return ErrDuration

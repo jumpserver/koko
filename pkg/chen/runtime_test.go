@@ -3,6 +3,7 @@ package chen
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -25,5 +26,12 @@ func TestManagedWorkspaceRoutes(t *testing.T) {
 		if response.Code != status {
 			t.Errorf("GET %s returned %d, want %d", path, response.Code, status)
 		}
+	}
+	request := httptest.NewRequest(http.MethodPost, "/koko/chen/api/v1/sessions", strings.NewReader(`{"selector":"local-db","request_id":"standalone-attempt"}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("selector authentication returned %d, want %d", response.Code, http.StatusBadRequest)
 	}
 }

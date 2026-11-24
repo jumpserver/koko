@@ -106,16 +106,6 @@ func (v *Server) authorizeExecution(s *session, e *execution, commands []string,
 		}
 		submitReview = true
 	}
-	authorizer, ok := v.provider.(core.CommandAuthorizer)
-	if !ok {
-		if warningRequired != nil {
-			return warningRequired
-		}
-		if required != nil {
-			return required
-		}
-		return nil
-	}
 	defer e.resumeDeadline()
 	e.policyWarnings = make(map[string]core.AuthorizationDecision)
 	approved := map[string]bool{}
@@ -131,7 +121,7 @@ func (v *Server) authorizeExecution(s *session, e *execution, commands []string,
 			continue
 		}
 		seen[command] = true
-		decision, err := authorizer.AuthorizeCommand(e.ctx, s.grant, core.AuthorizationRequest{
+		decision, err := v.provider.AuthorizeCommand(e.ctx, s.grant, core.AuthorizationRequest{
 			SQL: command, BatchSQL: audit.SQL, AffectedRows: affectedRows, SubmitReview: submitReview, ConfirmWarnings: confirmWarnings,
 			OnReview: func(review core.ReviewStatus) {
 				review.SQL = command

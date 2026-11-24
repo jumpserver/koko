@@ -145,14 +145,10 @@ func (p *CoreProvider) HandleTask(grant *Grant, task *model.TerminalTask) error 
 			control = Control{Type: "unlock", Actor: task.Kwargs.CreatedByUser}
 		}
 	case model.TaskPermExpired:
-		// Match the established Core/Chen 10-minute permission grace period.
-		// A repeated notification must not indefinitely extend the deadline.
-		if grant.dynamicEnd.IsZero() {
-			grant.dynamicEnd = time.Now().Add(10 * time.Minute)
-		}
+		grant.permission.Revoke(time.Now())
 		control = Control{Type: "permission_revoked", Reason: "permission_expires_in_10_minutes"}
 	case model.TaskPermValid:
-		grant.dynamicEnd = time.Time{}
+		grant.permission.Restore()
 		control = Control{Type: "permission_restored"}
 	default:
 		// An unknown admin policy must never silently allow continued access.
@@ -216,7 +212,7 @@ func (p *CoreProvider) Watch(ctx context.Context, grant *Grant, callback func(Co
 		channel <- Control{Type: "lock", Reason: "session_locked"}
 	case grant.controlUnavailable:
 		channel <- Control{Type: "lock", Reason: ErrControlUnavailable.Error()}
-	case !grant.dynamicEnd.IsZero():
+	case grant.permission.Revoked():
 		channel <- Control{Type: "permission_revoked", Reason: "permission_expires_in_10_minutes"}
 	}
 	grant.mu.Unlock()

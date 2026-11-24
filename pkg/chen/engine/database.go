@@ -11,7 +11,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -20,69 +19,14 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgconn/ctxwatch"
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/jumpserver/koko/internal/dbconn"
 	"github.com/jumpserver/koko/pkg/chen/core"
 )
 
 func makeTLS(c core.ConnectionConfig) (*tls.Config, error) {
-	if !c.TLS.Enabled {
-		return nil, nil
-	}
-	mode := strings.ToLower(strings.TrimSpace(c.TLS.Mode))
-	if c.Dialect != "postgresql" {
-		mode = ""
-	}
-	switch mode {
-	case "", "require", "verify-ca", "verify-full", "prefer", "allow":
-	case "disable":
-		return nil, nil
-	default:
-		return nil, errors.New("unsupported database TLS mode; select require, verify-ca or verify-full")
-	}
-	t := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: c.TLS.ServerName, InsecureSkipVerify: c.TLS.InsecureSkipVerify}
-	if t.ServerName == "" {
-		t.ServerName = c.Host
-	}
-	if c.TLS.CACert != "" {
-		pool := x509.NewCertPool()
-		if !pool.AppendCertsFromPEM([]byte(c.TLS.CACert)) {
-			return nil, errors.New("invalid database CA certificate")
-		}
-		t.RootCAs = pool
-	}
-	if mode == "verify-full" || mode == "verify-ca" {
-		if c.TLS.InsecureSkipVerify {
-			return nil, errors.New("certificate verification mode conflicts with allow-invalid-certificate")
-		}
-		t.InsecureSkipVerify = false
-	}
-	// libpq require guarantees encryption; a supplied root CA also verifies the
-	// chain, without hostname validation. verify-full uses Go's normal hostname
-	// and chain verification. No plaintext fallback is configured.
-	if mode == "verify-ca" || ((mode == "require" || mode == "prefer" || mode == "allow") && c.TLS.CACert != "") {
-		t.InsecureSkipVerify = true
-		t.VerifyConnection = func(state tls.ConnectionState) error {
-			if len(state.PeerCertificates) == 0 {
-				return errors.New("database certificate missing")
-			}
-			intermediates := x509.NewCertPool()
-			for _, cert := range state.PeerCertificates[1:] {
-				intermediates.AddCert(cert)
-			}
-			_, err := state.PeerCertificates[0].Verify(x509.VerifyOptions{Roots: t.RootCAs, Intermediates: intermediates})
-			return err
-		}
-	} else if mode == "require" || mode == "prefer" || mode == "allow" {
-		t.InsecureSkipVerify = true
-	}
-	if c.TLS.ClientCert != "" || c.TLS.ClientKey != "" {
-		cert, err := tls.X509KeyPair([]byte(c.TLS.ClientCert), []byte(c.TLS.ClientKey))
-		if err != nil {
-			return nil, errors.New("invalid database client certificate")
-		}
-		t.Certificates = []tls.Certificate{cert}
-	}
-	return t, nil
+	return dbconn.MakeTLS(c, false)
 }
+
 func openDatabase(c core.ConnectionConfig, max int) (*sql.DB, error) {
 	return regularPool.openDatabase(c, max)
 }
@@ -95,22 +39,10 @@ func (pool databasePool) openDatabase(c core.ConnectionConfig, max int) (*sql.DB
 	var db *sql.DB
 	switch strings.ToLower(c.Dialect) {
 	case "mysql", "mariadb":
-		cfg := mysql.NewConfig()
-		cfg.Net = "tcp"
-		cfg.Addr = net.JoinHostPort(c.Host, strconv.Itoa(c.Port))
-		cfg.User = c.User
-		cfg.Passwd = c.Password
-		cfg.DBName = c.Database
-		// Keep MySQL date/time text, including zero dates and timezone-free DATETIME.
-		cfg.ParseTime = false
-		// Match JDBC's matched-row counts, including updates to the same value.
-		cfg.ClientFoundRows = true
-		cfg.Loc = time.UTC
-		cfg.Timeout = 10 * time.Second
-		cfg.ReadTimeout = pool.readTimeout(2 * time.Minute)
-		cfg.WriteTimeout = 15 * time.Second
-		cfg.TLS = t
-		connector, e := mysql.NewConnector(cfg)
+		connector, e := dbconn.MySQLConnector(c, dbconn.MySQLOptions{
+			TLS: t, ParseTime: false, ClientFoundRows: true,
+			Timeout: 10 * time.Second, ReadTimeout: pool.readTimeout(2 * time.Minute), WriteTimeout: 15 * time.Second,
+		})
 		if e != nil {
 			return nil, errors.New("invalid MySQL connection configuration")
 		}
@@ -168,7 +100,7 @@ func configurePostgresTransport(cfg *pgx.ConnConfig, c core.ConnectionConfig, t 
 	}
 	mode := strings.ToLower(strings.TrimSpace(c.TLS.Mode))
 	if mode == "allow" {
-		// Legacy standalone-only plaintext-first mode; not an asset UI choice.
+		// Existing PostgreSQL configurations may request plaintext first with sslmode=allow.
 		cfg.TLSConfig = nil
 		cfg.Fallbacks = []*pgconn.FallbackConfig{{Host: c.Host, Port: uint16(c.Port), TLSConfig: t}}
 		return

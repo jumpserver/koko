@@ -17,6 +17,7 @@ import (
 
 func TestManagedGrantUsesCoreSessionAndTerminalControls(t *testing.T) {
 	var exchanges atomic.Int32
+	var ticketLinks, faceMonitors atomic.Int32
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+service.TerminalConfigURL, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -31,7 +32,7 @@ func TestManagedGrantUsesCoreSessionAndTerminalControls(t *testing.T) {
 			t.Error("connection token must be consumed once")
 		}
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"id":"token-id","protocol":"sqlserver","account":{"id":"account","username":"dbuser"},"user":{"id":"user"},"asset":{"id":"asset","address":"db.internal","protocols":[{"name":"sqlserver","port":1433}]},"expire_at":%d,"actions":[{"value":"connect"}],"command_filter_acls":[{"id":"sql-review","action":"review","command_groups":[{"id":"group","pattern":"^UPDATE"}]}]}`, time.Now().Add(time.Hour).Unix())
+		fmt.Fprintf(w, `{"id":"token-id","protocol":"sqlserver","account":{"id":"account","username":"dbuser"},"user":{"id":"user"},"asset":{"id":"asset","address":"db.internal","protocols":[{"name":"sqlserver","port":1433}]},"expire_at":%d,"actions":[{"value":"connect"}],"from_ticket":{"id":"login-review"},"face_monitor_token":"face-token","command_filter_acls":[{"id":"sql-review","action":"review","command_groups":[{"id":"group","pattern":"^UPDATE"}]}]}`, time.Now().Add(time.Hour).Unix())
 	})
 	mux.HandleFunc("POST "+service.SessionListURL, func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
@@ -45,6 +46,27 @@ func TestManagedGrantUsesCoreSessionAndTerminalControls(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"id":"core-session"}`)
+	})
+	mux.HandleFunc("POST "+service.TicketSessionURL, func(w http.ResponseWriter, r *http.Request) {
+		var req map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req["session"] != "core-session" || req["ticket"] != "login-review" {
+			t.Error("login approval was not linked to the created Core session")
+		}
+		ticketLinks.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{}`)
+	})
+	mux.HandleFunc("POST "+service.FaceMonitorContextUrl, func(w http.ResponseWriter, r *http.Request) {
+		var req service.JoinFaceMonitorRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.SessionId != "core-session" || req.FaceMonitorToken != "face-token" {
+			t.Error("face monitor lost the created Core session identity")
+		}
+		if _, tracked := session.GetSessionById("core-session"); !tracked {
+			t.Error("session must accept administrator controls during monitor setup")
+		}
+		faceMonitors.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{}`)
 	})
 	mux.HandleFunc("POST "+service.AclCommandReviewURL, func(w http.ResponseWriter, r *http.Request) {
 		var req map[string]string
@@ -78,6 +100,9 @@ func TestManagedGrantUsesCoreSessionAndTerminalControls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if ticketLinks.Load() != 1 || faceMonitors.Load() != 1 {
+		t.Fatal("managed session did not attach login approval and face monitoring")
+	}
 	defer func() {
 		if err := p.Close(ctx, grant); err != nil {
 			t.Error(err)
@@ -104,5 +129,19 @@ func TestManagedGrantUsesCoreSessionAndTerminalControls(t *testing.T) {
 	}
 	if err := tracked.HandleTask(&model.TerminalTask{Name: model.TaskKillSession}); err != nil || !errors.Is(grant.Check(), ErrClosed) {
 		t.Fatal("administrator termination did not close the session")
+	}
+}
+
+func TestWorkbenchUsesTerminalACLPriority(t *testing.T) {
+	group := []model.CommandFilterItem{{RePattern: "UPDATE"}}
+	rules, err := compileMatchers([]model.CommandACL{
+		{Priority: 10, Action: model.ActionAccept, CommandGroups: group},
+		{Priority: 10, Action: model.ActionReject, CommandGroups: group},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := (&CoreProvider{}).Authorize(t.Context(), &Grant{matchers: rules}, "UPDATE"); err == nil || err.Error() != "command_rejected_by_acl" {
+		t.Fatalf("overlapping rules: %v", err)
 	}
 }

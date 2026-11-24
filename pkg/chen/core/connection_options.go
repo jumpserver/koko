@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver/koko/internal/dbconn"
 )
 
 func managedConnectionConfig(token model.ConnectToken) (ConnectionConfig, error) {
@@ -25,17 +26,8 @@ func managedConnectionConfig(token model.ConnectToken) (ConnectionConfig, error)
 	if err != nil {
 		return ConnectionConfig{}, err
 	}
-	asset := token.Asset
-	c := ConnectionConfig{
-		Dialect: dialect, Host: asset.Address, Port: port,
-		User: token.Account.Username, Password: token.Account.Secret, Database: asset.SpecInfo.DBName,
-		OracleSYSDBA: dialect == "oracle" && token.ConnectOptions.UseSysDBA,
-		TLS: TLSConfig{
-			Enabled: asset.SpecInfo.UseSSL, ServerName: asset.Address,
-			InsecureSkipVerify: asset.SpecInfo.AllowInvalidCert, Mode: asset.SpecInfo.PgSSLMode,
-			CACert: asset.SecretInfo.CaCert, ClientCert: asset.SecretInfo.ClientCert, ClientKey: asset.SecretInfo.ClientKey,
-		},
-	}
+	c := dbconn.FromToken(token)
+	c.Dialect = dialect
 	switch dialect {
 	case "clickhouse":
 		if value, configured := settings["transport"]; configured {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/dlclark/regexp2"
 	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver/koko/pkg/session"
 )
 
 type commandMatcher struct {
@@ -21,12 +22,12 @@ type commandMatcher struct {
 	groupID     string
 }
 
-// Preserve the Core-provided order (first matching ACL/group wins). Keep the
+// Compile in the same decision order as the terminal. Keep the
 // linear-time engine for ordinary patterns and use the existing backtracking
 // engine for Java lookarounds/backreferences, with a bounded match deadline.
 func compileMatchers(rules []model.CommandACL) ([]commandMatcher, error) {
 	var result []commandMatcher
-	for _, rule := range rules {
+	for _, rule := range session.OrderedCommandACLs(rules) {
 		if len(rule.CommandGroups) == 0 {
 			return nil, errors.New("unsupported_empty_command_acl")
 		}

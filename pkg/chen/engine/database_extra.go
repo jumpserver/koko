@@ -11,32 +11,23 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/jumpserver/koko/internal/dbconn"
 	"github.com/jumpserver/koko/pkg/chen/core"
 	mssql "github.com/microsoft/go-mssqldb"
 	"github.com/microsoft/go-mssqldb/msdsn"
-	ob "github.com/oceanbase/go-oceanbase-driver"
-	goora "github.com/sijms/go-ora/v2"
 )
 
 func (pool databasePool) extraDatabase(c core.ConnectionConfig, t *tls.Config) (*sql.DB, error) {
 	switch c.Dialect {
 	case "oceanbase-mysql", "oceanbase-oracle":
-		cfg := ob.NewConfig()
-		cfg.Net = "tcp"
-		cfg.Addr = net.JoinHostPort(c.Host, strconv.Itoa(c.Port))
-		cfg.User = c.User
-		cfg.Passwd = c.Password
-		cfg.DBName = c.Database
-		cfg.ParseTime = false
-		cfg.ClientFoundRows = c.Dialect == "oceanbase-mysql"
-		if c.Dialect == "oceanbase-oracle" {
-			cfg.Params = map[string]string{"autocommit": "1"}
+		options := dbconn.MySQLOptions{
+			TLS: t, ParseTime: false, ClientFoundRows: c.Dialect == "oceanbase-mysql",
+			Timeout: 10 * time.Second, ReadTimeout: pool.readTimeout(2 * time.Minute), WriteTimeout: 15 * time.Second,
 		}
-		cfg.Timeout = 10 * time.Second
-		cfg.ReadTimeout = pool.readTimeout(2 * time.Minute)
-		cfg.WriteTimeout = 15 * time.Second
-		cfg.TLS = t
-		connector, err := ob.NewConnector(cfg)
+		if c.Dialect == "oceanbase-oracle" {
+			options.Autocommit = "1"
+		}
+		connector, err := dbconn.OceanBaseConnector(c, options)
 		if err != nil {
 			return nil, errors.New("invalid OceanBase connection configuration")
 		}
@@ -97,12 +88,11 @@ func (pool databasePool) extraDatabase(c core.ConnectionConfig, t *tls.Config) (
 			options["SSL"] = "true"
 			options["SSL VERIFY"] = strconv.FormatBool(!t.InsecureSkipVerify)
 		}
-		connector := goora.NewConnector(goora.BuildUrl(c.Host, c.Port, c.Database, c.User, c.Password, options)).(*goora.OracleConnector)
-		if t != nil {
-			connector.WithTLSConfig(t)
-		}
 		if pool == catalogPool {
-			connector.Dialer(catalogDialer{dial: (&net.Dialer{Timeout: 10 * time.Second}).DialContext, writeTimeout: 2 * time.Minute})
+			c.DialContext = catalogDialer{dial: (&net.Dialer{Timeout: 10 * time.Second}).DialContext, writeTimeout: 2 * time.Minute}.DialContext
+		}
+		connector := dbconn.OracleConnector(c, t, options)
+		if pool == catalogPool {
 			return pool.openConnector(catalogOracleConnector{connector}, 2*time.Minute), nil
 		}
 		return sql.OpenDB(connector), nil

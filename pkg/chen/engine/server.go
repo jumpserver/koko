@@ -41,11 +41,7 @@ func (v *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+PathPrefix+"/ready", v.ready)
 	mux.HandleFunc("GET "+PathPrefix+"/healthy", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
 	mux.HandleFunc("GET "+apiPath+"/capabilities", func(w http.ResponseWriter, r *http.Request) {
-		mode := "managed"
-		if v.opts.SingleMode {
-			mode = "single"
-		}
-		writeJSON(w, 200, map[string]any{"version": 1, "mode": mode, "protocols": supportedProtocols(), "transport": "http+sse", "features": []string{"query", "cancel", "completion", "audit", "grid_edit", "csv_import", "copy_sql"}})
+		writeJSON(w, 200, map[string]any{"version": 1, "mode": "managed", "protocols": supportedProtocols(), "transport": "http+sse", "features": []string{"query", "cancel", "completion", "audit", "grid_edit", "csv_import", "copy_sql"}})
 	})
 	mux.HandleFunc("POST "+apiPath+"/sessions", v.createSession)
 	mux.HandleFunc("GET "+apiPath+"/sessions/{sid}", v.sessionStatus)
@@ -108,9 +104,8 @@ func (v *Server) Handler() http.Handler {
 // change control state or stop the process.
 func (v *Server) ready(w http.ResponseWriter, r *http.Request) {
 	ready := v.ctx.Err() == nil && v.exportInitErr == nil
-	if ready && !v.opts.SingleMode {
-		probe, ok := v.provider.(interface{ Ready(context.Context) error })
-		ready = ok && probe.Ready(r.Context()) == nil
+	if ready {
+		ready = v.provider != nil && v.provider.Ready(r.Context()) == nil
 	}
 	if !ready || v.ctx.Err() != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready"})
@@ -254,18 +249,12 @@ func (v *Server) auth(w http.ResponseWriter, r *http.Request, allowLocked bool) 
 func (v *Server) createSession(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Token     string `json:"connect_token"`
-		Selector  string `json:"selector"`
 		RequestID string `json:"request_id"`
 	}
 	if !decode(w, r, &req) {
 		return
 	}
-	if v.opts.SingleMode {
-		if req.Token != "" || req.Selector == "" || len(req.Selector) > 128 || strings.TrimSpace(req.Selector) != req.Selector || strings.ContainsAny(req.Selector, "\x00\r\n") {
-			fail(w, 400, "invalid_selector", "Single mode requires a configured selector and no connection token")
-			return
-		}
-	} else if req.Selector != "" || len(req.Token) == 0 || len(req.Token) > 4096 {
+	if len(req.Token) == 0 || len(req.Token) > 4096 {
 		fail(w, 400, "invalid_token", "Connection token required")
 		return
 	}
@@ -282,13 +271,6 @@ func (v *Server) createSession(w http.ResponseWriter, r *http.Request) {
 	}
 	requestKey := sha256.Sum256([]byte(req.RequestID))
 	key := sha256.Sum256([]byte(req.Token))
-	credential := req.Token
-	if v.opts.SingleMode {
-		// Selectors are reusable names, not one-use grants. Only retries from the
-		// same browser attempt share a session; separate tabs get separate state.
-		credential = req.Selector
-		key = sha256.Sum256([]byte(req.Selector + "\x00" + req.RequestID))
-	}
 	v.mu.Lock()
 	v.pruneCreationsLocked(time.Now())
 	c := v.creations[key]
@@ -322,13 +304,11 @@ func (v *Server) createSession(w http.ResponseWriter, r *http.Request) {
 		v.creations[key] = c
 		// Creation owns its deadline: a browser disconnect must not lose a consumed
 		// connection token. Retrying this same token observes this same attempt.
-		token, remoteAddr := credential, r.RemoteAddr
-		if !v.opts.SingleMode {
-			// Managed requests use the client address forwarded by JumpServer's web proxy.
-			forwarded, _, _ := strings.Cut(r.Header.Get("X-Forwarded-For"), ",")
-			if ip := strings.TrimSpace(forwarded); net.ParseIP(ip) != nil {
-				remoteAddr = ip
-			}
+		token, remoteAddr := req.Token, r.RemoteAddr
+		// Requests use the client address forwarded by JumpServer's web proxy.
+		forwarded, _, _ := strings.Cut(r.Header.Get("X-Forwarded-For"), ",")
+		if ip := strings.TrimSpace(forwarded); net.ParseIP(ip) != nil {
+			remoteAddr = ip
 		}
 		v.creating.Add(1)
 		go func() {
@@ -487,7 +467,6 @@ func authorizationError(err error) *APIError {
 	}
 	code := err.Error()
 	public := map[string]string{
-		"selector_not_found":                            "No database is configured for this selector",
 		"connection_token_required":                     "A Core connection token is required",
 		"token_exchange_failed":                         "Connection authorization service is unavailable",
 		"connection_token_rejected":                     "The Core connection token was rejected",

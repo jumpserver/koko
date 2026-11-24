@@ -2,7 +2,6 @@ package core
 
 import (
 	"compress/gzip"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jumpserver/koko/pkg/asciinema"
 )
 
 // Replay contains the SQL and the masked result content supplied by the
@@ -52,8 +53,9 @@ func (r *replayStore) start(g *Grant) error {
 	if err != nil {
 		return err
 	}
-	header := map[string]any{"version": 2, "width": 160, "height": 40, "timestamp": g.created.Unix(), "title": "Chen SQL session"}
-	err = json.NewEncoder(f).Encode(header)
+	writer := asciinema.NewWriter(f, asciinema.WithTimestamp(g.created), asciinema.WithWidth(160),
+		asciinema.WithTitle("Chen SQL session"), asciinema.WithEnvShell("sql"))
+	err = writer.WriteHeader()
 	return errors.Join(err, f.Sync(), f.Close(), syncDirectory(r.dir))
 }
 
@@ -73,7 +75,7 @@ func (r *replayStore) record(g *Grant, input, output string, at time.Time) error
 	}
 	text := fmt.Sprintf("[Input]\r\n%s\r\n[Output]\r\n%s\r\n", input, output)
 	text = strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", "\n"), "\n", "\r\n")
-	err = json.NewEncoder(f).Encode([]any{elapsed, "o", text})
+	err = asciinema.NewWriter(f).WriteStdout(elapsed, []byte(text))
 	return errors.Join(err, f.Sync(), f.Close())
 }
 

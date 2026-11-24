@@ -49,7 +49,6 @@ build:
 chen-resources:
 	test -n "$(DESTDIR)"
 	mkdir -p "$(DESTDIR)/licenses/chen"
-	cp pkg/chen/standalone/standalone_backends_example.yaml "$(DESTDIR)/"
 	for driver in omni go-db2 go-ora; do cp "pkg/chen/third_party/$$driver/LICENSE" "$(DESTDIR)/licenses/chen/$$driver-LICENSE" || exit 1; done
 
 all:
