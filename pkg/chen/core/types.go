@@ -1,4 +1,4 @@
-// Package core authorizes database workbench sessions through JumpServer Core.
+// Package core defines workbench session grants and the JumpServer Core provider.
 package core
 
 import (
@@ -112,6 +112,23 @@ var (
 	// Returned only before any connection-token exchange has been attempted.
 	ErrControlNotReady = errors.New("session_control_not_ready")
 )
+
+// NewGrant starts lifetime accounting before the provider publishes the grant.
+func NewGrant(id string, config ConnectionConfig, permissions Permissions, expiresAt time.Time, maxIdle, maxDuration time.Duration) *Grant {
+	now := time.Now()
+	return &Grant{
+		ID: id, Config: config, Permissions: permissions, ExpiresAt: expiresAt,
+		MaxIdle: maxIdle, MaxDuration: maxDuration, created: now, lastActive: now,
+		watchers: make(map[uint64]chan Control),
+	}
+}
+
+// CloseLocal stops work on a local grant even if writing its close audit needs a retry.
+func (g *Grant) CloseLocal() {
+	g.mu.Lock()
+	g.closed = true
+	g.mu.Unlock()
+}
 
 // Check is intentionally independent of the browser connection. Call it before
 // all operations, including metadata and result reads, not only SQL execution.

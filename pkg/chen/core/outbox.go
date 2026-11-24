@@ -59,32 +59,12 @@ type outbox struct {
 }
 
 func newOutbox(dir string) (*outbox, error) {
-	if strings.TrimSpace(dir) == "" {
-		return nil, errors.New("audit_spool_directory_required")
-	}
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return nil, errors.Join(ErrAuditDisk, err)
-	}
-	info, err := os.Lstat(dir)
-	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return nil, errors.New("invalid_audit_spool_directory")
-	}
-	if err := os.Chmod(dir, 0700); err != nil {
-		return nil, errors.Join(ErrAuditDisk, err)
+	if err := PrepareAuditDirectory(dir); err != nil {
+		return nil, err
 	}
 	ownerPath := filepath.Join(dir, ".koko-owner.db")
 	if info, err := os.Lstat(ownerPath); err == nil && !info.Mode().IsRegular() {
 		return nil, errors.New("invalid_audit_spool_owner_file")
-	}
-	// Check write/fsync ability at startup, before accepting any query.
-	probe, err := os.CreateTemp(dir, ".probe-")
-	if err != nil {
-		return nil, errors.Join(ErrAuditDisk, err)
-	}
-	err = probe.Sync()
-	err = errors.Join(err, probe.Close(), os.Remove(probe.Name()))
-	if err != nil {
-		return nil, errors.Join(ErrAuditDisk, err)
 	}
 	// The existing bbolt store supplies a crash-released exclusive file lock
 	// and a durable marker distinguishing native replays from pre-migration casts.
@@ -96,6 +76,35 @@ func newOutbox(dir string) (*outbox, error) {
 		return nil, errors.Join(ErrAuditDisk, err)
 	}
 	return &outbox{dir: dir, owner: owner}, nil
+}
+
+// PrepareAuditDirectory ensures the audit store is private and can persist records
+// before a provider starts accepting queries.
+func PrepareAuditDirectory(dir string) error {
+	if strings.TrimSpace(dir) == "" {
+		return errors.New("audit_spool_directory_required")
+	}
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return errors.Join(ErrAuditDisk, err)
+	}
+	info, err := os.Lstat(dir)
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return errors.New("invalid_audit_spool_directory")
+	}
+	if err := os.Chmod(dir, 0700); err != nil {
+		return errors.Join(ErrAuditDisk, err)
+	}
+	// Check write/fsync ability at startup, before accepting any query.
+	probe, err := os.CreateTemp(dir, ".probe-")
+	if err != nil {
+		return errors.Join(ErrAuditDisk, err)
+	}
+	err = probe.Sync()
+	err = errors.Join(err, probe.Close(), os.Remove(probe.Name()), syncDirectory(dir))
+	if err != nil {
+		return errors.Join(ErrAuditDisk, err)
+	}
+	return nil
 }
 
 func (o *outbox) close() error { return o.owner.Close() }
@@ -169,15 +178,18 @@ func (o *outbox) put(value envelope) error {
 	return o.write(name, value)
 }
 
-// write performs file+directory fsync before acknowledging durable acceptance.
-// SQL text is audit data; every temporary and final file is owner-readable only.
 func (o *outbox) write(name string, value envelope) error {
 	value.Version = nativeOutboxVersion
+	return WriteAuditJSON(o.dir, name, value)
+}
+
+// WriteAuditJSON syncs the private record and its directory before returning.
+func WriteAuditJSON(dir, name string, value any) error {
 	data, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
-	file, err := os.CreateTemp(o.dir, ".pending-")
+	file, err := os.CreateTemp(dir, ".pending-")
 	if err != nil {
 		return err
 	}
@@ -194,10 +206,10 @@ func (o *outbox) write(name string, value envelope) error {
 	if err := file.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(temp, filepath.Join(o.dir, name)); err != nil {
+	if err := os.Rename(temp, filepath.Join(dir, name)); err != nil {
 		return err
 	}
-	return syncDirectory(o.dir)
+	return syncDirectory(dir)
 }
 
 func syncDirectory(dir string) error {

@@ -18,6 +18,9 @@ import (
 )
 
 type Options struct {
+	// SingleMode accepts configured selectors instead of Core connection tokens.
+	// It must only be enabled together with the local standalone provider.
+	SingleMode     bool
 	StateDir       string
 	AllowedOrigins []string
 	// Session, console and byte quotas are optional; positive values enable them.

@@ -37,5 +37,9 @@ func (v *Server) aiManifestHTTP(w http.ResponseWriter, r *http.Request) {
 	if s == nil {
 		return
 	}
+	if v.opts.SingleMode {
+		fail(w, 404, "ai_unavailable", "AI requires a managed session")
+		return
+	}
 	writeJSON(w, 200, aiManifest(s))
 }

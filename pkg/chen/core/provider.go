@@ -220,15 +220,11 @@ func (p *CoreProvider) Open(ctx context.Context, token, remoteAddr string) (resu
 			permissions.Paste = permissions.Paste && policy.Paste.Enabled
 		}
 	}
-	now := time.Now()
-	g := &Grant{
-		ID: id, OwnerID: data.User.ID, OwnerName: sess.User,
-		AssetID: data.Asset.ID, AssetName: data.Asset.Name, AccountName: sess.Account,
-		Config: config, Permissions: permissions, ExpiresAt: time.Unix(int64(data.ExpireAt), 0),
-		MaxIdle: time.Duration(conf.MaxIdleTime) * time.Minute, MaxDuration: time.Duration(conf.MaxSessionTime) * time.Hour,
-		session: &sess, matchers: matchers, maskers: maskers, created: now, lastActive: now,
-		watchers: make(map[uint64]chan Control),
-	}
+	g := NewGrant(id, config, permissions, time.Unix(int64(data.ExpireAt), 0),
+		time.Duration(conf.MaxIdleTime)*time.Minute, time.Duration(conf.MaxSessionTime)*time.Hour)
+	g.OwnerID, g.OwnerName = data.User.ID, sess.User
+	g.AssetID, g.AssetName, g.AccountName = data.Asset.ID, data.Asset.Name, sess.Account
+	g.session, g.matchers, g.maskers = &sess, matchers, maskers
 	// Once creation starts, observe the SDK response even if the browser stops
 	// waiting. A session may already exist and its ID is needed to finish it.
 	select {
@@ -404,13 +400,8 @@ func (p *CoreProvider) Record(_ context.Context, g *Grant, record AuditRecord) e
 	if record.Error == "" && record.ReplayOutput != "" {
 		replay = record.ReplayOutput
 	}
-	for _, secret := range []string{g.Config.Password, g.Config.TLS.ClientKey} {
-		if secret != "" {
-			output = strings.ReplaceAll(output, secret, "[redacted]")
-			replay = strings.ReplaceAll(replay, secret, "[redacted]")
-		}
-	}
-	output = truncate(output, 2048)
+	output = BoundedAuditOutput(g.RedactCredentials(output))
+	replay = g.RedactCredentials(replay)
 	request := &model.Command{
 		SessionID: g.ID, OrgID: g.session.OrgID, User: g.session.User,
 		Server: g.session.Asset, Account: g.session.Account, DateCreated: record.StartedAt.UTC(),
@@ -427,7 +418,19 @@ func (p *CoreProvider) Record(_ context.Context, g *Grant, record AuditRecord) e
 	return nil
 }
 
-func truncate(value string, max int) string {
+// RedactCredentials removes server-owned connection secrets from audit text.
+func (g *Grant) RedactCredentials(value string) string {
+	for _, secret := range []string{g.Config.Password, g.Config.TLS.ClientKey} {
+		if secret != "" {
+			value = strings.ReplaceAll(value, secret, "[redacted]")
+		}
+	}
+	return value
+}
+
+// BoundedAuditOutput preserves UTF-8 at the command audit's output limit.
+func BoundedAuditOutput(value string) string {
+	max := 2048
 	if len(value) <= max {
 		return value
 	}

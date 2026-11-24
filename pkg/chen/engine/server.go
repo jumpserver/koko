@@ -41,7 +41,11 @@ func (v *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+PathPrefix+"/ready", v.ready)
 	mux.HandleFunc("GET "+PathPrefix+"/healthy", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
 	mux.HandleFunc("GET "+apiPath+"/capabilities", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, 200, map[string]any{"version": 1, "mode": "managed", "protocols": supportedProtocols(), "transport": "http+sse", "features": []string{"query", "cancel", "completion", "audit", "grid_edit", "csv_import", "copy_sql"}})
+		mode := "managed"
+		if v.opts.SingleMode {
+			mode = "single"
+		}
+		writeJSON(w, 200, map[string]any{"version": 1, "mode": mode, "protocols": supportedProtocols(), "transport": "http+sse", "features": []string{"query", "cancel", "completion", "audit", "grid_edit", "csv_import", "copy_sql"}})
 	})
 	mux.HandleFunc("POST "+apiPath+"/sessions", v.createSession)
 	mux.HandleFunc("GET "+apiPath+"/sessions/{sid}", v.sessionStatus)
@@ -249,14 +253,29 @@ func (v *Server) auth(w http.ResponseWriter, r *http.Request, allowLocked bool) 
 func (v *Server) createSession(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Token     string `json:"connect_token"`
+		Selector  string `json:"selector"`
 		RequestID string `json:"request_id"`
 	}
 	if !decode(w, r, &req) {
 		return
 	}
-	if len(req.Token) == 0 || len(req.Token) > 4096 {
-		fail(w, 400, "invalid_token", "Connection token required")
-		return
+	credential, remoteAddr := req.Token, r.RemoteAddr
+	if v.opts.SingleMode {
+		if req.Token != "" || req.Selector == "" || len(req.Selector) > 128 || strings.TrimSpace(req.Selector) != req.Selector || strings.ContainsAny(req.Selector, "\x00\r\n") {
+			fail(w, 400, "invalid_selector", "Single mode requires a configured selector and no connection token")
+			return
+		}
+		credential = req.Selector
+	} else {
+		if req.Selector != "" || len(req.Token) == 0 || len(req.Token) > 4096 {
+			fail(w, 400, "invalid_token", "Connection token required")
+			return
+		}
+		// Only the managed endpoint is behind JumpServer's web proxy.
+		forwarded, _, _ := strings.Cut(r.Header.Get("X-Forwarded-For"), ",")
+		if ip := strings.TrimSpace(forwarded); net.ParseIP(ip) != nil {
+			remoteAddr = ip
+		}
 	}
 	if header := r.Header.Get("Idempotency-Key"); header != "" {
 		if req.RequestID != "" && req.RequestID != header {
@@ -270,7 +289,12 @@ func (v *Server) createSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	requestKey := sha256.Sum256([]byte(req.RequestID))
-	key := sha256.Sum256([]byte(req.Token))
+	claim := credential
+	if v.opts.SingleMode {
+		// Each tab can open the same database. Retries from that tab share its attempt.
+		claim += "\x00" + req.RequestID
+	}
+	key := sha256.Sum256([]byte(claim))
 	v.mu.Lock()
 	v.pruneCreationsLocked(time.Now())
 	c := v.creations[key]
@@ -304,18 +328,12 @@ func (v *Server) createSession(w http.ResponseWriter, r *http.Request) {
 		v.creations[key] = c
 		// Creation owns its deadline: a browser disconnect must not lose a consumed
 		// connection token. Retrying this same token observes this same attempt.
-		token, remoteAddr := req.Token, r.RemoteAddr
-		// Requests use the client address forwarded by JumpServer's web proxy.
-		forwarded, _, _ := strings.Cut(r.Header.Get("X-Forwarded-For"), ",")
-		if ip := strings.TrimSpace(forwarded); net.ParseIP(ip) != nil {
-			remoteAddr = ip
-		}
 		v.creating.Add(1)
 		go func() {
 			defer v.creating.Done()
 			ctx, cancel := context.WithTimeout(v.ctx, 30*time.Second)
 			defer cancel()
-			g, err := v.provider.Open(ctx, token, remoteAddr)
+			g, err := v.provider.Open(ctx, credential, remoteAddr)
 			if err != nil {
 				v.finishCreation(key, c, "", nil, authorizationError(err))
 				if errors.Is(err, core.ErrControlNotReady) {
@@ -467,6 +485,7 @@ func authorizationError(err error) *APIError {
 	}
 	code := err.Error()
 	public := map[string]string{
+		"selector_not_found":                            "No database is configured for this selector",
 		"connection_token_required":                     "A Core connection token is required",
 		"token_exchange_failed":                         "Connection authorization service is unavailable",
 		"connection_token_rejected":                     "The Core connection token was rejected",

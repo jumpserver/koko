@@ -72,6 +72,10 @@ func (v *Server) aiMessages(w http.ResponseWriter, r *http.Request) {
 	if s == nil {
 		return
 	}
+	if v.opts.SingleMode {
+		fail(w, 404, "ai_unavailable", "AI requires a managed session")
+		return
+	}
 	var frame struct {
 		Type              string          `json:"type"`
 		Version           int             `json:"version"`

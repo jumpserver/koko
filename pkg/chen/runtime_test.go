@@ -1,6 +1,7 @@
 package chen
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -33,5 +34,26 @@ func TestManagedWorkspaceRoutes(t *testing.T) {
 	router.ServeHTTP(response, request)
 	if response.Code != http.StatusBadRequest {
 		t.Errorf("selector authentication returned %d, want %d", response.Code, http.StatusBadRequest)
+	}
+}
+
+func TestStandaloneWorkspaceUsesKokoRoute(t *testing.T) {
+	app := engine.New(nil, engine.Options{SingleMode: true, StateDir: t.TempDir()})
+	t.Cleanup(app.Close)
+	handler := app.Handler()
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/koko/chen/api/v1/capabilities", nil))
+	var capabilities struct {
+		Mode string `json:"mode"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &capabilities); err != nil || capabilities.Mode != "single" {
+		t.Fatalf("unexpected capabilities: %s", response.Body.String())
+	}
+	request := httptest.NewRequest(http.MethodPost, "/koko/chen/api/v1/sessions", strings.NewReader(`{"connect_token":"managed","request_id":"managed-mode-attempt"}`))
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("Core token on standalone returned %d", response.Code)
 	}
 }

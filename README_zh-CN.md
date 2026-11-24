@@ -20,6 +20,18 @@ Koko 使用 Golang 来实现，名字来自 Dota 英雄 [Kunkka](https://www.dot
 
 Koko 在自己的 HTTP 端口通过 `/koko/chen/api/v1/` 提供 Luna 数据库工作台。代理需要关闭 SSE 响应缓冲，覆盖客户端传入的 `X-Forwarded-For`，并将同一会话的后续请求转发到创建它的实例。数据库会话、审批与审计使用 Koko 的 Core 身份。每个 Koko 实例单独持久化 `CHEN_STATE_DIR`，默认目录为 `data/chen`。替换原 Chen 部署时，先让原服务完成已有会话和待传审计，再停止服务。
 
+### 本地数据库工作台
+
+在 Luna 运行 `pnpm generate:chen`。将[数据库配置模板](pkg/chen/standalone/standalone_backends_example.yaml)复制为 `backends.yml`，设置权限 `chmod 600 backends.yml`，填入测试库连接信息，然后运行以下命令。
+
+```sh
+koko --selector local-pg --selector local-mysql --backends ./backends.yml --web-dir /path/to/luna/.output/public
+```
+
+每个 `--selector` 开放配置中的一个数据库。分别在两个标签页打开 `http://127.0.0.1:8082/luna/chen/?selector=local-pg` 和 `http://127.0.0.1:8082/luna/chen/?selector=local-mysql`，即可建立独立会话。省略 `--backends` 时默认读取当前目录的 `standalone_backends.yml`。省略 `--web-dir` 可直接测试 `/koko/chen/api/v1/`。
+
+本地模式默认只监听本机，使用 Koko 的数据库驱动和 SQL 会话引擎，审计写入 `data/chen-single/audit`。能访问监听端口的客户端可以使用本次开放的数据库账号，无需 Core 登录或审批。正常启动 `koko` 则使用 Core 托管模式。
+
 ## 直连个人凭据
 
 直连用户名支持 `平台用户#个人凭据ID#资产IP或ID`、`平台用户#协议#个人凭据ID#资产IP或ID`，也支持使用 `@` 分隔。资产必须唯一匹配。Koko 使用本次 SSH 登录的本人 Bearer 查询凭据元数据并创建连接令牌，沿用 Core 的资产账号授权和 ACL。Bearer 过期时需要重新建立 SSH 连接。原有资产账号用户名优先匹配；个人凭据 ID 仅用于直连，不加入交互式资产菜单。

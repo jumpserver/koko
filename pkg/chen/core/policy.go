@@ -84,6 +84,11 @@ func matchPolicy(g *Grant, sql string) *commandMatcher {
 }
 
 func (p *CoreProvider) Authorize(ctx context.Context, g *Grant, sql string) error {
+	return g.Authorize(ctx, sql)
+}
+
+// Authorize checks the lifetime and SQL policies attached by the grant's provider.
+func (g *Grant) Authorize(ctx context.Context, sql string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}

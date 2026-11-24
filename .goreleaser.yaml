@@ -44,6 +44,8 @@ archives:
       - LICENSE
       - README.md
       - config_example.yml
+      - src: pkg/chen/standalone/standalone_backends_example.yaml
+        strip_parent: true
       - pkg/chen/third_party/*/LICENSE
       - entrypoint.sh
       - locale/*

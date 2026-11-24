@@ -23,14 +23,13 @@ type Runtime struct {
 	done     chan struct{}
 }
 
-func options(stateDir, origins string, query, idle time.Duration, rows, bytes int) (engine.Options, error) {
-	if stateDir == "" || rows <= 0 || bytes < 0 || query < 0 || idle < 0 {
+func normalizeOptions(opts engine.Options, origins string) (engine.Options, error) {
+	if opts.StateDir == "" || opts.MaxRows <= 0 || opts.MaxResultBytes < 0 || opts.QueryTimeout < 0 || opts.TransactionIdleTimeout < 0 {
 		return engine.Options{}, errors.New("invalid Chen state directory or resource limits")
 	}
-	if idle == 0 {
-		idle = -1 // The engine uses a negative value to disable idle rollback.
+	if opts.TransactionIdleTimeout == 0 {
+		opts.TransactionIdleTimeout = -1 // The engine uses a negative value to disable idle rollback.
 	}
-	opts := engine.Options{StateDir: stateDir, QueryTimeout: query, TransactionIdleTimeout: idle, MaxRows: rows, MaxResultBytes: bytes}
 	for origin := range strings.SplitSeq(origins, ",") {
 		if origin = strings.TrimSpace(origin); origin != "" {
 			opts.AllowedOrigins = append(opts.AllowedOrigins, origin)
@@ -40,7 +39,11 @@ func options(stateDir, origins string, query, idle time.Duration, rows, bytes in
 }
 
 func NewRuntime(client *service.JMService, conf config.Config) (*Runtime, error) {
-	opts, err := options(conf.ChenStateDir, conf.ChenAllowedOrigins, conf.ChenQueryTimeout, conf.ChenTransactionIdleTimeout, conf.ChenMaxRows, conf.ChenMaxResultBytes)
+	opts, err := normalizeOptions(engine.Options{
+		StateDir: conf.ChenStateDir, QueryTimeout: conf.ChenQueryTimeout,
+		TransactionIdleTimeout: conf.ChenTransactionIdleTimeout, MaxRows: conf.ChenMaxRows,
+		MaxResultBytes: conf.ChenMaxResultBytes,
+	}, conf.ChenAllowedOrigins)
 	if err != nil {
 		return nil, err
 	}
