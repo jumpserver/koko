@@ -14,6 +14,7 @@ Koko is implemented using Golang, and the name comes from a Dota hero [Kunkka](h
 - SFTP
 - Web Terminal
 - Web File Management
+- [Agent MCP setup, common client configuration and troubleshooting (Chinese)](./docs/agent-mcp.md#用户接入与操作流程)
 
 ## Direct connections with personal credentials
 
@@ -54,6 +55,10 @@ BOOTSTRAP_TOKEN: PleaseChangeMe <change to the same as core>
 $ make run # 3. Run; prebuilt libghostty-vt and usql are downloaded on first use
 ```
 
+
+Before committing, install the golangci-lint version pinned in
+[the CI workflow](.github/workflows/golangci-lint.yml) and run `make lint`.
+This prepares libghostty-vt and checks the same configuration and source as CI.
 
 ## Docker
 Use Docker Buildx to build the image and load it into the local Docker image store:

@@ -32,6 +32,14 @@ type Config struct {
 	WebProxyFFmpegPath       string `mapstructure:"WEB_PROXY_FFMPEG_PATH"`
 	SSHTimeout               int    `mapstructure:"SSH_TIMEOUT"`
 	HttpRequestTimeout       int    `mapstructure:"HTTP_REQUEST_TIMEOUT"`
+	MCPMaxSessions           int    `mapstructure:"MCP_MAX_SESSIONS"`
+	MCPMaxPending            int    `mapstructure:"MCP_MAX_PENDING"`
+	MCPMaxRunning            int    `mapstructure:"MCP_MAX_RUNNING"`
+	MCPQueueTimeout          int    `mapstructure:"MCP_QUEUE_TIMEOUT"`
+	MCPMaxRequests           int    `mapstructure:"MCP_MAX_REQUESTS"`
+	MCPControlRequests       int    `mapstructure:"MCP_CONTROL_REQUESTS"`
+	MCPJournalMaxSize        int    `mapstructure:"MCP_JOURNAL_MAX_SIZE"`
+	MCPMaxStagedFiles        int    `mapstructure:"MCP_MAX_STAGED_FILES"`
 
 	LogLevel string `mapstructure:"LOG_LEVEL"`
 
@@ -136,6 +144,9 @@ func Setup(configPath string) {
 	loadConfigFromEnv(&conf)
 	loadConfigFromFile(configPath, &conf)
 	conf.EnsureConfigValid()
+	if err := conf.ValidateMCP(); err != nil {
+		log.Fatalf("Invalid MCP capacity configuration: %s", err)
+	}
 	GlobalConfig = &conf
 	log.Printf("Config loaded: name=%q bind=%s ssh_port=%s http_port=%s share_room_type=%s\n",
 		conf.Name, conf.BindHost, conf.SSHPort, conf.HTTPPort, conf.ShareRoomType)
@@ -169,6 +180,14 @@ func getDefaultConfig() Config {
 		SSHPort:                  "2222",
 		SSHTimeout:               15,
 		HttpRequestTimeout:       30,
+		MCPMaxSessions:           DefaultMCPMaxSessions,
+		MCPMaxPending:            DefaultMCPMaxPending,
+		MCPMaxRunning:            DefaultMCPMaxRunning,
+		MCPQueueTimeout:          DefaultMCPQueueTimeout,
+		MCPMaxRequests:           DefaultMCPMaxRequests,
+		MCPControlRequests:       DefaultMCPControlRequests,
+		MCPJournalMaxSize:        DefaultMCPJournalMaxSize,
+		MCPMaxStagedFiles:        DefaultMCPMaxStagedFiles,
 		HTTPPort:                 "5000",
 		WebProxyEnabled:          true,
 		WebProxyBindHost:         "127.0.0.1",
@@ -254,6 +273,9 @@ func loadConfigFromEnv(conf *Config) {
 	if err := envViper.Unmarshal(conf); err == nil {
 		log.Println("Load config from env")
 	}
+	if err := conf.loadMCPLimits(envViper); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func loadConfigFromFile(path string, conf *Config) {
@@ -263,6 +285,9 @@ func loadConfigFromFile(path string, conf *Config) {
 		fileViper.SetConfigFile(path)
 		if err = fileViper.ReadInConfig(); err == nil {
 			if err = fileViper.Unmarshal(conf); err == nil {
+				if err = conf.loadMCPLimits(fileViper); err != nil {
+					log.Fatal(err)
+				}
 				log.Printf("Load config from %s success\n", path)
 				return
 			}

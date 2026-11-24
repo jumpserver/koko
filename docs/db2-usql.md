@@ -1,6 +1,6 @@
 # Db2 Web CLI
 
-KoKo uses the published usql v0.2.8 binary for Db2 LUW connections. It embeds a
+KoKo uses the published usql v0.2.9 binary for Db2 LUW connections. It embeds a
 community pure Go DRDA driver, so no IBM CLI installation or libdb2.so is needed.
 Core must also advertise Db2 as a KoKo Web CLI protocol; its existing Chen Web GUI
 connection remains available.
@@ -23,7 +23,7 @@ The usql Db2 driver always verifies server certificates; allowing invalid
 certificates is unsupported. Real-server TLS/mTLS was not validated by the
 plain-TCP QA test.
 
-`Dockerfile-base` and the development installer select v0.2.8. `Dockerfile`
+`Dockerfile-base` and the development installer select v0.2.9. `Dockerfile`
 inherits usql from its pinned `koko-base` image without downloading it again.
 When upgrading usql, build and publish the base image first, then update the
 `koko-base` tag in `Dockerfile`; offline application builds reuse that dependency.
@@ -38,7 +38,9 @@ PATH="$USQL_BIN_DIR:$PATH" KOKO_DB2_TEST_DSN_FILE=/path/to/private-dsn \
   GOMAXPROCS=2 go test -p 2 ./pkg/proxy -run '^TestLiveDB2USQL$' -v
 ```
 
-This adds interactive Web CLI support, not a detached database executor or
-Magnus native-client proxy. Existing enterprise license checks remain in place.
-Compatibility evidence is limited to Db2 LUW 11.5.7.0; it does not establish
+The remote MCP executor also supports Db2 LUW through the same pure Go driver;
+see [Agent MCP](agent-mcp.md) for its connection and execution boundaries.
+Magnus native-client proxy support is separate. Existing enterprise license
+checks remain in place.
+The Web CLI compatibility evidence is limited to Db2 LUW 11.5.7.0; it does not establish
 support for Db2 for z/OS, IBM i or every authentication mode.

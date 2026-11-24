@@ -34,11 +34,16 @@ func dialectForSQL(protocol string) sqlDialect {
 			sqlserver: true, write: " MERGE ",
 			session: " USE EXEC EXECUTE DECLARE DBCC ",
 		}
-	case "oracle":
+	case "oracle", "dameng":
 		return sqlDialect{
 			oracle: true, read: " DESC DESCRIBE ",
 			write:   " MERGE ANALYZE RENAME COMMENT PURGE ",
 			session: " CALL EXEC EXECUTE LOCK ",
+		}
+	case "db2":
+		return sqlDialect{
+			read: " VALUES TABLE ", write: " MERGE COMMENT RENAME ",
+			session: " CALL PREPARE EXECUTE DECLARE FETCH CLOSE RELEASE LOCK ",
 		}
 	case "clickhouse":
 		return sqlDialect{

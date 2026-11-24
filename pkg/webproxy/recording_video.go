@@ -44,7 +44,7 @@ func (s *Server) addRecordingVideoChunk(w http.ResponseWriter, r *http.Request, 
 	}
 	controller := http.NewResponseController(w)
 	_ = controller.SetReadDeadline(time.Now().Add(15 * time.Second))
-	defer controller.SetReadDeadline(time.Time{})
+	defer func() { _ = controller.SetReadDeadline(time.Time{}) }()
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxVideoChunkSize))
 	if err != nil {
 		http.Error(w, "video chunk exceeds size limit", http.StatusRequestEntityTooLarge)
