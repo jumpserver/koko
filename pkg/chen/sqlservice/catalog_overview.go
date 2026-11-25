@@ -400,8 +400,8 @@ func overviewSQL(d dialect.ID, r OverviewRequest) (string, []any) {
  (SELECT string_agg(pg_catalog.pg_get_indexdef(ix.oid,k,true),', ' ORDER BY k) FROM generate_series(1,i.indnatts) k),NULL::text,'0',NULL::text,NULL::text
  FROM pg_catalog.pg_index i JOIN pg_catalog.pg_class ix ON ix.oid=i.indexrelid JOIN pg_catalog.pg_am am ON am.oid=ix.relam` + strings.Replace(overviewPGFrom, " FROM pg_catalog.pg_class c", " JOIN pg_catalog.pg_class c ON c.oid=i.indrelid", 1) + `
  AND (c.relname ILIKE $3 ESCAPE '!' OR ix.relname ILIKE $3 ESCAPE '!')
- AND ($4='' OR (n.nspname COLLATE pg_catalog."C",c.relname COLLATE pg_catalog."C",ix.relname COLLATE pg_catalog."C") ` + op + ` ($4 COLLATE pg_catalog."C",$5 COLLATE pg_catalog."C",$6 COLLATE pg_catalog."C"))
- ORDER BY n.nspname COLLATE pg_catalog."C" ` + order + `,c.relname COLLATE pg_catalog."C" ` + order + `,ix.relname COLLATE pg_catalog."C" ` + order + ` LIMIT $7`, []any{r.Database, r.Schema, catalogSearch(r.Query), r.AfterSchema, r.AfterTable, r.AfterName, catalogLimit(r.Limit) + 1}
+ AND ($4='' OR (n.nspname,c.relname,ix.relname) ` + op + ` ($4::pg_catalog.name,$5::pg_catalog.name,$6::pg_catalog.name))
+ ORDER BY n.nspname ` + order + `,c.relname ` + order + `,ix.relname ` + order + ` LIMIT $7`, []any{r.Database, r.Schema, catalogSearch(r.Query), r.AfterSchema, r.AfterTable, r.AfterName, catalogLimit(r.Limit) + 1}
 		}
 		return `SELECT s.TABLE_SCHEMA,s.TABLE_SCHEMA,s.TABLE_NAME,'table','table',s.INDEX_NAME,IF(s.NON_UNIQUE=0,'true','false'),s.INDEX_TYPE,NULL,s.COLUMN_NAME,LEFT(s.EXPRESSION,16385),CAST(s.SEQ_IN_INDEX AS CHAR),s.COLLATION,CAST(s.SUB_PART AS CHAR)
  FROM information_schema.STATISTICS s WHERE BINARY s.TABLE_SCHEMA=BINARY ? AND (s.TABLE_NAME LIKE ? ESCAPE '!' OR s.INDEX_NAME LIKE ? ESCAPE '!')
@@ -424,8 +424,8 @@ func overviewSQL(d dialect.ID, r OverviewRequest) (string, []any) {
  CASE WHEN c.relkind IN ('r','m') THEN pg_catalog.pg_indexes_size(c.oid)::text END,
  CASE WHEN c.relkind IN ('r','m') THEN pg_catalog.pg_total_relation_size(c.oid)::text END,
  GREATEST(st.last_analyze,st.last_autoanalyze)::text, NULL::text,NULL::text,NULL::text` + strings.Replace(overviewPGFrom, "\n WHERE", " LEFT JOIN pg_catalog.pg_stat_all_tables st ON st.relid=c.oid\n WHERE", 1) + ` AND c.relkind IN ` + kinds + `
- AND c.relname ILIKE $3 ESCAPE '!' AND ($4='' OR (n.nspname COLLATE pg_catalog."C",c.relname COLLATE pg_catalog."C") ` + op + ` ($4 COLLATE pg_catalog."C",$5 COLLATE pg_catalog."C"))
- ORDER BY n.nspname COLLATE pg_catalog."C" ` + order + `,c.relname COLLATE pg_catalog."C" ` + order + ` LIMIT $6`, []any{r.Database, r.Schema, catalogSearch(r.Query), r.AfterSchema, r.AfterName, catalogLimit(r.Limit) + 1}
+ AND c.relname ILIKE $3 ESCAPE '!' AND ($4='' OR (n.nspname,c.relname) ` + op + ` ($4::pg_catalog.name,$5::pg_catalog.name))
+ ORDER BY n.nspname ` + order + `,c.relname ` + order + ` LIMIT $6`, []any{r.Database, r.Schema, catalogSearch(r.Query), r.AfterSchema, r.AfterName, catalogLimit(r.Limit) + 1}
 	}
 	kind := "BASE TABLE"
 	if r.Section == "views" {
