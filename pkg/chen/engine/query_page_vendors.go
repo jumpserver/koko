@@ -5,25 +5,25 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 
 	dm "gitee.com/chunanyong/dm"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
-func vendorQueryPageContext(ctx context.Context, c *console, d string) ([]string, error) {
+func vendorQueryPageContext(ctx context.Context, c *console, d dialect.ID) ([]string, error) {
 	var query string
 	fieldCount := 6 // Oracle-family and Db2 settings.
 	switch d {
-	case "sqlserver":
+	case dialect.SQLServer:
 		fieldCount = 7
 		query = `SELECT COALESCE(DB_NAME(),''),COALESCE(SCHEMA_NAME(),''),SUSER_SNAME(),USER_NAME(),CONVERT(varchar(20),@@OPTIONS),@@LANGUAGE,CONVERT(varchar(20),@@DATEFIRST)`
-	case "oracle", "dameng", "oceanbase-oracle":
+	case dialect.Oracle, dialect.Dameng, dialect.OceanBaseOracle:
 		query = oraclePageIdentity
-	case "db2":
+	case dialect.DB2:
 		query = `SELECT RTRIM(CURRENT SERVER),RTRIM(CURRENT SCHEMA),SESSION_USER,CURRENT USER,CURRENT PATH,CHAR(CURRENT TIMEZONE) FROM SYSIBM.SYSDUMMY1`
-	case "clickhouse":
+	case dialect.ClickHouse:
 		fieldCount = 3
 		query = `SELECT currentDatabase(),currentUser(),timezone()`
 	default:
@@ -35,13 +35,13 @@ func vendorQueryPageContext(ctx context.Context, c *console, d string) ([]string
 	}
 	settings := ""
 	switch d {
-	case "sqlserver":
+	case dialect.SQLServer:
 		settings = "DBCC USEROPTIONS WITH NO_INFOMSGS"
-	case "oracle", "oceanbase-oracle":
+	case dialect.Oracle, dialect.OceanBaseOracle:
 		settings = "SELECT PARAMETER,COALESCE(VALUE,'') FROM NLS_SESSION_PARAMETERS ORDER BY PARAMETER"
-	case "dameng":
+	case dialect.Dameng:
 		settings = "SELECT PARAMETER,CASE WHEN VALUE IS NULL THEN '0' ELSE '1'||VALUE END FROM SYS.V$NLS_PARAMETERS ORDER BY PARAMETER"
-	case "clickhouse":
+	case dialect.ClickHouse:
 		// clickhouse-go derives max_execution_time from each request's context
 		// deadline. Admission and execution have different deadlines; this query
 		// budget is not a change to the console's session semantics.
@@ -51,7 +51,7 @@ func vendorQueryPageContext(ctx context.Context, c *console, d string) ([]string
 		rows, err := c.conn.QueryContext(ctx, settings)
 		if err != nil {
 			var denied *dm.DmError
-			if d == "dameng" && errors.As(err, &denied) && denied.ErrCode == -5504 {
+			if d == dialect.Dameng && errors.As(err, &denied) && denied.ErrCode == -5504 {
 				return nil, &damengNLSAccessError{err, pageContextJSON(values)}
 			}
 			return nil, err
@@ -120,16 +120,16 @@ func readPageContextRow(ctx context.Context, c *console, query string, fieldCoun
 
 // Choose version-specific catalog SQL once per source inspection. Bind each
 // relation separately so its visibility and row policies are checked live.
-func versionedPageTableQuery(ctx context.Context, c *console, d string) (string, error) {
+func versionedPageTableQuery(ctx context.Context, c *console, d dialect.ID) (string, error) {
 	switch d {
-	case "sqlserver":
+	case dialect.SQLServer:
 		var version string
 		var edition int
 		if err := c.conn.QueryRowContext(ctx, `SELECT CONVERT(varchar(128),SERVERPROPERTY('ProductVersion')),CONVERT(int,SERVERPROPERTY('EngineEdition'))`).Scan(&version, &edition); err != nil {
 			return "", err
 		}
-		var major int
-		if _, err := fmt.Sscanf(version, "%d.", &major); err != nil || major < 9 {
+		major, ok := dialect.ParseSQLServerMajor(version)
+		if !ok || major < 9 {
 			return "", errors.New("Database paging requires verified SQL Server 2005 or later metadata")
 		}
 		// Resolve the original name first, including dbo fallback. Filtering
@@ -139,21 +139,17 @@ func versionedPageTableQuery(ctx context.Context, c *console, d string) (string,
 			predicate = `(HAS_PERMS_BY_NAME(DB_NAME(),'DATABASE','VIEW DEFINITION')=1 OR HAS_PERMS_BY_NAME(NULL,NULL,'VIEW ANY DEFINITION')=1 OR HAS_PERMS_BY_NAME(DB_NAME(),'DATABASE','ALTER ANY SECURITY POLICY')=1) AND t.is_external=0 AND ` + predicate + ` AND NOT EXISTS(SELECT 1 FROM sys.security_predicates p JOIN sys.security_policies x ON x.object_id=p.object_id WHERE p.target_object_id=t.object_id AND x.is_enabled=1)`
 		}
 		return "SELECT CASE WHEN " + predicate + " THEN 1 ELSE 0 END FROM sys.tables t WHERE t.object_id=OBJECT_ID(@p1)", nil
-	case "db2":
+	case dialect.DB2:
 		var level string
 		if err := c.conn.QueryRowContext(ctx, `SELECT SERVICE_LEVEL FROM TABLE(SYSPROC.ENV_GET_INST_INFO()) AS CHEN_INSTANCE`).Scan(&level); err != nil {
 			return "", err
 		}
-		version := strings.TrimSpace(level)
-		if strings.HasPrefix(strings.ToUpper(version), "DB2 V") {
-			version = version[5:]
-		}
-		var major, minor int
-		if _, err := fmt.Sscanf(version, "%d.%d", &major, &minor); err != nil || major < 9 || major == 9 && minor < 7 {
+		v, ok := dialect.ParseDB2ServiceLevel(level)
+		if !ok || v.Major < 9 || v.Major == 9 && v.Minor < 7 {
 			return "", errors.New("Database paging requires verified DB2 LUW 9.7 or later metadata")
 		}
 		predicate := `t.TYPE='T' AND NOT EXISTS(SELECT 1 FROM SYSCAT.COLUMNS c WHERE c.TABSCHEMA=t.TABSCHEMA AND c.TABNAME=t.TABNAME AND (c.TYPESCHEMA<>'SYSIBM' OR (c.GENERATED='A' AND c.IDENTITY<>'Y')))`
-		if major >= 10 {
+		if v.Major >= 10 {
 			predicate += ` AND NOT EXISTS(SELECT 1 FROM SYSCAT.CONTROLS x WHERE x.TABSCHEMA=t.TABSCHEMA AND x.TABNAME=t.TABNAME AND x.ENABLE='Y')`
 		}
 		return "SELECT CASE WHEN " + predicate + " THEN 1 ELSE 0 END FROM SYSCAT.TABLES t WHERE t.TABSCHEMA=COALESCE(NULLIF(?,''),CURRENT SCHEMA) AND t.TABNAME=?", nil
@@ -162,9 +158,9 @@ func versionedPageTableQuery(ctx context.Context, c *console, d string) (string,
 	}
 }
 
-func vendorQueryPageSource(ctx context.Context, c *console, d string, r sqlservice.QueryPageRelation, safe *bool, tableQuery *string) error {
+func vendorQueryPageSource(ctx context.Context, c *console, d dialect.ID, r sqlservice.QueryPageRelation, safe *bool, tableQuery *string) error {
 	switch d {
-	case "sqlserver", "db2":
+	case dialect.SQLServer, dialect.DB2:
 		if *tableQuery == "" {
 			query, err := versionedPageTableQuery(ctx, c, d)
 			if err != nil {
@@ -172,7 +168,7 @@ func vendorQueryPageSource(ctx context.Context, c *console, d string, r sqlservi
 			}
 			*tableQuery = query
 		}
-		if d == "db2" {
+		if d == dialect.DB2 {
 			return c.conn.QueryRowContext(ctx, *tableQuery, r.Schema, r.Name).Scan(safe)
 		}
 		qualified := quoteDatabaseIdentifier(r.Name, d)
@@ -180,7 +176,7 @@ func vendorQueryPageSource(ctx context.Context, c *console, d string, r sqlservi
 			qualified = quoteDatabaseIdentifier(r.Schema, d) + "." + qualified
 		}
 		return c.conn.QueryRowContext(ctx, *tableQuery, qualified).Scan(safe)
-	case "oracle", "dameng", "oceanbase-oracle":
+	case dialect.Oracle, dialect.Dameng, dialect.OceanBaseOracle:
 		owner := r.Schema
 		if owner == "" {
 			if err := c.conn.QueryRowContext(ctx, `SELECT SYS_CONTEXT('USERENV','CURRENT_SCHEMA') FROM DUAL`).Scan(&owner); err != nil {
@@ -189,13 +185,13 @@ func vendorQueryPageSource(ctx context.Context, c *console, d string, r sqlservi
 		}
 		var one int
 		table := `SELECT 1 FROM ALL_TABLES WHERE OWNER=:1 AND TABLE_NAME=:2`
-		if d == "dameng" {
+		if d == dialect.Dameng {
 			// VSYSOBJTABLES only exposes visible tables. INFO3's low byte is the
 			// storage type: require an ordinary user table (external tables use 13).
 			table = `SELECT 1 FROM SYS.VSYSOBJTABLES WHERE SF_GET_SCHEMA_NAME_BY_ID(SCHID)=:1 AND NAME=:2 AND SUBTYPE$='UTAB' AND BITAND(INFO3,255)=0`
 		}
 		err := c.conn.QueryRowContext(ctx, table, owner, r.Name).Scan(&one)
-		if errors.Is(err, sql.ErrNoRows) && d == "oracle" && r.Schema == "" && r.Name == "DUAL" {
+		if errors.Is(err, sql.ErrNoRows) && d == dialect.Oracle && r.Schema == "" && r.Name == "DUAL" {
 			var matches, local int
 			if err = c.conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM ALL_OBJECTS WHERE OWNER=:1 AND OBJECT_NAME='DUAL'`, owner).Scan(&local); err != nil {
 				return err
@@ -218,7 +214,7 @@ func vendorQueryPageSource(ctx context.Context, c *console, d string, r sqlservi
 			`SELECT COUNT(*) FROM ALL_TAB_COLS WHERE OWNER=:1 AND TABLE_NAME=:2 AND (VIRTUAL_COLUMN IS NULL OR VIRTUAL_COLUMN<>'NO' OR DATA_TYPE_OWNER IS NOT NULL)`,
 			`SELECT COUNT(*) FROM ALL_POLICIES WHERE OBJECT_OWNER=:1 AND OBJECT_NAME=:2 AND (ENABLE IS NULL OR ENABLE<>'NO')`,
 		}
-		if d != "dameng" {
+		if d != dialect.Dameng {
 			checks = append(checks, `SELECT COUNT(*) FROM ALL_EXTERNAL_TABLES WHERE OWNER=:1 AND TABLE_NAME=:2`)
 		}
 		for _, query := range checks {
@@ -233,7 +229,7 @@ func vendorQueryPageSource(ctx context.Context, c *console, d string, r sqlservi
 		*safe = true
 		return nil
 
-	case "clickhouse":
+	case dialect.ClickHouse:
 		var engine string
 		var policies int
 		err := c.conn.QueryRowContext(ctx, `SELECT engine,
@@ -262,7 +258,7 @@ FROM system.tables WHERE database=if(?='',currentDatabase(),?) AND name=?`, r.Sc
 				err = errors.New("Hidden column expressions exceed the source inspection limit")
 				break
 			}
-			parsed, e := sqlservice.AnalyzeQueryPage(sqlservice.ClickHouse, "SELECT "+expr, sqlservice.AnalyzeOptions{})
+			parsed, e := sqlservice.AnalyzeQueryPage(dialect.ClickHouse, "SELECT "+expr, sqlservice.AnalyzeOptions{})
 			if e != nil || len(parsed.Relations) != 0 {
 				err = errors.New("Database paging cannot verify a hidden ClickHouse column expression")
 				break
@@ -285,7 +281,7 @@ FROM system.tables WHERE database=if(?='',currentDatabase(),?) AND name=?`, r.Sc
 
 // Unqualified vendor built-ins can be shadowed through schema/path resolution.
 // A conservative catalog check denies any ambiguous visible overload/synonym.
-func validateVendorQueryFunctions(ctx context.Context, c *console, d string, functions []string) error {
+func validateVendorQueryFunctions(ctx context.Context, c *console, d dialect.ID, functions []string) error {
 	seen := map[string]bool{}
 	for _, name := range functions {
 		// Names already use dialect canonical spelling. Quoted function calls are rejected by the grammar; never fold quoted bare references.
@@ -296,16 +292,16 @@ func validateVendorQueryFunctions(ctx context.Context, c *console, d string, fun
 		var shadows int
 		var err error
 		switch d {
-		case "sqlserver":
+		case dialect.SQLServer:
 			continue // T-SQL scalar UDFs require a schema qualifier; the closed grammar rejects it.
-		case "oracle", "dameng", "oceanbase-oracle":
+		case dialect.Oracle, dialect.Dameng, dialect.OceanBaseOracle:
 			err = c.conn.QueryRowContext(ctx, `SELECT
 (SELECT COUNT(*) FROM ALL_PROCEDURES WHERE OWNER=SYS_CONTEXT('USERENV','CURRENT_SCHEMA') AND OBJECT_NAME=:1) +
 (SELECT COUNT(*) FROM ALL_SYNONYMS WHERE OWNER IN (SYS_CONTEXT('USERENV','CURRENT_SCHEMA'),'PUBLIC') AND SYNONYM_NAME=:2)
 FROM DUAL`, name, name).Scan(&shadows)
-		case "db2":
+		case dialect.DB2:
 			err = c.conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM SYSCAT.ROUTINES WHERE ROUTINENAME=? AND ROUTINESCHEMA NOT IN('SYSIBM','SYSFUN','SYSPROC','SYSIBMADM')`, name).Scan(&shadows)
-		case "clickhouse":
+		case dialect.ClickHouse:
 			err = c.conn.QueryRowContext(ctx, `SELECT count() FROM system.functions WHERE upper(name)=? AND origin<>'System'`, strings.ToUpper(name)).Scan(&shadows)
 		default:
 			return errors.New("Unverified query function resolution")

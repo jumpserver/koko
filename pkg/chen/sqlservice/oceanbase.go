@@ -22,7 +22,7 @@ func (v MySQLServerVersion) FromVersionComment() bool {
 	return v.Source == mysqlVersionCommentQuery
 }
 
-func ReadMySQLServerVersion(ctx context.Context, conn *sql.Conn, d Dialect) (MySQLServerVersion, error) {
+func ReadMySQLServerVersion(ctx context.Context, conn *sql.Conn, d dialect.ID) (MySQLServerVersion, error) {
 	var reported string
 	if err := conn.QueryRowContext(ctx, mysqlVersionQuery).Scan(&reported); err != nil {
 		return MySQLServerVersion{}, err
@@ -32,9 +32,9 @@ func ReadMySQLServerVersion(ctx context.Context, conn *sql.Conn, d Dialect) (MyS
 
 // The diagram reads VERSION() alongside other session settings in one query.
 // Resolve its product using the same connection without querying VERSION() twice.
-func resolveMySQLServerVersion(ctx context.Context, conn *sql.Conn, d Dialect, reported string) (MySQLServerVersion, error) {
+func resolveMySQLServerVersion(ctx context.Context, conn *sql.Conn, d dialect.ID, reported string) (MySQLServerVersion, error) {
 	version := MySQLServerVersion{Reported: reported, Product: reported, Source: mysqlVersionQuery}
-	if d != OceanBaseMySQL || dialect.HasOceanBaseBrand(reported) {
+	if d != dialect.OceanBaseMySQL || dialect.HasOceanBaseBrand(reported) {
 		return version, nil
 	}
 	var comment string
@@ -53,7 +53,7 @@ func resolveMySQLServerVersion(ctx context.Context, conn *sql.Conn, d Dialect, r
 // it. Some OceanBase deployments expose only the MySQL compatibility version
 // through VERSION().
 func OceanBaseMySQLVersion(ctx context.Context, conn *sql.Conn) (string, string, error) {
-	version, err := ReadMySQLServerVersion(ctx, conn, OceanBaseMySQL)
+	version, err := ReadMySQLServerVersion(ctx, conn, dialect.OceanBaseMySQL)
 	if version.Source == "" {
 		return "", mysqlVersionQuery, err
 	}

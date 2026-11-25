@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	pg "github.com/pganalyze/pg_query_go/v6"
 	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
@@ -17,15 +18,15 @@ import (
 // ValidateBrowseWhere proves a bounded expression grammar, not just a SELECT
 // classification. Functions, subqueries, parameters and statement tails cannot
 // enter this path. Server semantic/type checks still run on the same connection.
-func ValidateBrowseWhere(d Dialect, where string, opts AnalyzeOptions, columns []EditColumn) error {
+func ValidateBrowseWhere(d dialect.ID, where string, opts AnalyzeOptions, columns []EditColumn) error {
 	return validateBrowseWhere(d, where, opts, columns, false)
 }
 
-func ValidateBrowseWhereForReexecution(d Dialect, where string, opts AnalyzeOptions, columns []EditColumn) error {
+func ValidateBrowseWhereForReexecution(d dialect.ID, where string, opts AnalyzeOptions, columns []EditColumn) error {
 	return validateBrowseWhere(d, where, opts, columns, true)
 }
 
-func validateBrowseWhere(d Dialect, where string, opts AnalyzeOptions, columns []EditColumn, reexecute bool) error {
+func validateBrowseWhere(d dialect.ID, where string, opts AnalyzeOptions, columns []EditColumn, reexecute bool) error {
 	if strings.TrimSpace(where) == "" {
 		return nil
 	}
@@ -42,7 +43,7 @@ func validateBrowseWhere(d Dialect, where string, opts AnalyzeOptions, columns [
 		return false
 	}
 	document := "SELECT 1 WHERE (\n" + where + "\n)"
-	if d == PostgreSQL {
+	if d == dialect.PostgreSQL {
 		tree, err := pg.Parse(document)
 		if err != nil {
 			return err
@@ -118,9 +119,9 @@ func validateBrowseWhere(d Dialect, where string, opts AnalyzeOptions, columns [
 		}
 		return nil
 	}
-	if !IsMySQLDialect(d) {
+	if !d.UsesMySQLSyntax() {
 		switch d {
-		case Oracle, SQLServer, DB2, Dameng, OceanBaseOracle, ClickHouse:
+		case dialect.Oracle, dialect.SQLServer, dialect.DB2, dialect.Dameng, dialect.OceanBaseOracle, dialect.ClickHouse:
 			if reexecute {
 				// The portable query parser must see exactly the enclosing WHERE.
 				// A balanced inner expression cannot close it to add UNION/FROM.
@@ -156,7 +157,7 @@ func validateBrowseWhere(d Dialect, where string, opts AnalyzeOptions, columns [
 	if err := ValidateBrowseSQLMode(d, opts); err != nil {
 		return err
 	}
-	if d == MariaDB || d == OceanBaseMySQL {
+	if d == dialect.MariaDB || d == dialect.OceanBaseMySQL {
 		mode, _ := mysql.GetSQLMode(opts.MySQLSQLMode)
 		// Vendor executable comments have different activation rules. Inspect
 		// lexer comment tokens, never quoted strings; the AST remains mandatory.
@@ -257,8 +258,8 @@ func (v *browseWhereVisitor) Leave(n ast.Node) (ast.Node, bool) { v.depth--; ret
 
 // ValidateBrowseSQLMode admits only modes whose predicate/parameter semantics
 // are represented by the bounded MySQL AST path. Ordinary SQL is unaffected.
-func ValidateBrowseSQLMode(d Dialect, opts AnalyzeOptions) error {
-	if d != MariaDB && d != OceanBaseMySQL {
+func ValidateBrowseSQLMode(d dialect.ID, opts AnalyzeOptions) error {
+	if d != dialect.MariaDB && d != dialect.OceanBaseMySQL {
 		return nil
 	}
 	for _, mode := range strings.Split(opts.MySQLSQLMode, ",") {

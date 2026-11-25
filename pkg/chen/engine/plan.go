@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	dbdialect "github.com/jumpserver/koko/pkg/chen/dialect"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
@@ -96,24 +96,24 @@ type ExecutionPlan struct {
 	Limits           map[string]int   `json:"limits"`
 }
 
-func emptyPlan(dialect string) *ExecutionPlan {
+func emptyPlan(d dialect.ID) *ExecutionPlan {
 	supported := false
-	switch dialect {
-	case "postgresql", "mysql", "mariadb", "oceanbase-mysql", "clickhouse", "sqlserver", "oracle", "db2", "dameng", "oceanbase-oracle":
+	switch d {
+	case dialect.PostgreSQL, dialect.MySQL, dialect.MariaDB, dialect.OceanBaseMySQL, dialect.ClickHouse, dialect.SQLServer, dialect.Oracle, dialect.DB2, dialect.Dameng, dialect.OceanBaseOracle:
 		supported = true
 	}
-	p := &ExecutionPlan{Database: dialect, Mode: "ESTIMATED", Status: "RAW_ONLY", Roots: []*PlanNode{}, Prerequisites: []PlanDiagnostic{}, Warnings: []PlanDiagnostic{},
+	p := &ExecutionPlan{Database: string(d), Mode: "ESTIMATED", Status: "RAW_ONLY", Roots: []*PlanNode{}, Prerequisites: []PlanDiagnostic{}, Warnings: []PlanDiagnostic{},
 		Effects:      PlanEffects{"UNKNOWN", "UNKNOWN", "NONE", "UNKNOWN"},
 		Capabilities: PlanCapabilities{Supported: supported, TransactionPolicy: "STATEMENT_ONLY"},
 		Limits:       map[string]int{"maxBytes": planMaxBytes, "maxNodes": planMaxNodes, "maxDepth": planMaxDepth}}
-	if dialect == "postgresql" {
+	if d == dialect.PostgreSQL {
 		p.Capabilities.TransactionPolicy = "SAVEPOINT_IF_ACTIVE"
 	}
-	if dialect == "sqlserver" {
+	if d == dialect.SQLServer {
 		p.Capabilities.RequiresSessionState = true
 		p.Capabilities.TransactionPolicy = "RESTORE_SHOWPLAN"
 	}
-	if dialect == "oracle" || dialect == "db2" {
+	if d == dialect.Oracle || d == dialect.DB2 {
 		p.Capabilities.TwoStep = true
 		p.Capabilities.RequiresPlanTable = true
 		p.Capabilities.TransactionPolicy = "ROLLBACK_AUXILIARY_ONLY"
@@ -142,7 +142,7 @@ func (v *Server) executionPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	e.mu.RLock()
-	p := emptyPlan(e.view.Plan.Dialect)
+	p := emptyPlan(dialect.ID(e.view.Plan.Dialect))
 	if e.planResult != nil {
 		copy := *e.planResult
 		p = &copy
@@ -192,13 +192,13 @@ func planAPIError(err error) *APIError {
 // Run on the already locked console. PostgreSQL errors are isolated with a
 // savepoint only when a user transaction is active; no BEGIN/COMMIT is injected.
 func (v *Server) runEstimatedPlan(s *session, c *console, e *execution, command, version string) (err error) {
-	switch s.grant.Config.Dialect {
-	case "sqlserver":
+	switch s.grant.Dialect() {
+	case dialect.SQLServer:
 		return v.runSQLServerPlan(s, c, e, command, version)
-	case "oracle", "db2":
+	case dialect.Oracle, dialect.DB2:
 		return v.runAuxiliaryPlan(s, c, e, command, version)
-	case "dameng":
-		state, probeErr := editTransactionState(e.ctx, c, "dameng")
+	case dialect.Dameng:
+		state, probeErr := editTransactionState(e.ctx, c, dialect.Dameng)
 		if probeErr != nil {
 			return probeErr
 		}
@@ -207,8 +207,8 @@ func (v *Server) runEstimatedPlan(s *session, c *console, e *execution, command,
 		}
 	}
 	var boundary *editBoundary
-	if s.grant.Config.Dialect == "postgresql" {
-		state, probeErr := editTransactionState(e.ctx, c, "postgresql")
+	if s.grant.Dialect() == dialect.PostgreSQL {
+		state, probeErr := editTransactionState(e.ctx, c, dialect.PostgreSQL)
 		if probeErr != nil {
 			return probeErr
 		}
@@ -219,7 +219,7 @@ func (v *Server) runEstimatedPlan(s *session, c *console, e *execution, command,
 			return &APIError{"plan_transaction_unknown", "Cannot verify the console transaction state"}
 		}
 		if state == editTxActive {
-			boundary = &editBoundary{conn: c.conn, dialect: "postgresql", savepoint: "chen_plan_" + newID("")[:16]}
+			boundary = &editBoundary{conn: c.conn, dialect: dialect.PostgreSQL, savepoint: "chen_plan_" + newID("")[:16]}
 			if _, err = c.conn.ExecContext(e.ctx, "SAVEPOINT "+boundary.savepoint); err != nil {
 				return err
 			}
@@ -254,7 +254,7 @@ func (v *Server) runEstimatedPlan(s *session, c *console, e *execution, command,
 			e.mu.Unlock()
 		}
 	}()
-	rows, err := c.conn.QueryContext(executionContext(e.ctx, s.grant.Config.Dialect, e.view.ID), command)
+	rows, err := c.conn.QueryContext(executionContext(e.ctx, s.grant.Dialect(), e.view.ID), command)
 	if err != nil {
 		return err
 	}
@@ -269,15 +269,15 @@ func (v *Server) runEstimatedPlan(s *session, c *console, e *execution, command,
 	if closeErr := rows.Close(); err == nil {
 		err = closeErr
 	}
-	dialect := s.grant.Config.Dialect
-	if err == nil && !hasExtraResults && !result.Truncated && mysqlReturnsOceanBasePlan(dialect, result) {
+	d := s.grant.Dialect()
+	if err == nil && !hasExtraResults && !result.Truncated && mysqlReturnsOceanBasePlan(d, result) {
 		// A MySQL-protocol asset can return a native OceanBase plan. Verify the
 		// product on the same console before choosing its vendor formatter.
 		version, _, _ = sqlservice.OceanBaseMySQLVersion(e.ctx, c.conn)
 	}
 	// readRows has applied the existing masking and per-session row/byte limits.
 	// Retain only the masked plan, never the result's original/edit buffers.
-	p = normalizePlan(dialect, result, version)
+	p = normalizePlan(d, result, version)
 	if hasExtraResults {
 		p.Status = "RAW_ONLY"
 		p.Roots = []*PlanNode{}
@@ -320,13 +320,13 @@ func planPrefix(s string, limit int) string {
 	}
 	return s
 }
-func normalizePlan(dialect string, r *Result, versions ...string) *ExecutionPlan {
-	if mysqlReturnsOceanBasePlan(dialect, r) && len(versions) > 0 {
-		if _, ok := dbdialect.ParseOceanBaseVersion(versions[0]); ok {
-			dialect = "oceanbase-mysql"
+func normalizePlan(d dialect.ID, r *Result, versions ...string) *ExecutionPlan {
+	if mysqlReturnsOceanBasePlan(d, r) && len(versions) > 0 {
+		if _, ok := dialect.ParseOceanBaseVersion(versions[0]); ok {
+			d = dialect.OceanBaseMySQL
 		}
 	}
-	p := emptyPlan(dialect)
+	p := emptyPlan(d)
 	if len(versions) > 0 {
 		p.ServerVersion = planString(versions[0])
 	}
@@ -336,14 +336,14 @@ func normalizePlan(dialect string, r *Result, versions ...string) *ExecutionPlan
 		Rows    [][]any  `json:"rows"`
 	}{r.Columns, r.Rows})
 	p.RawText = string(raw)
-	if (dialect == "postgresql" || dialect == "sqlserver") && len(r.Rows) == 1 && len(r.Rows[0]) == 1 {
+	if (d == dialect.PostgreSQL || d == dialect.SQLServer) && len(r.Rows) == 1 && len(r.Rows[0]) == 1 {
 		p.RawFormat = "JSON"
 		p.RawText = planText(r.Rows[0][0])
 	}
-	if dialect == "sqlserver" {
+	if d == dialect.SQLServer {
 		p.RawFormat = "XML"
 	}
-	if dialect == "clickhouse" || dialect == "oceanbase-mysql" || dialect == "dameng" || dialect == "oceanbase-oracle" {
+	if d == dialect.ClickHouse || d == dialect.OceanBaseMySQL || d == dialect.Dameng || d == dialect.OceanBaseOracle {
 		p.RawFormat = "TEXT"
 		lines := []string{}
 		for _, row := range r.Rows {
@@ -354,7 +354,7 @@ func normalizePlan(dialect string, r *Result, versions ...string) *ExecutionPlan
 			lines = append(lines, strings.Join(cells, "\t"))
 		}
 		p.RawText = strings.Join(lines, "\n")
-		if dialect == "clickhouse" && strings.HasPrefix(strings.TrimSpace(p.RawText), "[") {
+		if d == dialect.ClickHouse && strings.HasPrefix(strings.TrimSpace(p.RawText), "[") {
 			p.RawFormat = "JSON"
 		}
 	}
@@ -374,7 +374,7 @@ func normalizePlan(dialect string, r *Result, versions ...string) *ExecutionPlan
 		p.warn("plan_masked", "The data masking policy changed the plan; only masked raw output is available")
 	case len(r.Rows) == 0:
 		p.warn("plan_empty", "The database returned no plan rows")
-	case dialect == "postgresql":
+	case d == dialect.PostgreSQL:
 		roots, err := parsePostgresPlan(p.RawText)
 		if err != nil {
 			p.warn("plan_parse_failed", err.Error())
@@ -387,7 +387,7 @@ func normalizePlan(dialect string, r *Result, versions ...string) *ExecutionPlan
 			p.Capabilities.EstimatedRows = true
 			p.Capabilities.Predicates = true
 		}
-	case dialect == "mysql":
+	case d == dialect.MySQL:
 		roots, err := parseMySQLPlan(r)
 		if err != nil {
 			p.warn("plan_parse_failed", err.Error())
@@ -399,9 +399,9 @@ func normalizePlan(dialect string, r *Result, versions ...string) *ExecutionPlan
 			p.RawFormatVersion = planString("mysql-classic")
 			p.warn("plan_flat_summary", "Classic EXPLAIN rows are independent facts; parent/child hierarchy and costs are unavailable")
 		}
-	case dialect == "oracle" || dialect == "sqlserver" || dialect == "db2" || dialect == "dameng":
+	case d == dialect.Oracle || d == dialect.SQLServer || d == dialect.DB2 || d == dialect.Dameng:
 		normalizeSessionPlan(p, r)
-	case dialect == "mariadb" || dialect == "oceanbase-mysql" || dialect == "clickhouse" || dialect == "oceanbase-oracle":
+	case d == dialect.MariaDB || d == dialect.OceanBaseMySQL || d == dialect.ClickHouse || d == dialect.OceanBaseOracle:
 		normalizeVendorPlan(p, r)
 	default:
 		p.warn("plan_raw_dialect", "This dialect currently supports estimated raw output only; structured normalization has not been verified")

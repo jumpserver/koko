@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -163,7 +162,7 @@ func (v *Server) browseTable(w http.ResponseWriter, r *http.Request) {
 }
 
 func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req browseRequest) (*browsePlan, error) {
-	d := s.grant.Config.Dialect
+	d := s.grant.Dialect()
 	p := &browsePlan{action: req.Action, sourceResultID: req.SourceResultID}
 	if req.SourceResultID != "" {
 		s.mu.Lock()
@@ -185,7 +184,7 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		p.sourceResultID = req.SourceResultID
 		p.view.Offset = req.Offset
 		p.fetchSize = 0
-		if req.Action == "refresh" && d == "sqlserver" && p.context != "" {
+		if req.Action == "refresh" && d == dialect.SQLServer && p.context != "" {
 			if err := refreshSQLServerBrowseTable(ctx, s, c, p); err != nil {
 				return nil, err
 			}
@@ -208,7 +207,7 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		var scope sqlservice.Context
 		if state := c.initialMySQL; state != nil {
 			scope, p.options, p.context = state.scope, state.options, state.fingerprint
-		} else if d == "mysql" {
+		} else if d == dialect.MySQL {
 			state, err := readMySQLSession(ctx, c.conn)
 			if err == nil {
 				scope, p.options, p.context = state.scope, state.options, state.fingerprint
@@ -234,7 +233,7 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		if err != nil {
 			return nil, err
 		}
-		table, err := sqlservice.LoadBrowseTable(ctx, c.conn, sqlservice.Dialect(d), scope, req.Schema, req.Table)
+		table, err := sqlservice.LoadBrowseTable(ctx, c.conn, d, scope, req.Schema, req.Table)
 		if err != nil {
 			return nil, errors.New("This table is unavailable for authorized browsing; open it as a normal query")
 		}
@@ -256,9 +255,9 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 			// Initial page_size is a preference; legacy browsing retains its cache bound.
 			p.policySQL = "SELECT * FROM " + editQualified(table.Schema, table.Table, d)
 			switch d {
-			case "mariadb", "oceanbase-mysql":
+			case dialect.MariaDB, dialect.OceanBaseMySQL:
 				p.policySQL += " LIMIT " + strconv.Itoa(v.opts.MaxRows+1)
-			case "sqlserver":
+			case dialect.SQLServer:
 				p.policySQL = "SELECT TOP (" + strconv.Itoa(v.opts.MaxRows+1) + ") * FROM " + editQualified(table.Schema, table.Table, d)
 			default:
 				p.policySQL += " FETCH FIRST " + strconv.Itoa(v.opts.MaxRows+1) + " ROWS ONLY"
@@ -309,7 +308,7 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 			}
 		}
 		p.view.Stable = len(p.table.PrimaryKey) > 0
-		if sqlservice.IsOracleDialect(sqlservice.Dialect(d)) {
+		if d.UsesOracleSyntax() {
 			// A binary unique character key need not be unique under the
 			// active NLS/column sort collation (e.g. A/a under BINARY_CI).
 			// Until both collations are verified, keep the real key/order but
@@ -336,11 +335,11 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		p.fullPolicySQL = "SELECT *" + base + policy
 		count := "SELECT COUNT(*)"
 		switch d {
-		case "postgresql":
+		case dialect.PostgreSQL:
 			count = "SELECT pg_catalog.count(*)"
-		case "db2":
+		case dialect.DB2:
 			count = "SELECT SYSIBM.COUNT_BIG(*)"
-		case "sqlserver":
+		case dialect.SQLServer:
 			count = "SELECT COUNT_BIG(*)"
 			// Another console may hold an uncommitted write. Report the lock
 			// before the driver's socket timeout discards this browse connection.
@@ -381,11 +380,11 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 	return p, nil
 }
 
-func validateBrowseWhere(ctx context.Context, c *console, d string, p *browsePlan) error {
+func validateBrowseWhere(ctx context.Context, c *console, d dialect.ID, p *browsePlan) error {
 	if p.view.Where == "" {
 		return nil
 	}
-	if d == "postgresql" {
+	if d == dialect.PostgreSQL {
 		var standard string
 		if err := c.conn.QueryRowContext(ctx, "SHOW standard_conforming_strings").Scan(&standard); err != nil {
 			return err
@@ -394,11 +393,11 @@ func validateBrowseWhere(ctx context.Context, c *console, d string, p *browsePla
 			return errors.New("Handwritten WHERE requires standard_conforming_strings=on; use structured conditions")
 		}
 	}
-	err := sqlservice.ValidateBrowseWhere(sqlservice.Dialect(d), p.view.Where, p.options, p.table.Columns)
+	err := sqlservice.ValidateBrowseWhere(d, p.view.Where, p.options, p.table.Columns)
 	if err == nil {
 		return nil
 	}
-	if replayErr := sqlservice.ValidateBrowseWhereForReexecution(sqlservice.Dialect(d), p.view.Where, p.options, p.table.Columns); replayErr != nil {
+	if replayErr := sqlservice.ValidateBrowseWhereForReexecution(d, p.view.Where, p.options, p.table.Columns); replayErr != nil {
 		return err
 	}
 	p.view.RequiresReexecution = true
@@ -416,7 +415,7 @@ func browseColumn(table sqlservice.EditTable, name string) *sqlservice.EditColum
 	}
 	return nil
 }
-func buildBrowseFilter(d string, table sqlservice.EditTable, f browseFilter, args *[]any, depth int, budget *int) (string, string, error) {
+func buildBrowseFilter(d dialect.ID, table sqlservice.EditTable, f browseFilter, args *[]any, depth int, budget *int) (string, string, error) {
 	*budget--
 	bad := errors.New("Invalid structured filter: use visible columns, bounded AND/OR groups and comparison values")
 	if depth > 8 || *budget < 0 {
@@ -506,7 +505,7 @@ func (v *Server) collectBrowseAppend(s *session, e *execution, rows *sql.Rows) e
 		return err
 	}
 	batch, err := v.readRowsWithMask(s, rows, func(labels []string) []string {
-		return e.resultMaskColumns(s.grant.Config.Dialect, labels)
+		return e.resultMaskColumns(s.grant.Dialect(), labels)
 	}, p)
 	if err != nil {
 		return err
@@ -571,24 +570,15 @@ func (v *Server) collectBrowseAppend(s *session, e *execution, rows *sql.Rows) e
 	return nil
 }
 
-var browseVersionNumber = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(?:[.-]|$)`)
-
 // Keep browse admission independent from informational catalogs and EXPLAIN
 // formats. These families have the required LIMIT/metadata contract; each
 // connection must still supply complete authorized edit metadata.
-func browseVendorVersionSupported(d string, version sqlservice.MySQLServerVersion) bool {
+func browseVendorVersionSupported(d dialect.ID, version sqlservice.MySQLServerVersion) bool {
 	switch d {
-	case "mariadb":
-		if !strings.Contains(strings.ToLower(version.Product), "mariadb") {
-			return false
-		}
-		parts := browseVersionNumber.FindStringSubmatch(strings.TrimPrefix(version.Product, "5.5.5-"))
-		if parts == nil {
-			return false
-		}
-		major, _ := strconv.Atoi(parts[1])
-		return major > 0
-	case "oceanbase-mysql":
+	case dialect.MariaDB:
+		release, suffix, ok := dialect.ParseMariaDBVersion(version.Product)
+		return ok && release.Major > 0 && (suffix == "" || suffix[0] == '.' || suffix[0] == '-')
+	case dialect.OceanBaseMySQL:
 		// Direct VERSION() banners retain their combined MySQL/OceanBase
 		// format gate. A separate product comment can use the release banner.
 		parse := dialect.ParseOceanBaseMySQLBanner
@@ -602,15 +592,15 @@ func browseVendorVersionSupported(d string, version sqlservice.MySQLServerVersio
 	}
 }
 
-func browseVendorContext(ctx context.Context, c *console, d string, options sqlservice.AnalyzeOptions) (version sqlservice.MySQLServerVersion, reason string, err error) {
+func browseVendorContext(ctx context.Context, c *console, d dialect.ID, options sqlservice.AnalyzeOptions) (version sqlservice.MySQLServerVersion, reason string, err error) {
 	switch d {
-	case "postgresql", "mysql", "oracle", "sqlserver", "dameng", "db2", "oceanbase-oracle", "clickhouse":
+	case dialect.PostgreSQL, dialect.MySQL, dialect.Oracle, dialect.SQLServer, dialect.Dameng, dialect.DB2, dialect.OceanBaseOracle, dialect.ClickHouse:
 		return version, "", nil
-	case "mariadb", "oceanbase-mysql":
-		if err = sqlservice.ValidateBrowseSQLMode(sqlservice.Dialect(d), options); err != nil {
+	case dialect.MariaDB, dialect.OceanBaseMySQL:
+		if err = sqlservice.ValidateBrowseSQLMode(d, options); err != nil {
 			return
 		}
-		version, err = sqlservice.ReadMySQLServerVersion(ctx, c.conn, sqlservice.Dialect(d))
+		version, err = sqlservice.ReadMySQLServerVersion(ctx, c.conn, d)
 		if err != nil {
 			if ctx.Err() != nil {
 				return version, "", ctx.Err()
@@ -624,7 +614,7 @@ func browseVendorContext(ctx context.Context, c *console, d string, options sqls
 			// The version comment was unavailable. Preserve cached browsing
 			// after verifying the tenant on this connection.
 		}
-		if d == "oceanbase-mysql" {
+		if d == dialect.OceanBaseMySQL {
 			var mode string
 			if err = c.conn.QueryRowContext(ctx, "SELECT @@ob_compatibility_mode").Scan(&mode); err != nil || !strings.EqualFold(mode, "MYSQL") {
 				return version, "", errors.New("Database browsing requires a verified OceanBase MySQL tenant")

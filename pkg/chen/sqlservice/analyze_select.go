@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlanalysis"
 
 	"github.com/pingcap/tidb/pkg/parser/mysql"
@@ -11,7 +12,7 @@ import (
 
 // analyzeSelectDocument is intentionally stricter than interactive execution.
 // Export and estimated-plan wrappers must not turn a write into a read query.
-func analyzeSelectDocument(d Dialect, document string, options AnalyzeOptions) (Analysis, error) {
+func analyzeSelectDocument(d dialect.ID, document string, options AnalyzeOptions) (Analysis, error) {
 	return scanCommandDocument(d, document, options, func(statement []token) (string, bool, bool, error) {
 		kind, at, err := commandHead(statement)
 		if err != nil {
@@ -55,9 +56,9 @@ func analyzeSelectDocument(d Dialect, document string, options AnalyzeOptions) (
 
 // scanCommandDocument validates lexical boundaries without rewriting SQL. The
 // callback classifies each whole statement before any SQL reaches a connection.
-func scanCommandDocument(d Dialect, document string, options AnalyzeOptions, classify func([]token) (string, bool, bool, error)) (Analysis, error) {
+func scanCommandDocument(d dialect.ID, document string, options AnalyzeOptions, classify func([]token) (string, bool, bool, error)) (Analysis, error) {
 	out := Analysis{Statements: []Statement{}, Syntax: sqlanalysis.Unknown, Compatibility: sqlanalysis.Unknown, Diagnostics: []sqlanalysis.Diagnostic{{Code: sqlanalysis.Unsupported, Message: "Only lexical statement boundaries were checked; dialect syntax requires server validation"}}}
-	if d == Dameng || d == OceanBaseOracle {
+	if d == dialect.Dameng || d == dialect.OceanBaseOracle {
 		out.Diagnostics = append(out.Diagnostics, sqlanalysis.Diagnostic{Code: sqlanalysis.ProductUnknown, Message: "Product version and Oracle compatibility mode have not been verified"})
 	}
 	mode, err := mysql.GetSQLMode(options.MySQLSQLMode)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	pg "github.com/pganalyze/pg_query_go/v6"
 	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
@@ -34,7 +35,7 @@ type QueryPageSQL struct {
 	Types                []string
 	Original             string
 	Ordered              bool
-	Dialect              Dialect
+	Dialect              dialect.ID
 	PositionalAliases    bool
 	HasWindow            bool
 	HasCTE               bool
@@ -45,7 +46,7 @@ type QueryPageSQL struct {
 	DirectTableProjection bool
 }
 
-func AnalyzeQueryPage(d Dialect, document string, options AnalyzeOptions) (*QueryPageSQL, error) {
+func AnalyzeQueryPage(d dialect.ID, document string, options AnalyzeOptions) (*QueryPageSQL, error) {
 	return analyzeQueryPage(d, document, options, false)
 }
 
@@ -77,13 +78,13 @@ func MySQLStarHint(document string) (QueryPageRelation, bool) {
 // functions and other server-resolved sources. It still requires one SELECT
 // with no nested DML, locking, INTO, parameters or executable comments. Callers
 // must obtain confirmation and authorize every generated execution separately.
-func AnalyzeQueryPageForReexecution(d Dialect, document string, options AnalyzeOptions) (*QueryPageSQL, error) {
+func AnalyzeQueryPageForReexecution(d dialect.ID, document string, options AnalyzeOptions) (*QueryPageSQL, error) {
 	return analyzeQueryPage(d, document, options, true)
 }
 
-func analyzeQueryPage(d Dialect, document string, options AnalyzeOptions, reexecute bool) (*QueryPageSQL, error) {
+func analyzeQueryPage(d dialect.ID, document string, options AnalyzeOptions, reexecute bool) (*QueryPageSQL, error) {
 	bad := errors.New("Database paging requires one repeatable SELECT; writes, locks, variables, parameters, executable hints and unverified functions are unsupported")
-	if !IsMySQLDialect(d) && d != PostgreSQL {
+	if !d.UsesMySQLSyntax() && d != dialect.PostgreSQL {
 		return analyzeVendorQueryPage(d, document, options, reexecute)
 	}
 	a, err := AnalyzeWithOptions(d, document, options)
@@ -93,7 +94,7 @@ func analyzeQueryPage(d Dialect, document string, options AnalyzeOptions, reexec
 	if len(a.Statements) != 1 || a.Statements[0].MayWrite || !a.Statements[0].ReturnsRows || (a.Statements[0].Kind != "select" && a.Statements[0].Kind != "setopr") {
 		return nil, bad
 	}
-	p := &QueryPageSQL{Dialect: d, CTEs: map[string]bool{}, PositionalAliases: d == MySQL && options.MySQLVersion >= 80031}
+	p := &QueryPageSQL{Dialect: d, CTEs: map[string]bool{}, PositionalAliases: d == dialect.MySQL && options.MySQLVersion >= 80031}
 	mode, err := mysql.GetSQLMode(options.MySQLSQLMode)
 	if err != nil {
 		return nil, err
@@ -112,7 +113,7 @@ func analyzeQueryPage(d Dialect, document string, options AnalyzeOptions, reexec
 		}
 	}
 	p.Original = strings.TrimSpace(source[:end])
-	if d == PostgreSQL {
+	if d == dialect.PostgreSQL {
 		tree, err := pg.Parse(document)
 		if err != nil {
 			return nil, err
@@ -268,21 +269,21 @@ func (p *QueryPageSQL) Page(offset, size int, columns []string) string {
 		aliases, projection := make([]string, len(columns)), make([]string, len(columns))
 		for i, name := range columns {
 			aliases[i] = fmt.Sprintf("c%d", i)
-			projection[i] = "__chen_query_page." + aliases[i] + " AS " + quoteIdentifier(name, MySQL, '`')
+			projection[i] = "__chen_query_page." + aliases[i] + " AS " + quoteIdentifier(name, dialect.MySQL, '`')
 		}
 		return fmt.Sprintf("SELECT %s FROM (\n%s\n) AS __chen_query_page(%s) LIMIT %d OFFSET %d", strings.Join(projection, ","), p.Original, strings.Join(aliases, ","), size, offset)
 	}
-	if IsMySQLDialect(p.Dialect) {
+	if p.Dialect.UsesMySQLSyntax() {
 		return fmt.Sprintf("SELECT * FROM (\n%s\n) AS __chen_query_page LIMIT %d OFFSET %d", p.Original, size, offset)
 	}
-	if p.Dialect != PostgreSQL {
+	if p.Dialect != dialect.PostgreSQL {
 		return p.vendorPage(offset, size, columns)
 	}
 
 	return fmt.Sprintf("SELECT * FROM (\n%s\n) AS \"__chen_query_page\" LIMIT %d OFFSET %d", p.Original, size, offset)
 }
 func (p *QueryPageSQL) Count(columns int) string {
-	if p.Dialect != PostgreSQL && !IsMySQLDialect(p.Dialect) {
+	if p.Dialect != dialect.PostgreSQL && !p.Dialect.UsesMySQLSyntax() {
 		return p.vendorCount(columns)
 	}
 	aliases := make([]string, columns)
@@ -290,11 +291,11 @@ func (p *QueryPageSQL) Count(columns int) string {
 		aliases[i] = fmt.Sprintf("c%d", i)
 	}
 	suffix := ""
-	if columns > 0 && (p.Dialect == PostgreSQL || p.PositionalAliases) {
+	if columns > 0 && (p.Dialect == dialect.PostgreSQL || p.PositionalAliases) {
 		suffix = "(" + strings.Join(aliases, ",") + ")"
 	}
 	count := "COUNT(*)"
-	if p.Dialect == PostgreSQL {
+	if p.Dialect == dialect.PostgreSQL {
 		count = "pg_catalog.count(*)"
 	}
 	return "SELECT " + count + " FROM (\n" + p.Original + "\n) AS __chen_query_count" + suffix
@@ -320,14 +321,14 @@ func queryPageOperator(op string) bool {
 // output labels. Ordinary execution/cached export still preserves those labels.
 func (p *QueryPageSQL) ValidateColumns(columns []string) error {
 	for _, name := range columns {
-		if p.Dialect == Oracle && strings.ContainsRune(name, '"') {
+		if p.Dialect == dialect.Oracle && strings.ContainsRune(name, '"') {
 			return errors.New("Oracle cannot express a double quote inside an output SQL identifier; use an explicit compatible alias or cached results")
 		}
-		if name == "" && p.Dialect != PostgreSQL && !p.PositionalAliases {
+		if name == "" && p.Dialect != dialect.PostgreSQL && !p.PositionalAliases {
 			return errors.New("This database cannot wrap unnamed output columns without changing their labels; add explicit SQL aliases or keep cached results")
 		}
 	}
-	if p.PositionalAliases || p.Dialect == PostgreSQL || p.Dialect == SQLServer || p.Dialect == DB2 || IsOracleDialect(p.Dialect) {
+	if p.PositionalAliases || p.Dialect == dialect.PostgreSQL || p.Dialect == dialect.SQLServer || p.Dialect == dialect.DB2 || p.Dialect.UsesOracleSyntax() {
 		return nil
 	}
 	seen := map[string]bool{}

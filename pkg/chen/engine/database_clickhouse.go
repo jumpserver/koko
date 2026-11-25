@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
@@ -164,7 +165,7 @@ func (c *clickHouseHTTPConn) QueryContext(ctx context.Context, query string, arg
 	// the catalog's LIMIT 0 capability probe. Use the existing statement
 	// scanner to admit one SELECT, then ask the server to analyze its schema.
 	// DESCRIBE does not execute the SELECT; business SQL is never replayed.
-	analysis, analysisErr := sqlservice.Analyze(sqlservice.ClickHouse, query)
+	analysis, analysisErr := sqlservice.Analyze(dialect.ClickHouse, query)
 	if analysisErr != nil || len(analysis.Statements) != 1 || analysis.Statements[0].Kind != "select" || analysis.Statements[0].MayWrite {
 		return rows, nil
 	}

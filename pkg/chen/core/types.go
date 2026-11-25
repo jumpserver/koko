@@ -9,6 +9,7 @@ import (
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/internal/dbconn"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/lion/gateway"
 	"github.com/jumpserver/koko/pkg/session"
 )
@@ -112,6 +113,11 @@ var (
 	// Returned only before any connection-token exchange has been attempted.
 	ErrControlNotReady = errors.New("session_control_not_ready")
 )
+
+// Dialect returns the SQL dialect supplied by the connection provider.
+func (g *Grant) Dialect() dialect.ID {
+	return dialect.ID(g.Config.Dialect)
+}
 
 // NewGrant starts lifetime accounting before the provider publishes the grant.
 func NewGrant(id string, config ConnectionConfig, permissions Permissions, expiresAt time.Time, maxIdle, maxDuration time.Duration) *Grant {

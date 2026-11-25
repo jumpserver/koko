@@ -11,7 +11,7 @@ func (v *Server) catalogDiagram(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer req.done()
-	data, err := sqlservice.CatalogDiagramRows(req.ctx, req.conn, sqlservice.Dialect(req.session.grant.Config.Dialect), sqlservice.DiagramRequest{
+	data, err := sqlservice.CatalogDiagramRows(req.ctx, req.conn, req.session.grant.Dialect(), sqlservice.DiagramRequest{
 		CatalogObjectRequest: sqlservice.CatalogObjectRequest{Database: req.database, Schema: req.scope.schema, Limit: req.scope.limit, AfterSchema: req.after.AfterSchema, AfterName: req.after.AfterName}, Section: req.scope.section, Direction: req.scope.direction, Table: req.scope.table, AfterTable: req.after.AfterTable, Contract: req.after.DiagramContract, Continuation: req.scope.cursor != ""})
 	if err != nil {
 		v.finishCatalog(w, r, req, 0, err)

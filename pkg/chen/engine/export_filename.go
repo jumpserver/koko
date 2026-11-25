@@ -6,17 +6,18 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
 // Use the result's frozen source, never the console's current selection. Cached
 // results and source-bound exports may be downloaded after switching databases.
-func resultExportPrefix(d string, result *Result) string {
+func resultExportPrefix(d dialect.ID, result *Result) string {
 	return exportSourcePrefix(d, result.browse, result.editSource, result.querySource)
 }
 
 func executionExportPrefix(s *session, e *execution) string {
-	d := s.grant.Config.Dialect
+	d := s.grant.Dialect()
 	if e.queryPage != nil {
 		s.mu.Lock()
 		result := s.results[e.queryPage.sourceResultID]
@@ -29,13 +30,13 @@ func executionExportPrefix(s *session, e *execution) string {
 	return exportSourcePrefix(d, e.browse, nil, e.querySource)
 }
 
-func exportSourcePrefix(d string, browse *editBrowse, source *sqlservice.EditableSource, query *queryPagePlan) string {
+func exportSourcePrefix(d dialect.ID, browse *editBrowse, source *sqlservice.EditableSource, query *queryPagePlan) string {
 	var schema, table string
 	if query != nil {
 		if source == nil {
 			// This existing parser accepts only an unambiguous local table. A
 			// join, expression or unknown source keeps the generic query name.
-			if parsed, err := sqlservice.AnalyzeEditableQuery(sqlservice.Dialect(d), query.original, query.options); err == nil {
+			if parsed, err := sqlservice.AnalyzeEditableQuery(d, query.original, query.options); err == nil {
 				source = &parsed
 			}
 		}
@@ -48,7 +49,7 @@ func exportSourcePrefix(d string, browse *editBrowse, source *sqlservice.Editabl
 		// can resolve later in PostgreSQL's search_path or SQL Server's dbo.
 		schema, table = source.Schema, source.Table
 	}
-	if sqlservice.IsMySQLDialect(sqlservice.Dialect(d)) || d == "clickhouse" {
+	if d.UsesMySQLSyntax() || d == dialect.ClickHouse {
 		schema = "" // These products use the schema field for the database.
 	}
 	table = exportFilenamePart(table)

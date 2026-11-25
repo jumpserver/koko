@@ -16,21 +16,12 @@ func (s Span) ValidFor(sql string) bool {
 	return s.Known && s.Start >= 0 && s.End >= s.Start && s.End <= len(sql)
 }
 
-type Dialect = dialect.ID
-
-const (
-	Oracle          = dialect.Oracle
-	SQLServer       = dialect.SQLServer
-	Dameng          = dialect.Dameng
-	OceanBaseOracle = dialect.OceanBaseOracle
-)
-
 // Profile records the actual product; Oracle-compatible products are not Oracle.
 // Version and Mode are evidence supplied by the caller, not inferred by a parser.
 type Profile struct {
-	Dialect Dialect `json:"dialect"`
-	Version string  `json:"version,omitempty"`
-	Mode    string  `json:"mode,omitempty"`
+	Dialect dialect.ID `json:"dialect"`
+	Version string     `json:"version,omitempty"`
+	Mode    string     `json:"mode,omitempty"`
 }
 type Input struct {
 	SQL     string

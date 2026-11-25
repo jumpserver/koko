@@ -700,7 +700,7 @@ func (v *Server) createConsole(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	db := s.db
 	var owned *sql.DB
-	if s.grant.Config.Dialect == "postgresql" && req.Database != "" && req.Database != s.grant.Config.Database {
+	if s.grant.Dialect() == dialect.PostgreSQL && req.Database != "" && req.Database != s.grant.Config.Database {
 		cfg := s.grant.Config
 		cfg.Database = req.Database
 		var err error
@@ -749,7 +749,7 @@ func (v *Server) createConsole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.workers.Add(1)
-	c.transaction.Store(&TransactionView{Supported: supportsManualTransaction(s.grant.Config.Dialect), State: "idle", Revision: 1, IdleTimeoutSeconds: v.transactionIdleSeconds()})
+	c.transaction.Store(&TransactionView{Supported: supportsManualTransaction(s.grant.Dialect()), State: "idle", Revision: 1, IdleTimeoutSeconds: v.transactionIdleSeconds()})
 	s.consoles[c.id] = c
 	s.mu.Unlock()
 	ok = true

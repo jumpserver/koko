@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
@@ -21,7 +22,7 @@ var editIntegerParts = regexp.MustCompile(`^([+-]?)([0-9]*)(?:\.([0-9]*))?(?:[eE
 
 // Only values are parameters. All identifiers and primary key predicates originate
 // from authenticated result provenance plus the current server catalog.
-func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPreviewRequest) (*editPlan, error) {
+func buildEditPlan(d dialect.ID, cid string, r *Result, x *editResolved, req editPreviewRequest) (*editPlan, error) {
 	if len(req.Changes) == 0 || len(req.Changes) > 500 {
 		return nil, errors.New("A save must contain between 1 and 500 row changes")
 	}
@@ -35,7 +36,7 @@ func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPrev
 		refs[ref] = i
 	}
 	seenRows := map[string]bool{}
-	target := editQualifiedTable(x.table, dialect)
+	target := editQualifiedTable(x.table, d)
 	// Preserve Java's operation order. Deletions can free a primary/unique
 	// key that an insertion in the same save reuses.
 	changes := slices.Clone(req.Changes)
@@ -92,15 +93,15 @@ func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPrev
 			if err != nil {
 				return nil, fmt.Errorf("Column %s: %s", cv.Name, err)
 			}
-			value, err = normalizeTypedEditValue(dialect, field, value)
+			value, err = normalizeTypedEditValue(d, field, value)
 			if err != nil {
 				return nil, fmt.Errorf("Column %s: %s", cv.Name, err)
 			}
-			name := quoteDatabaseIdentifier(field.Name, dialect)
-			cmd.args = append(cmd.args, editDriverBindValue(dialect, field, value))
+			name := quoteDatabaseIdentifier(field.Name, d)
+			cmd.args = append(cmd.args, editDriverBindValue(d, field, value))
 			cmd.argColumns = append(cmd.argColumns, field.Name)
-			placeholder := editTypedExpression(dialect, field, editPlaceholder(dialect, len(cmd.args)))
-			literal := editTypedLiteral(dialect, field, value, false)
+			placeholder := editTypedExpression(d, field, editPlaceholder(d, len(cmd.args)))
+			literal := editTypedLiteral(d, field, value, false)
 			assign = append(assign, name+" = "+placeholder)
 			policyAssign = append(policyAssign, name+" = "+literal)
 			previewAssign = append(previewAssign, name+" = "+literal)
@@ -116,15 +117,15 @@ func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPrev
 				}
 			}
 			if len(indexes) == 0 {
-				switch dialect {
-				case "db2":
+				switch d {
+				case dialect.DB2:
 					// Db2 requires DEFAULT inside VALUES. The required-column
 					// check above proves the primary key can be generated or defaulted.
-					key := quoteDatabaseIdentifier(x.columns[x.pk].Name, dialect)
+					key := quoteDatabaseIdentifier(x.columns[x.pk].Name, d)
 					cmd.sql = "INSERT INTO " + target + " (" + key + ") VALUES (DEFAULT)"
-				case "mysql", "mariadb", "oceanbase-mysql":
+				case dialect.MySQL, dialect.MariaDB, dialect.OceanBaseMySQL:
 					cmd.sql = "INSERT INTO " + target + " () VALUES ()"
-				case "oracle", "dameng", "oceanbase-oracle":
+				case dialect.Oracle, dialect.Dameng, dialect.OceanBaseOracle:
 					return nil, errors.New("Provide at least one writable column for this database")
 				default:
 					cmd.sql = "INSERT INTO " + target + " DEFAULT VALUES"
@@ -139,21 +140,21 @@ func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPrev
 			p.inserts++
 		} else {
 			field := x.columns[x.pk]
-			name := quoteDatabaseIdentifier(field.Name, dialect)
-			value, err := normalizeTypedEditValue(dialect, field, r.original[row][x.pk])
+			name := quoteDatabaseIdentifier(field.Name, d)
+			value, err := normalizeTypedEditValue(d, field, r.original[row][x.pk])
 			if err != nil {
 				return nil, fmt.Errorf("Column %s primary key value: %s", field.Name, err)
 			}
-			cmd.args = append(cmd.args, editDriverBindValue(dialect, field, value))
+			cmd.args = append(cmd.args, editDriverBindValue(d, field, value))
 			cmd.argColumns = append(cmd.argColumns, field.Name)
-			where := editTypedEquality(dialect, field, name, editPlaceholder(dialect, len(cmd.args)))
+			where := editTypedEquality(d, field, name, editPlaceholder(d, len(cmd.args)))
 			policyValue := value
-			if dialect == "oracle" && editOracleJSON(dialect, field) {
+			if d == dialect.Oracle && editOracleJSON(d, field) {
 				policyValue = editASCIIJSON(value.(string))
 			}
-			policyWhere := editTypedEquality(dialect, field, name, editMaskSQL(dialect, policyValue, false))
+			policyWhere := editTypedEquality(d, field, name, editMaskSQL(d, policyValue, false))
 			masked := row < len(r.masked) && x.pk < len(r.masked[row]) && r.masked[row][x.pk]
-			previewWhere := editTypedEquality(dialect, field, name, editMaskSQL(dialect, policyValue, masked))
+			previewWhere := editTypedEquality(d, field, name, editMaskSQL(d, policyValue, masked))
 			if change.Op == "update" {
 				cmd.sql = "UPDATE " + target + " SET " + strings.Join(assign, ", ")
 				cmd.policySQL = "UPDATE " + target + " SET " + strings.Join(policyAssign, ", ")

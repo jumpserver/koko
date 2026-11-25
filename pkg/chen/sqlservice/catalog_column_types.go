@@ -5,18 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 // A display of the catalog's declared type, not a reconstructed DDL claim.
 // Unknown modifiers stay unknown; byte capacity is never substituted for an
 // Oracle character length or a Db2 Unicode declaration's string-unit length.
-func catalogColumnType(d Dialect, native string, length, precision, scale, charLength sql.NullInt64, units sql.NullString) string {
+func catalogColumnType(d dialect.ID, native string, length, precision, scale, charLength sql.NullInt64, units sql.NullString) string {
 	name := strings.TrimSpace(native)
 	kind := strings.ToUpper(name)
 	if strings.Contains(kind, "(") {
 		return name
 	}
-	if IsOracleDialect(d) {
+	if d.UsesOracleSyntax() {
 		switch kind {
 		case "NUMBER", "DECIMAL", "NUMERIC":
 			if precision.Valid && precision.Int64 > 0 && scale.Valid {
@@ -54,7 +56,7 @@ func catalogColumnType(d Dialect, native string, length, precision, scale, charL
 			}
 		}
 	}
-	if d == DB2 {
+	if d == dialect.DB2 {
 		switch kind {
 		case "DECIMAL", "NUMERIC":
 			if length.Valid && length.Int64 > 0 && scale.Valid && scale.Int64 >= 0 {

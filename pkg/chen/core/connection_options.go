@@ -8,6 +8,7 @@ import (
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/internal/dbconn"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 func managedConnectionConfig(token model.ConnectToken) (ConnectionConfig, error) {
@@ -22,14 +23,14 @@ func managedConnectionConfig(token model.ConnectToken) (ConnectionConfig, error)
 		protocol = "oceanbase"
 		tenant, _ = settings["tenant_mode"].(string)
 	}
-	dialect, err := CanonicalDialect(protocol, tenant)
+	d, err := dialect.Parse(protocol, tenant)
 	if err != nil {
 		return ConnectionConfig{}, err
 	}
 	c := dbconn.FromToken(token)
-	c.Dialect = dialect
-	switch dialect {
-	case "clickhouse":
+	c.Dialect = string(d)
+	switch d {
+	case dialect.ClickHouse:
 		if value, configured := settings["transport"]; configured {
 			transport, _ := value.(string)
 			c.Transport = strings.ToLower(strings.TrimSpace(transport))
@@ -46,7 +47,7 @@ func managedConnectionConfig(token model.ConnectToken) (ConnectionConfig, error)
 				c.Transport = "auto"
 			}
 		}
-	case "sqlserver":
+	case dialect.SQLServer:
 		encrypt := true
 		if value, ok := settings["encrypt"]; ok {
 			encrypt, err = strconv.ParseBool(fmt.Sprint(value))

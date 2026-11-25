@@ -8,22 +8,24 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 func normalizeSessionPlan(p *ExecutionPlan, r *Result) {
 	var roots []*PlanNode
 	var err error
-	switch p.Database {
-	case "oracle":
+	switch dialect.ID(p.Database) {
+	case dialect.Oracle:
 		p.RawFormatVersion = planString("oracle-plan-table")
-		roots, err = parseTablePlan(r, "oracle")
-	case "db2":
+		roots, err = parseTablePlan(r, dialect.Oracle)
+	case dialect.DB2:
 		p.RawFormatVersion = planString("db2-luw-explain")
-		roots, err = parseTablePlan(r, "db2")
-	case "sqlserver":
+		roots, err = parseTablePlan(r, dialect.DB2)
+	case dialect.SQLServer:
 		p.RawFormatVersion = planString("sqlserver-showplan-xml")
 		roots, err = parseSQLServerPlan(p.RawText)
-	case "dameng":
+	case dialect.Dameng:
 		p.RawFormatVersion = planString("dm-explain-text")
 		roots, err = parseDamengPlan(p.RawText)
 	}
@@ -132,13 +134,13 @@ func planColumnIndex(r *Result) (map[string]int, error) {
 	}
 	return out, nil
 }
-func parseTablePlan(r *Result, d string) ([]*PlanNode, error) {
+func parseTablePlan(r *Result, d dialect.ID) ([]*PlanNode, error) {
 	cols, err := planColumnIndex(r)
 	if err != nil {
 		return nil, err
 	}
 	idName, opName, costName, rowsName := "ID", "OPERATION", "COST", "CARDINALITY"
-	if d == "db2" {
+	if d == dialect.DB2 {
 		idName, opName, costName, rowsName = "OPERATOR_ID", "OPERATOR_TYPE", "TOTAL_COST", "ESTIMATED_ROWS"
 	}
 	for _, n := range []string{idName, opName, "PARENT_ID"} {
@@ -164,7 +166,7 @@ func parseTablePlan(r *Result, d string) ([]*PlanNode, error) {
 		if _, ok := records[id]; ok {
 			return nil, errors.New("Native plan has duplicate operators or a DAG; inspect raw output")
 		}
-		if d == "oracle" {
+		if d == dialect.Oracle {
 			if options := planText(value("OPTIONS")); options != "" {
 				op += " " + options
 			}
@@ -175,7 +177,7 @@ func parseTablePlan(r *Result, d string) ([]*PlanNode, error) {
 		n.Rows = planNumber(value(rowsName))
 		n.Cost = planNumber(value(costName))
 		n.RowsMeaning = planString("Optimizer estimated rows")
-		if d == "db2" {
+		if d == dialect.DB2 {
 			n.CostMeaning = planString("Db2 optimizer total cost (timerons)")
 		} else {
 			n.CostMeaning = planString("Oracle optimizer cost")

@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
@@ -11,14 +12,14 @@ var errOraclePageName = errors.New("Database paging cannot prove this Oracle bar
 type oraclePageNames struct {
 	ctx      context.Context
 	console  *console
-	dialect  string
+	dialect  dialect.ID
 	schema   string
 	columns  map[string][]string
 	outputs  map[*sqlservice.QueryPageScope][]string
 	visiting map[*sqlservice.QueryPageScope]bool
 }
 
-func validateOracleColumnBindings(ctx context.Context, c *console, d string, scopes []*sqlservice.QueryPageScope) error {
+func validateOracleColumnBindings(ctx context.Context, c *console, d dialect.ID, scopes []*sqlservice.QueryPageScope) error {
 	if len(scopes) > 512 {
 		return errOraclePageName
 	}
@@ -85,7 +86,7 @@ func (r *oraclePageNames) baseColumns(base *sqlservice.QueryPageRelation) ([]str
 	}
 	// The source guard already proved this exact unqualified PUBLIC synonym is
 	// SYS.DUAL and that no local object shadows it. No generic synonym fallback.
-	if len(columns) == 0 && r.dialect == "oracle" && base.Schema == "" && base.Name == "DUAL" {
+	if len(columns) == 0 && r.dialect == dialect.Oracle && base.Schema == "" && base.Name == "DUAL" {
 		columns, err = read("SYS")
 	}
 	if err != nil {

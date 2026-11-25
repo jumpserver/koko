@@ -2,12 +2,14 @@ package sqlservice
 
 import (
 	"fmt"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 // The extra dialects use the same authorized directory as object navigation.
 // Constraints are paged before column pairs, so a composite FK cannot straddle
 // pages. Target identities are NULL when the target is outside that directory.
-func diagramExtraSQL(d Dialect, r DiagramRequest) (catalogQuery, error) {
+func diagramExtraSQL(d dialect.ID, r DiagramRequest) (catalogQuery, error) {
 	b := &catalogBinder{dialect: d}
 	if r.Section == "nodes" {
 		source, err := extraObjectSource(d, b, r.Database)
@@ -30,7 +32,7 @@ func diagramExtraSQL(d Dialect, r DiagramRequest) (catalogQuery, error) {
 	}
 	var source string
 	switch {
-	case d == SQLServer:
+	case d == dialect.SQLServer:
 		source = `SELECT s.name AS source_schema,t.name AS source_table,f.name AS constraint_name,rs.name AS target_schema,rt.name AS target_table,
  CASE WHEN rt.object_id IS NOT NULL THEN 1 ELSE 0 END AS target_visible,k.constraint_column_id AS pair_ordinal,
  (SELECT COUNT(*) FROM sys.foreign_key_columns z WHERE z.constraint_object_id=f.object_id) AS pair_count,sc.name AS source_column,rc.name AS target_column
@@ -39,7 +41,7 @@ func diagramExtraSQL(d Dialect, r DiagramRequest) (catalogQuery, error) {
  LEFT JOIN sys.columns sc ON sc.object_id=t.object_id AND sc.column_id=k.parent_column_id
  LEFT JOIN sys.tables rt ON rt.object_id=f.referenced_object_id LEFT JOIN sys.schemas rs ON rs.schema_id=rt.schema_id
  LEFT JOIN sys.columns rc ON rc.object_id=rt.object_id AND rc.column_id=k.referenced_column_id`
-	case IsOracleDialect(d):
+	case d.UsesOracleSyntax():
 		source = `SELECT f.OWNER AS source_schema,f.TABLE_NAME AS source_table,f.CONSTRAINT_NAME AS constraint_name,
  rt.OWNER AS target_schema,rt.TABLE_NAME AS target_table,CASE WHEN rt.OWNER IS NOT NULL THEN 1 ELSE 0 END AS target_visible,
  k.POSITION AS pair_ordinal,(SELECT COUNT(*) FROM ALL_CONS_COLUMNS z WHERE z.OWNER=f.OWNER AND z.TABLE_NAME=f.TABLE_NAME AND z.CONSTRAINT_NAME=f.CONSTRAINT_NAME) AS pair_count,
@@ -50,7 +52,7 @@ func diagramExtraSQL(d Dialect, r DiagramRequest) (catalogQuery, error) {
  LEFT JOIN ALL_TABLES rt ON rt.OWNER=rf.OWNER AND rt.TABLE_NAME=rf.TABLE_NAME
  LEFT JOIN ALL_CONS_COLUMNS rk ON rk.OWNER=rf.OWNER AND rk.TABLE_NAME=rf.TABLE_NAME AND rk.CONSTRAINT_NAME=rf.CONSTRAINT_NAME AND rk.POSITION=k.POSITION
  WHERE f.CONSTRAINT_TYPE='R'`
-	case d == DB2:
+	case d == dialect.DB2:
 		targetVisible := "rt.TABNAME IS NOT NULL"
 		source = `SELECT RTRIM(f.TABSCHEMA) AS source_schema,RTRIM(f.TABNAME) AS source_table,RTRIM(f.CONSTNAME) AS constraint_name,
  CASE WHEN ` + targetVisible + ` THEN RTRIM(rt.TABSCHEMA) END AS target_schema,CASE WHEN ` + targetVisible + ` THEN RTRIM(rt.TABNAME) END AS target_table,

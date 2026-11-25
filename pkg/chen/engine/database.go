@@ -21,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/jumpserver/koko/internal/dbconn"
 	"github.com/jumpserver/koko/pkg/chen/core"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 func makeTLS(c core.ConnectionConfig) (*tls.Config, error) {
@@ -37,8 +38,8 @@ func (pool databasePool) openDatabase(c core.ConnectionConfig, max int) (*sql.DB
 		return nil, databaseTLSError{err}
 	}
 	var db *sql.DB
-	switch strings.ToLower(c.Dialect) {
-	case "mysql", "mariadb":
+	switch dialect.ID(strings.ToLower(c.Dialect)) {
+	case dialect.MySQL, dialect.MariaDB:
 		connector, e := dbconn.MySQLConnector(c, dbconn.MySQLOptions{
 			TLS: t, ParseTime: false, ClientFoundRows: true,
 			Timeout: 10 * time.Second, ReadTimeout: pool.readTimeout(2 * time.Minute), WriteTimeout: 15 * time.Second,
@@ -47,7 +48,7 @@ func (pool databasePool) openDatabase(c core.ConnectionConfig, max int) (*sql.DB
 			return nil, errors.New("invalid MySQL connection configuration")
 		}
 		db = pool.openConnector(connector, 2*time.Minute)
-	case "postgresql":
+	case dialect.PostgreSQL:
 		if os.Getenv("PGSERVICE") != "" {
 			return nil, errors.New("PGSERVICE cannot override server-managed database connections")
 		}

@@ -6,18 +6,20 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
-func extraDefaultSchema(ctx context.Context, conn *sql.Conn, d Dialect, database string) (string, error) {
+func extraDefaultSchema(ctx context.Context, conn *sql.Conn, d dialect.ID, database string) (string, error) {
 	var query string
 	switch d {
-	case SQLServer:
+	case dialect.SQLServer:
 		query = "SELECT COALESCE(SCHEMA_NAME(), 'dbo')"
-	case DB2:
+	case dialect.DB2:
 		query = "SELECT RTRIM(CURRENT SCHEMA) FROM SYSIBM.SYSDUMMY1"
-	case Oracle, Dameng, OceanBaseOracle:
+	case dialect.Oracle, dialect.Dameng, dialect.OceanBaseOracle:
 		query = "SELECT SYS_CONTEXT('USERENV','CURRENT_SCHEMA') FROM DUAL"
-	case ClickHouse:
+	case dialect.ClickHouse:
 		return database, nil
 	default:
 		return "", ErrUnsupportedDialect
@@ -29,7 +31,7 @@ func extraDefaultSchema(ctx context.Context, conn *sql.Conn, d Dialect, database
 	return schema, nil
 }
 
-func extraMetadata(ctx context.Context, conn *sql.Conn, d Dialect, req MetadataRequest) ([]Relation, error) {
+func extraMetadata(ctx context.Context, conn *sql.Conn, d dialect.ID, req MetadataRequest) ([]Relation, error) {
 	items := []Relation{}
 	if err := validateCatalogInput(conn, d, req.Context.Database, req.Context.Schema, req.Prefix); err != nil {
 		return items, err
@@ -47,11 +49,11 @@ func extraMetadata(ctx context.Context, conn *sql.Conn, d Dialect, req MetadataR
 			return items, err
 		}
 	}
-	if d == ClickHouse && schema != req.Context.Database {
+	if d == dialect.ClickHouse && schema != req.Context.Database {
 		return items, ErrCatalogForbidden
 	}
 	var clickHouse *clickHouseCapabilities
-	if d == ClickHouse {
+	if d == dialect.ClickHouse {
 		var err error
 		clickHouse, err = probeClickHouseCapabilities(ctx, conn, "objects")
 		if err != nil {
@@ -85,7 +87,7 @@ func extraMetadata(ctx context.Context, conn *sql.Conn, d Dialect, req MetadataR
 	return items, rows.Err()
 }
 
-func extraColumns(ctx context.Context, conn *sql.Conn, d Dialect, req ColumnRequest) ([]Column, error) {
+func extraColumns(ctx context.Context, conn *sql.Conn, d dialect.ID, req ColumnRequest) ([]Column, error) {
 	items := []Column{}
 	if err := validateCatalogInput(conn, d, req.Context.Database, req.Schema, req.Table, req.Context.Schema); err != nil {
 		return items, err
@@ -106,13 +108,13 @@ func extraColumns(ctx context.Context, conn *sql.Conn, d Dialect, req ColumnRequ
 			return items, err
 		}
 	}
-	if d == ClickHouse && schema != req.Context.Database {
+	if d == dialect.ClickHouse && schema != req.Context.Database {
 		return items, ErrCatalogForbidden
 	}
 	if err := CatalogObjectAccess(ctx, conn, d, schema, req.Table); err != nil {
 		// SQL Server resolves unqualified tables in the default schema, then
 		// dbo. Explicit schema qualifiers must never take this fallback.
-		if d != SQLServer || req.Schema != "" || schema == "dbo" || !errors.Is(err, ErrCatalogNotFound) {
+		if d != dialect.SQLServer || req.Schema != "" || schema == "dbo" || !errors.Is(err, ErrCatalogNotFound) {
 			return items, err
 		}
 		schema = "dbo"

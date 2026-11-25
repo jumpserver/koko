@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 type editTxState string
@@ -23,9 +24,9 @@ const (
 // Read protocol/driver transaction state while sql.Conn.Raw holds the physical
 // connection. No unsafe pointers or writes to driver internals are used. Private
 // scalar fields are version-pinned and fail closed when their shape changes.
-func editTransactionState(ctx context.Context, c *console, dialect string) (editTxState, error) {
+func editTransactionState(ctx context.Context, c *console, d dialect.ID) (editTxState, error) {
 	state := editTxUnknown
-	if dialect == "sqlserver" {
+	if d == dialect.SQLServer {
 		var count, status, implicit int
 		err := c.conn.QueryRowContext(ctx, "SELECT @@TRANCOUNT, XACT_STATE(), @@OPTIONS & 2").Scan(&count, &status, &implicit)
 		if err != nil {
@@ -45,7 +46,7 @@ func editTransactionState(ctx context.Context, c *console, dialect string) (edit
 		}
 		return state, nil
 	}
-	if dialect == "oracle" {
+	if d == dialect.Oracle {
 		var id sql.NullString
 		// The argument defaults to FALSE. SQL on Oracle 12/19 cannot use the
 		// PL/SQL BOOLEAN literal FALSE as an argument (ORA-00904).
@@ -118,17 +119,18 @@ func editTransactionState(ctx context.Context, c *console, dialect string) (edit
 }
 
 type editBoundary struct {
-	conn               *sql.Conn
-	tx                 *sql.Tx
-	savepoint, dialect string
-	restoreAutoCommit  func()
+	conn              *sql.Conn
+	tx                *sql.Tx
+	savepoint         string
+	dialect           dialect.ID
+	restoreAutoCommit func()
 }
 
 // Server-owned transaction state and the Oracle driver's commit-on-execute
 // flag are independent. Suppress that flag for our savepoint's lifetime so a
 // parameterized DML or cleanup cannot commit the user's outer transaction.
 func (b *editBoundary) preserveOracleTransaction() error {
-	if b.dialect != "oracle" {
+	if b.dialect != dialect.Oracle {
 		return nil
 	}
 	return b.conn.Raw(func(raw any) error {
@@ -158,8 +160,8 @@ func (b *editBoundary) restoreOracleTransaction() {
 	}
 }
 
-func beginEditBoundary(ctx context.Context, c *console, dialect string) (*editBoundary, error) {
-	state, err := editTransactionState(ctx, c, dialect)
+func beginEditBoundary(ctx context.Context, c *console, d dialect.ID) (*editBoundary, error) {
+	state, err := editTransactionState(ctx, c, d)
 	if err == nil && c.manualTx != nil && state != editTxFailed {
 		state = editTxActive
 	}
@@ -172,7 +174,7 @@ func beginEditBoundary(ctx context.Context, c *console, dialect string) (*editBo
 	if state != editTxIdle && state != editTxActive {
 		return nil, editError("transaction_state_unknown", "Transaction state is unknown or manual-commit idle; reconnect before saving")
 	}
-	b := &editBoundary{conn: c.conn, dialect: dialect}
+	b := &editBoundary{conn: c.conn, dialect: d}
 	if state == editTxIdle {
 		b.tx, err = c.conn.BeginTx(context.WithoutCancel(ctx), nil)
 		if err != nil {
@@ -185,10 +187,10 @@ func beginEditBoundary(ctx context.Context, c *console, dialect string) (*editBo
 		return nil, err
 	}
 	command := "SAVEPOINT " + b.savepoint
-	if dialect == "sqlserver" {
+	if d == dialect.SQLServer {
 		command = "SAVE TRANSACTION " + b.savepoint
 	}
-	if dialect == "db2" {
+	if d == dialect.DB2 {
 		command += " ON ROLLBACK RETAIN CURSORS"
 	}
 	if _, err = c.conn.ExecContext(ctx, command); err != nil {
@@ -210,7 +212,7 @@ func (b *editBoundary) finish(ctx context.Context) error {
 	}
 	// OB Oracle follows the vendor Oracle-mode lifecycle without RELEASE.
 	// The enclosing user transaction retains ownership of its savepoints.
-	if b.dialect == "oracle" || b.dialect == "oceanbase-oracle" || b.dialect == "sqlserver" {
+	if b.dialect == dialect.Oracle || b.dialect == dialect.OceanBaseOracle || b.dialect == dialect.SQLServer {
 		return nil
 	}
 	_, err := b.conn.ExecContext(ctx, "RELEASE SAVEPOINT "+b.savepoint)
@@ -222,14 +224,14 @@ func (b *editBoundary) rollback(ctx context.Context) error {
 		return b.tx.Rollback()
 	}
 	q := "ROLLBACK TO SAVEPOINT " + b.savepoint
-	if b.dialect == "oracle" {
+	if b.dialect == dialect.Oracle {
 		q = "ROLLBACK TO " + b.savepoint
 	}
-	if b.dialect == "sqlserver" {
+	if b.dialect == dialect.SQLServer {
 		q = "ROLLBACK TRANSACTION " + b.savepoint
 	}
 	_, err := b.conn.ExecContext(ctx, q)
-	if err == nil && b.dialect != "oracle" && b.dialect != "oceanbase-oracle" && b.dialect != "sqlserver" {
+	if err == nil && b.dialect != dialect.Oracle && b.dialect != dialect.OceanBaseOracle && b.dialect != dialect.SQLServer {
 		_, err = b.conn.ExecContext(ctx, "RELEASE SAVEPOINT "+b.savepoint)
 	}
 	return err

@@ -180,18 +180,17 @@ func (v *Server) queryPage(w http.ResponseWriter, r *http.Request) {
 
 // This snapshot is taken on the same physical connection, under the worker lock.
 // An old result cannot be moved into a new console after reconnect.
-func queryPageContext(ctx context.Context, c *console, d string) (string, error) {
+func queryPageContext(ctx context.Context, c *console, d dialect.ID) (string, error) {
 	fingerprint, _, err := readQueryPageContext(ctx, c, d)
 	return fingerprint, err
 }
 
 // The live database and schema used to resolve an open table are already in
 // the paging settings. Return both from the same read on this console.
-func readQueryPageContext(ctx context.Context, c *console, d string) (string, sqlservice.Context, error) {
+func readQueryPageContext(ctx context.Context, c *console, d dialect.ID) (string, sqlservice.Context, error) {
 	scope := c.context
-	id := dialect.ID(d)
 	var values []string
-	if d == "postgresql" {
+	if d == dialect.PostgreSQL {
 		values = make([]string, 7)
 		err := c.conn.QueryRowContext(ctx, "SELECT pg_catalog.current_database(), pg_catalog.current_schema(), pg_catalog.current_setting('search_path'), pg_catalog.current_setting('standard_conforming_strings'), current_user, pg_catalog.current_setting('TimeZone'), pg_catalog.current_setting('row_security')").Scan(&values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6])
 		if err != nil {
@@ -200,7 +199,7 @@ func readQueryPageContext(ctx context.Context, c *console, d string) (string, sq
 		if values[3] != "on" {
 			return "", scope, errors.New("Database paging requires standard_conforming_strings=on")
 		}
-	} else if !id.UsesMySQLSyntax() {
+	} else if !d.UsesMySQLSyntax() {
 		var err error
 		values, err = vendorQueryPageContext(ctx, c, d)
 		if err != nil {
@@ -214,9 +213,9 @@ func readQueryPageContext(ctx context.Context, c *console, d string) (string, sq
 		}
 	}
 	switch {
-	case id.UsesMySQLSyntax() || id == dialect.ClickHouse:
+	case d.UsesMySQLSyntax() || d == dialect.ClickHouse:
 		scope.Database, scope.Schema = values[0], values[0]
-	case id.UsesOracleSyntax():
+	case d.UsesOracleSyntax():
 		// The configured service alias identifies the database in the catalog.
 		scope.Schema = values[1]
 		if scope.Database == "" {
@@ -224,7 +223,7 @@ func readQueryPageContext(ctx context.Context, c *console, d string) (string, sq
 		}
 	default: // PostgreSQL, SQL Server and Db2 return database, schema first.
 		scope.Database, scope.Schema = values[0], values[1]
-		if d == "sqlserver" && scope.Schema == "" {
+		if d == dialect.SQLServer && scope.Schema == "" {
 			scope.Schema = "dbo"
 		}
 	}
@@ -239,7 +238,7 @@ type resultStarSource struct {
 // Only the original statement uses this column list; a later query page must
 // validate its own result, whose wrapper may explicitly alias old labels.
 func (v *Server) captureQuerySQLSource(s *session, c *console, e *execution, opts sqlservice.AnalyzeOptions, statement sqlservice.Statement, mysqlState *mysqlSessionState, hint *resultStarSource) *resultStarSource {
-	d := sqlservice.Dialect(s.grant.Config.Dialect)
+	d := s.grant.Dialect()
 	statementSQL := statement.SQL
 	editableSource := func() (sqlservice.EditableSource, error) {
 		if statement.Facts != nil && statement.Facts.SourceCandidate {
@@ -259,12 +258,12 @@ func (v *Server) captureQuerySQLSource(s *session, c *console, e *execution, opt
 			return nil
 		}
 		var err error
-		p.context, scope, err = readQueryPageContext(e.ctx, c, string(d))
+		p.context, scope, err = readQueryPageContext(e.ctx, c, d)
 		return err
 	}
 	q, err := sqlservice.AnalyzeQueryPage(d, statementSQL, opts)
-	if err == nil && (s.grant.Config.Dialect == "mariadb" || s.grant.Config.Dialect == "oceanbase-mysql") {
-		_, reason, vendorErr := browseVendorContext(e.ctx, c, s.grant.Config.Dialect, opts)
+	if err == nil && (d == dialect.MariaDB || d == dialect.OceanBaseMySQL) {
+		_, reason, vendorErr := browseVendorContext(e.ctx, c, d, opts)
 		if vendorErr != nil {
 			err = vendorErr
 		} else if reason != "" {
@@ -272,13 +271,13 @@ func (v *Server) captureQuerySQLSource(s *session, c *console, e *execution, opt
 		}
 	}
 	var star *resultStarSource
-	if err == nil && (sqlservice.IsMySQLDialect(d) || d == sqlservice.PostgreSQL) && e.export == nil && len(q.Relations) == 1 && len(q.CTEs) == 0 {
+	if err == nil && (d.UsesMySQLSyntax() || d == dialect.PostgreSQL) && e.export == nil && len(q.Relations) == 1 && len(q.CTEs) == 0 {
 		source, sourceErr := editableSource()
 		if sourceErr == nil && source.Star && source.Schema == q.Relations[0].Schema && source.Table == q.Relations[0].Name {
 			star = &resultStarSource{source: source}
 		}
 	}
-	if star != nil && sqlservice.IsMySQLDialect(d) {
+	if star != nil && d.UsesMySQLSyntax() {
 		source := &star.source
 		if source.Schema == "" && captureContext() == nil {
 			source.Schema = scope.Database
@@ -291,7 +290,7 @@ func (v *Server) captureQuerySQLSource(s *session, c *console, e *execution, opt
 		}
 	}
 	if err == nil && (star == nil || len(star.columns) == 0) {
-		err = validateQueryPageSources(e.ctx, c, string(d), q, star)
+		err = validateQueryPageSources(e.ctx, c, d, q, star)
 	}
 	if err != nil {
 		star = nil
@@ -326,7 +325,7 @@ func (v *Server) captureQuerySQLSource(s *session, c *console, e *execution, opt
 	p.view.Ordered = q.Ordered
 	return star
 }
-func validateQueryPage(ctx context.Context, c *console, d string, p *queryPagePlan, opts sqlservice.AnalyzeOptions, contextVerified bool) error {
+func validateQueryPage(ctx context.Context, c *console, d dialect.ID, p *queryPagePlan, opts sqlservice.AnalyzeOptions, contextVerified bool) error {
 	if p.damengRefreshIdentity != "" {
 		current, err := readPageContextRow(ctx, c, oraclePageIdentity, 6)
 		if err != nil {
@@ -343,14 +342,14 @@ func validateQueryPage(ctx context.Context, c *console, d string, p *queryPagePl
 		return errors.New("Query context changed; run the original SQL again before enabling database paging")
 	}
 	if p.action == "refresh" && !p.view.Supported {
-		_, err := sqlservice.AnalyzeEditableQuery(sqlservice.Dialect(d), p.original, opts)
+		_, err := sqlservice.AnalyzeEditableQuery(d, p.original, opts)
 		return err
 	}
 	if p.view.RequiresReexecution {
 		if !p.reexecutionConfirmed {
 			return errors.New("Explicit query reexecution has not been confirmed")
 		}
-		_, err := sqlservice.AnalyzeQueryPageForReexecution(sqlservice.Dialect(d), p.original, opts)
+		_, err := sqlservice.AnalyzeQueryPageForReexecution(d, p.original, opts)
 		return err
 	}
 	return validateQueryPageSources(ctx, c, d, p.query, nil)
@@ -397,12 +396,11 @@ func queryPageAudit(p *queryPagePlan) string {
 // Replay is restricted to ordinary tables with built-in PostgreSQL types and
 // no RLS. Views/foreign tables can hide arbitrary function calls from the source
 // AST. A CTE name that also resolves to an unsafe table is conservatively denied.
-func validateQueryPageSources(ctx context.Context, c *console, d string, q *sqlservice.QueryPageSQL, star *resultStarSource) error {
+func validateQueryPageSources(ctx context.Context, c *console, d dialect.ID, q *sqlservice.QueryPageSQL, star *resultStarSource) error {
 	if len(q.Relations) > 128 || len(q.Functions) > 128 || len(q.Operators) > 128 || len(q.Types) > 128 {
 		return errors.New("Query paging source inspection exceeds its limit")
 	}
 	var tableQuery string
-	id := dialect.ID(d)
 	seen := map[string]bool{}
 	for _, r := range q.Relations {
 		key := r.Schema + "\x00" + r.Name
@@ -413,36 +411,36 @@ func validateQueryPageSources(ctx context.Context, c *console, d string, q *sqls
 		var safe bool
 		var err error
 		cteName := r.Name
-		if d == "sqlserver" {
+		if d == dialect.SQLServer {
 			cteName = strings.ToLower(cteName)
 		}
-		if d == "postgresql" {
+		if d == dialect.PostgreSQL {
 			safe, err = postgresQueryPageRelation(ctx, c, r, star)
-		} else if d == "mysql" {
+		} else if d == dialect.MySQL {
 			cteName = strings.ToLower(cteName)
 			safe, err = sqlservice.MySQLQueryPageSource(ctx, c.conn, r.Schema, r.Name)
-		} else if d != "mariadb" && d != "oceanbase-mysql" {
+		} else if d != dialect.MariaDB && d != dialect.OceanBaseMySQL {
 			err = vendorQueryPageSource(ctx, c, d, r, &safe, &tableQuery)
 		} else {
 			cteName = strings.ToLower(cteName)
 			query := `SELECT TABLE_TYPE='BASE TABLE' AND ENGINE IN ('InnoDB','MyISAM','MEMORY','Aria') FROM information_schema.TABLES WHERE TABLE_SCHEMA=COALESCE(NULLIF(?,''),DATABASE()) AND TABLE_NAME=?`
-			if d == "mariadb" {
+			if d == dialect.MariaDB {
 				query = strings.Replace(query, "TABLE_TYPE='BASE TABLE'", "TABLE_TYPE IN ('BASE TABLE','SYSTEM VERSIONED')", 1)
 			}
 			err = c.conn.QueryRowContext(ctx, query, r.Schema, r.Name).Scan(&safe)
 		}
-		if errors.Is(err, sql.ErrNoRows) && (id == dialect.PostgreSQL || id.UsesMySQLSyntax()) && r.Schema == "" && q.CTEs[cteName] {
+		if errors.Is(err, sql.ErrNoRows) && (d == dialect.PostgreSQL || d.UsesMySQLSyntax()) && r.Schema == "" && q.CTEs[cteName] {
 			continue
 		}
 		if err != nil || !safe {
 			return errors.New("Database paging requires visible ordinary tables; views, inherited/partitioned or foreign tables, row security and unverified types cannot be safely replayed")
 		}
 	}
-	if id != dialect.PostgreSQL && !id.UsesMySQLSyntax() {
+	if d != dialect.PostgreSQL && !d.UsesMySQLSyntax() {
 		if err := validateVendorQueryFunctions(ctx, c, d, q.Functions); err != nil {
 			return err
 		}
-		if id.UsesOracleSyntax() {
+		if d.UsesOracleSyntax() {
 			if err := validateOracleColumnBindings(ctx, c, d, q.Scopes); err != nil {
 				return err
 			}
@@ -450,7 +448,7 @@ func validateQueryPageSources(ctx context.Context, c *console, d string, q *sqls
 
 	}
 
-	if d == "postgresql" && (len(q.Functions) > 0 || len(q.Operators) > 0 || len(q.Types) > 0) {
+	if d == dialect.PostgreSQL && (len(q.Functions) > 0 || len(q.Operators) > 0 || len(q.Types) > 0) {
 		// All names are interpreted on this connection's current search_path.
 		// Check them in one catalog snapshot, including duplicate references.
 		var function, operator, typ bool

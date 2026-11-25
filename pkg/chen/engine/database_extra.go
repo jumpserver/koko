@@ -13,18 +13,19 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/jumpserver/koko/internal/dbconn"
 	"github.com/jumpserver/koko/pkg/chen/core"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	mssql "github.com/microsoft/go-mssqldb"
 	"github.com/microsoft/go-mssqldb/msdsn"
 )
 
 func (pool databasePool) extraDatabase(c core.ConnectionConfig, t *tls.Config) (*sql.DB, error) {
-	switch c.Dialect {
-	case "oceanbase-mysql", "oceanbase-oracle":
+	switch d := dialect.ID(c.Dialect); d {
+	case dialect.OceanBaseMySQL, dialect.OceanBaseOracle:
 		options := dbconn.MySQLOptions{
-			TLS: t, ParseTime: false, ClientFoundRows: c.Dialect == "oceanbase-mysql",
+			TLS: t, ParseTime: false, ClientFoundRows: d == dialect.OceanBaseMySQL,
 			Timeout: 10 * time.Second, ReadTimeout: pool.readTimeout(2 * time.Minute), WriteTimeout: 15 * time.Second,
 		}
-		if c.Dialect == "oceanbase-oracle" {
+		if d == dialect.OceanBaseOracle {
 			options.Autocommit = "1"
 		}
 		connector, err := dbconn.OceanBaseConnector(c, options)
@@ -32,7 +33,7 @@ func (pool databasePool) extraDatabase(c core.ConnectionConfig, t *tls.Config) (
 			return nil, errors.New("invalid OceanBase connection configuration")
 		}
 		return pool.openConnector(connector, 2*time.Minute), nil
-	case "sqlserver":
+	case dialect.SQLServer:
 		config, err := msdsn.Parse("server=127.0.0.1;user id=chen;database=master;encrypt=disable;connection timeout=10;dial timeout=10")
 		if err != nil {
 			return nil, errors.New("invalid SQL Server connection defaults")
@@ -56,7 +57,7 @@ func (pool databasePool) extraDatabase(c core.ConnectionConfig, t *tls.Config) (
 			connector.Dialer = catalogDialer{dial: dialer.DialContext, writeTimeout: loginTimeout}
 		}
 		return pool.openConnector(connector, loginTimeout), nil
-	case "clickhouse":
+	case dialect.ClickHouse:
 		protocol := clickhouse.Native
 		if c.Transport == "http" || c.Transport == "" && (c.Port == 8123 || c.Port == 8443) {
 			protocol = clickhouse.HTTP
@@ -79,7 +80,7 @@ func (pool databasePool) extraDatabase(c core.ConnectionConfig, t *tls.Config) (
 			return pool.openConnector(catalogClickHouseNative(*options), options.DialTimeout), nil
 		}
 		return clickhouse.OpenDB(options), nil
-	case "oracle":
+	case dialect.Oracle:
 		options := oracleConnectionOptions(c)
 		if pool == catalogPool {
 			options["TIMEOUT"] = "0" // go-ora couples read and write timeouts.
@@ -96,7 +97,7 @@ func (pool databasePool) extraDatabase(c core.ConnectionConfig, t *tls.Config) (
 			return pool.openConnector(catalogOracleConnector{connector}, 2*time.Minute), nil
 		}
 		return sql.OpenDB(connector), nil
-	case "dameng":
+	case dialect.Dameng:
 		if t != nil {
 			return nil, errors.New("Dameng TLS requires a configured vendor certificate directory; TLS cannot be silently disabled")
 		}
@@ -113,28 +114,28 @@ func (pool databasePool) extraDatabase(c core.ConnectionConfig, t *tls.Config) (
 		dsn := "dm://" + c.User + ":" + c.Password + "@" + net.JoinHostPort(c.Host, strconv.Itoa(c.Port)) + "?connectTimeout=10000&socketTimeout=120&doSwitch=0&logLevel=off&lobMode=1&dialName=" + dialName
 		return pool.openDameng(dsn)
 
-	case "db2":
+	case dialect.DB2:
 		return pool.openDB2(c, t)
 	default:
 		return nil, errors.New("unsupported database protocol")
 	}
 }
 
-func quoteDatabaseIdentifier(name, dialect string) string {
+func quoteDatabaseIdentifier(name string, d dialect.ID) string {
 	switch {
-	case dialect == "clickhouse":
+	case d == dialect.ClickHouse:
 		return "`" + strings.ReplaceAll(strings.ReplaceAll(name, "\\", "\\\\"), "`", "``") + "`"
-	case core.IsMySQLDialect(dialect):
+	case d.UsesMySQLSyntax():
 		return "`" + strings.ReplaceAll(name, "`", "``") + "`"
-	case dialect == "sqlserver":
+	case d == dialect.SQLServer:
 		return "[" + strings.ReplaceAll(name, "]", "]]") + "]"
 	default:
 		return "\"" + strings.ReplaceAll(name, "\"", "\"\"") + "\""
 	}
 }
 
-func unsupportedContext(dialect string) error {
-	return fmt.Errorf("changing database context is not supported for %s; open a configured selector", dialect)
+func unsupportedContext(d dialect.ID) error {
+	return fmt.Errorf("changing database context is not supported for %s; open a configured selector", d)
 }
 
 func oracleConnectionOptions(c core.ConnectionConfig) map[string]string {

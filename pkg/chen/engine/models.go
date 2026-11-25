@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jumpserver/koko/pkg/chen/core"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlanalysis"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
@@ -265,11 +266,12 @@ func (s *session) viewLocked() SessionView {
 		reason = err.Error()
 	}
 	p := s.grant.Permissions
+	d := s.grant.Dialect()
 	mode := ""
-	if s.grant.Config.Dialect == "dameng" || s.grant.Config.Dialect == "db2" {
+	if d == dialect.Dameng || d == dialect.DB2 {
 		mode = "connection"
 	}
-	return SessionView{s.id, s.grant.Config.Dialect, s.grant.AssetName, s.grant.AccountName, Permissions{p.Copy, p.Paste, p.Upload, p.Download}, s.grant.ExpiresAt, state, supportsActiveCancellation(s.grant.Config.Dialect), reason, mode}
+	return SessionView{s.id, string(d), s.grant.AssetName, s.grant.AccountName, Permissions{p.Copy, p.Paste, p.Upload, p.Download}, s.grant.ExpiresAt, state, supportsActiveCancellation(d), reason, mode}
 }
 func (s *session) emit(kind string, data any) {
 	s.mu.Lock()

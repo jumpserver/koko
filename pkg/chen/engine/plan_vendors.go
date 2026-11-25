@@ -6,65 +6,52 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
-var planVersionNumber = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)`)
-
-func mysqlReturnsOceanBasePlan(dialect string, r *Result) bool {
-	return dialect == "mysql" && len(r.Columns) == 1 && strings.EqualFold(r.Columns[0].Name, "Query Plan")
+func mysqlReturnsOceanBasePlan(d dialect.ID, r *Result) bool {
+	return d == dialect.MySQL && len(r.Columns) == 1 && strings.EqualFold(r.Columns[0].Name, "Query Plan")
 }
 
 // These are format compatibility families, not a claim of live testing every
 // release. New families must provide versioned output evidence before admission.
-func supportedPlanVersion(d, version string) bool {
+func supportedPlanVersion(d dialect.ID, version string) bool {
 	switch d {
-	case "mariadb":
-		if !strings.Contains(strings.ToLower(version), "mariadb") {
-			return false
-		}
-		version = strings.TrimPrefix(version, "5.5.5-")
-	case "oceanbase-mysql", "oceanbase-oracle":
+	case dialect.MariaDB:
+		v, _, ok := dialect.ParseMariaDBVersion(version)
+		return ok && (v.Major == 10 && v.Minor == 11 || v.Major == 11 && v.Minor <= 8)
+	case dialect.OceanBaseMySQL, dialect.OceanBaseOracle:
 		v, ok := dialect.ParseOceanBaseVersion(version)
-		return ok && v.Major == 4 && (v.Minor == 2 || v.Minor == 3 || d == "oceanbase-mysql" && v.Minor == 4)
-	}
-	match := planVersionNumber.FindStringSubmatch(version)
-	if len(match) != 4 {
-		return false
-	}
-	major, _ := strconv.Atoi(match[1])
-	minor, _ := strconv.Atoi(match[2])
-	switch d {
-	case "mariadb":
-		return major == 10 && minor == 11 || major == 11 && minor <= 8
-	case "clickhouse":
-		return major == 21 && minor >= 6 || major >= 22 && major <= 26
+		return ok && v.Major == 4 && (v.Minor == 2 || v.Minor == 3 || d == dialect.OceanBaseMySQL && v.Minor == 4)
+	case dialect.ClickHouse:
+		v, _, ok := dialect.ParseNumericVersion(version)
+		return ok && (v.Major == 21 && v.Minor >= 6 || v.Major >= 22 && v.Major <= 26)
 	}
 	return false
 }
 
 func normalizeVendorPlan(p *ExecutionPlan, r *Result) {
-	if p.ServerVersion == nil || !supportedPlanVersion(p.Database, *p.ServerVersion) {
+	d := dialect.ID(p.Database)
+	if p.ServerVersion == nil || !supportedPlanVersion(d, *p.ServerVersion) {
 		p.warn("plan_version_unverified", "Server product/version is outside the verified plan format families; inspect the raw output")
 		return
 	}
 	var roots []*PlanNode
 	var err error
-	switch p.Database {
-	case "mariadb":
+	switch d {
+	case dialect.MariaDB:
 		p.RawFormatVersion = planString("mariadb-classic")
 		roots, err = parseMariaDBPlan(r)
-	case "oceanbase-mysql", "oceanbase-oracle":
+	case dialect.OceanBaseMySQL, dialect.OceanBaseOracle:
 		p.RawFormatVersion = planString("oceanbase-explain-text")
 		if !planSingleTextColumn(r, "Query Plan") {
 			err = errors.New("Expected OceanBase Query Plan text")
 		} else {
 			roots, err = parseOceanBasePlan(p.RawText)
 		}
-	case "clickhouse":
+	case dialect.ClickHouse:
 		p.RawFormatVersion = planString("clickhouse-plan-json")
 		if !planSingleTextColumn(r, "explain") || len(r.Rows) != 1 {
 			err = errors.New("Expected one ClickHouse PLAN JSON row")
@@ -78,7 +65,7 @@ func normalizeVendorPlan(p *ExecutionPlan, r *Result) {
 	}
 	p.Roots, p.Status = roots, "SUCCESS"
 	p.Capabilities.Structured = true
-	p.Capabilities.Hierarchy = p.Database != "mariadb"
+	p.Capabilities.Hierarchy = d != dialect.MariaDB
 	var facts func([]*PlanNode)
 	facts = func(nodes []*PlanNode) {
 		for _, n := range nodes {
@@ -89,7 +76,7 @@ func normalizeVendorPlan(p *ExecutionPlan, r *Result) {
 		}
 	}
 	facts(roots)
-	if p.Database == "mariadb" {
+	if d == dialect.MariaDB {
 		p.warn("plan_flat_summary", "MariaDB classic rows are independent facts; parent/child hierarchy and costs are unavailable")
 	}
 }

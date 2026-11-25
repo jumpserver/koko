@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
@@ -41,11 +42,11 @@ func (v *Server) copyResultSQL(w http.ResponseWriter, req *http.Request) {
 		fail(w, 400, "invalid_copy_selection", err.Error())
 		return
 	}
-	dialect := s.grant.Config.Dialect
-	switch dialect {
-	case "postgresql", "mysql", "mariadb", "oceanbase-mysql", "sqlserver", "oracle", "dameng", "oceanbase-oracle", "db2", "clickhouse":
+	d := s.grant.Dialect()
+	switch d {
+	case dialect.PostgreSQL, dialect.MySQL, dialect.MariaDB, dialect.OceanBaseMySQL, dialect.SQLServer, dialect.Oracle, dialect.Dameng, dialect.OceanBaseOracle, dialect.DB2, dialect.ClickHouse:
 	default:
-		fail(w, 409, "copy_sql_unavailable", "SQL copying is not supported for dialect "+dialect+"; a separate literal codec is required")
+		fail(w, 409, "copy_sql_unavailable", "SQL copying is not supported for dialect "+string(d)+"; a separate literal codec is required")
 		return
 	}
 	if v.auditCatalog(ctx, s, c, "copy-"+input.Operation+"-sql") != nil {
@@ -63,7 +64,7 @@ func (v *Server) copyResultSQL(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if input.Operation == "insert" {
-		if dialect == "postgresql" {
+		if d == dialect.PostgreSQL {
 			// Column grants can hide required columns from the visible catalog.
 			// Count physical user columns without returning hidden names/values.
 			var count int
@@ -73,7 +74,7 @@ func (v *Server) copyResultSQL(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 		}
-		if (sqlservice.IsMySQLDialect(sqlservice.Dialect(dialect)) || dialect == "dameng" || dialect == "oceanbase-oracle") && result.browse == nil && (result.editSource == nil || !result.editSource.Star) {
+		if (d.UsesMySQLSyntax() || d == dialect.Dameng || d == dialect.OceanBaseOracle) && result.browse == nil && (result.editSource == nil || !result.editSource.Star) {
 			if err := v.confirmCopyInsertColumns(ctx, s, c, x.table); err != nil {
 				fail(w, 409, "copy_sql_unavailable", err.Error())
 				return
@@ -87,7 +88,7 @@ func (v *Server) copyResultSQL(w http.ResponseWriter, req *http.Request) {
 		if index < 0 || index >= len(x.columns) || row < 0 || row >= len(result.Rows) || len(result.original[row]) != len(x.columns) || row >= len(result.masked) || len(result.masked[row]) != len(x.columns) {
 			return errors.New("The selected cached cells are unavailable; refresh first")
 		}
-		if dialect == "oceanbase-oracle" && copyTypeName(x.columns[index].DataType) == "raw" && result.original[row][index] != nil && !binaryResultType(result.Columns[index].DataType) {
+		if d == dialect.OceanBaseOracle && copyTypeName(x.columns[index].DataType) == "raw" && result.original[row][index] != nil && !binaryResultType(result.Columns[index].DataType) {
 			return fmt.Errorf("Column %s lacks a reliable binary wire type for OB Oracle RAW copying", result.Columns[index].Name)
 		}
 		if row < len(result.copyLossy) && index < len(result.copyLossy[row]) && result.copyLossy[row][index] {
@@ -122,12 +123,12 @@ func (v *Server) copyResultSQL(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 	}
-	output, err := buildCopiedSQL(dialect, result, x, input)
+	output, err := buildCopiedSQL(d, result, x, input)
 	if err != nil {
 		fail(w, 409, "copy_sql_unavailable", err.Error())
 		return
 	}
-	if dialect == "dameng" || dialect == "oceanbase-oracle" {
+	if d == dialect.Dameng || d == dialect.OceanBaseOracle {
 		if err := v.confirmCopyCharacterLiterals(ctx, s, c, result, x, input, checked); err != nil {
 			fail(w, 409, "copy_sql_unavailable", err.Error())
 			return
@@ -149,7 +150,7 @@ func (v *Server) copyResultSQL(w http.ResponseWriter, req *http.Request) {
 // This is verification, not a fallback
 // source/metadata discovery path, and never supplies values to the generated SQL.
 func (v *Server) confirmCopyInsertColumns(ctx context.Context, s *session, c *console, table sqlservice.EditTable) error {
-	query := "SELECT * FROM " + editQualifiedTable(table, s.grant.Config.Dialect) + " WHERE 1=0"
+	query := "SELECT * FROM " + editQualifiedTable(table, s.grant.Dialect()) + " WHERE 1=0"
 	if err := v.provider.Authorize(ctx, s.grant, query); err != nil {
 		return errors.New("Complete INSERT column metadata cannot be confirmed because the metadata query is not authorized")
 	}
@@ -163,7 +164,7 @@ func (v *Server) confirmCopyInsertColumns(ctx context.Context, s *session, c *co
 		return errors.New("Table column metadata changed or is incomplete; refresh before copying INSERT SQL")
 	}
 	for i, name := range columns {
-		if name != table.Columns[i].Name && !(sqlservice.IsMySQLDialect(sqlservice.Dialect(s.grant.Config.Dialect)) && strings.EqualFold(name, table.Columns[i].Name)) {
+		if name != table.Columns[i].Name && !(s.grant.Dialect().UsesMySQLSyntax() && strings.EqualFold(name, table.Columns[i].Name)) {
 			return errors.New("Table column metadata changed or is incomplete; refresh before copying INSERT SQL")
 		}
 	}
@@ -180,8 +181,8 @@ func (v *Server) confirmCopyInsertColumns(ctx context.Context, s *session, c *co
 // sent back to the database. Empty-string and Unicode behavior are confirmed
 // for DM and OB Oracle independently of the native Oracle codec.
 func (v *Server) confirmCopyCharacterLiterals(ctx context.Context, s *session, c *console, r *Result, x *editResolved, req copySQLRequest, checked map[int]bool) error {
-	dialect, product := s.grant.Config.Dialect, "DM"
-	if dialect == "oceanbase-oracle" {
+	d, product := s.grant.Dialect(), "DM"
+	if d == dialect.OceanBaseOracle {
 		product = "OB Oracle"
 	}
 	needed, empty, supplementary := false, false, false
@@ -190,7 +191,7 @@ func (v *Server) confirmCopyCharacterLiterals(ctx context.Context, s *session, c
 			switch copyTypeName(x.columns[index].DataType) {
 			case "char", "varchar", "varchar2":
 			case "nchar", "nvarchar2":
-				if dialect != "oceanbase-oracle" {
+				if d != dialect.OceanBaseOracle {
 					continue
 				}
 			default:
@@ -214,7 +215,7 @@ func (v *Server) confirmCopyCharacterLiterals(ctx context.Context, s *session, c
 	if supplementary {
 		sample += "😀"
 	}
-	literal, err := copyTextLiteral(dialect, sample)
+	literal, err := copyTextLiteral(d, sample)
 	if err != nil {
 		return err
 	}
@@ -254,7 +255,7 @@ func validateCopySelection(req copySQLRequest) error {
 	}
 	return nil
 }
-func buildCopiedSQL(dialect string, r *Result, x *editResolved, req copySQLRequest) (copiedSQL, error) {
+func buildCopiedSQL(d dialect.ID, r *Result, x *editResolved, req copySQLRequest) (copiedSQL, error) {
 	out := copiedSQL{RowCount: len(req.Rows), Notes: []string{}}
 	if err := validateCopySelection(req); err != nil {
 		return out, err
@@ -318,7 +319,7 @@ func buildCopiedSQL(dialect string, r *Result, x *editResolved, req copySQLReque
 			keys = append(keys, found)
 		}
 	}
-	target := editQualifiedTable(x.table, dialect)
+	target := editQualifiedTable(x.table, d)
 	var sql strings.Builder
 	for _, row := range req.Rows {
 		if row >= len(r.original) || len(r.original[row]) != len(x.columns) {
@@ -328,7 +329,7 @@ func buildCopiedSQL(dialect string, r *Result, x *editResolved, req copySQLReque
 		names := []string{}
 		assignments := []string{}
 		literal := func(index int) (string, error) {
-			text, err := copySQLLiteral(dialect, x.columns[index].DataType, r.original[row][index])
+			text, err := copySQLLiteral(d, x.columns[index].DataType, r.original[row][index])
 			if err != nil {
 				return "", fmt.Errorf("Row %d, column %s: %w", row+1, x.columns[index].Name, err)
 			}
@@ -342,7 +343,7 @@ func buildCopiedSQL(dialect string, r *Result, x *editResolved, req copySQLReque
 			if err != nil {
 				return out, err
 			}
-			name := quoteDatabaseIdentifier(x.columns[index].Name, dialect)
+			name := quoteDatabaseIdentifier(x.columns[index].Name, d)
 			names = append(names, name)
 			values = append(values, value)
 			assignments = append(assignments, name+" = "+value)
@@ -360,7 +361,7 @@ func buildCopiedSQL(dialect string, r *Result, x *editResolved, req copySQLReque
 				if err != nil {
 					return out, err
 				}
-				where = append(where, quoteDatabaseIdentifier(x.columns[index].Name, dialect)+" = "+value)
+				where = append(where, quoteDatabaseIdentifier(x.columns[index].Name, d)+" = "+value)
 			}
 			// Never emit an UPDATE unless every key was found and serialized.
 			if len(where) == 0 || len(where) != len(x.table.PrimaryKey) {

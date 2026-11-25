@@ -20,6 +20,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jumpserver/koko/pkg/chen/core"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
@@ -81,7 +82,7 @@ func (v *Server) cancelExecutionWithResponse(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, 202, response(e.snapshot()))
 		return
 	}
-	if !supportsActiveCancellation(s.grant.Config.Dialect) && e.view.Status != "queued" && e.view.Status != "waiting_review" {
+	if !supportsActiveCancellation(s.grant.Dialect()) && e.view.Status != "queued" && e.view.Status != "waiting_review" {
 		e.mu.Unlock()
 		fail(w, 409, "cancel_unsupported", "The installed database driver cannot cancel an active query")
 		return
@@ -94,7 +95,7 @@ func (v *Server) cancelExecutionWithResponse(w http.ResponseWriter, r *http.Requ
 	e.cancelRequested.Store(true)
 	e.view.Status = "cancel_requested"
 	e.view.Revision++
-	if e.databaseDone != nil && c != nil && s.db != nil && supportsBackendInterrupt(s.grant.Config.Dialect) {
+	if e.databaseDone != nil && c != nil && s.db != nil && supportsBackendInterrupt(s.grant.Dialect()) {
 		go interruptDatabaseWork(s, c, e, e.databaseDone)
 	} else {
 		e.cancel()
@@ -158,7 +159,7 @@ func interruptExecutionBackend(s *session, c *console, e *execution) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := cancelBackend(ctx, s, c, e); err != nil {
-		slog.Warn("database_interrupt_failed", "dialect", s.grant.Config.Dialect, "execution", e.view.ID, "error", err)
+		slog.Warn("database_interrupt_failed", "dialect", s.grant.Dialect(), "execution", e.view.ID, "error", err)
 	}
 }
 
@@ -171,12 +172,13 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		defer func() { <-v.exportSlots }()
 	}
 	c.mu.Lock()
+	d := s.grant.Dialect()
 	initialMySQL := c.initialMySQL
 	c.initialMySQL = nil
 	userSQLStarted := false
 	preflightStartedTransaction := false
 	var db2CancelCheckpoint uint64
-	if s.grant.Config.Dialect == "db2" {
+	if d == dialect.DB2 {
 		db2CancelCheckpoint = db2CancellationCheckpoint(c)
 	}
 	// A canceled mysql driver context closes the client TCP connection; that
@@ -186,7 +188,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	databaseCancelDone := make(chan struct{})
 	stopDatabaseCancel := context.AfterFunc(e.ctx, func() {
 		defer close(databaseCancelDone)
-		if (!core.IsMySQLWire(s.grant.Config.Dialect) && s.grant.Config.Dialect != "clickhouse") || !databaseTouched.Load() || e.cancelRequested.Load() {
+		if (!d.UsesMySQLWire() && d != dialect.ClickHouse) || !databaseTouched.Load() || e.cancelRequested.Load() {
 			return
 		}
 		interruptExecutionBackend(s, c, e)
@@ -256,7 +258,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			audit.Output += queryPageAudit(e.queryPage)
 		}
 		if view.Plan != nil {
-			audit.Output += fmt.Sprintf(" plan_mode=%s generated_sql=%q auxiliary_sql=%q", view.Plan.Mode, e.planSQL, planAuthorizationSQL(s.grant.Config.Dialect, e.planSQL))
+			audit.Output += fmt.Sprintf(" plan_mode=%s generated_sql=%q auxiliary_sql=%q", view.Plan.Mode, e.planSQL, planAuthorizationSQL(d, e.planSQL))
 		}
 		if e.export != nil {
 			out := e.export.snapshot()
@@ -313,7 +315,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			api = safeDatabaseError(err)
 		}
 		runErr = err
-		if s.grant.Config.Dialect == "db2" && db2CancellationAcknowledged(c, db2CancelCheckpoint) {
+		if d == dialect.DB2 && db2CancellationAcknowledged(c, db2CancelCheckpoint) {
 			confirmedCancel = true
 		}
 		var maskedDiagnostic bool
@@ -381,7 +383,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				x.Transaction.TransactionView = *current
 			}
 		})
-		if (s.grant.Config.Dialect == "dameng" || s.grant.Config.Dialect == "db2") && databaseTouched.Load() && (e.ctx.Err() != nil || e.cancelRequested.Load() || confirmedCancel) {
+		if (d == dialect.Dameng || d == dialect.DB2) && databaseTouched.Load() && (e.ctx.Err() != nil || e.cancelRequested.Load() || confirmedCancel) {
 			invalidateEditConnection(s, c)
 		}
 	}
@@ -425,13 +427,12 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		failure(err, safeDatabaseError(err))
 		return
 	}
-	if core.IsMySQLWire(s.grant.Config.Dialect) {
+	if d.UsesMySQLWire() {
 		databaseTouched.Store(true)
 	}
-	dialect := s.grant.Config.Dialect
 	var mysqlState *mysqlSessionState
 	var mysqlHint *resultStarSource
-	if dialect == "mysql" && initialMySQL == nil && e.browse == nil && e.queryPage == nil && e.planMode == "" && e.export == nil {
+	if d == dialect.MySQL && initialMySQL == nil && e.browse == nil && e.queryPage == nil && e.planMode == "" && e.export == nil {
 		if target, ok := sqlservice.MySQLStarHint(e.sql); ok {
 			state, hint, err := readMySQLStarSession(e.ctx, c.conn, target)
 			if err == nil {
@@ -440,8 +441,8 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 	}
 	readOptions := func() (sqlservice.AnalyzeOptions, error) {
-		if dialect != "mysql" {
-			return liveOptions(e.ctx, c, dialect)
+		if d != dialect.MySQL {
+			return liveOptions(e.ctx, c, d)
 		}
 		if initialMySQL != nil {
 			mysqlState, initialMySQL = initialMySQL, nil
@@ -455,7 +456,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			// Some compatible servers support SQL mode but not every paging
 			// variable. Ordinary SQL can still run without replay metadata.
 			mysqlState = nil
-			return liveOptions(e.ctx, c, dialect)
+			return liveOptions(e.ctx, c, d)
 		}
 		mysqlState = &state
 		return state.options, nil
@@ -472,7 +473,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		sourceContext = e.browse.plan.context
 	}
 	if sourceContext != "" && (mysqlState == nil || mysqlState.fingerprint != sourceContext) {
-		guard, err := prepareSourceReadContext(e.ctx, c, s.grant.Config.Dialect, sourceContext)
+		guard, err := prepareSourceReadContext(e.ctx, c, d, sourceContext)
 		if err != nil {
 			failure(err, sourceContextError(err))
 			return
@@ -481,7 +482,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			// PostgreSQL LOCAL settings must live inside the eventual manual
 			// transaction. Otherwise a later rollback could undo restoration
 			// and leave the connection in the result's old search_path.
-			if s.grant.Config.Dialect == "postgresql" && c.manual {
+			if d == dialect.PostgreSQL && c.manual {
 				wasIdle := c.manualTx == nil
 				if err := v.beginManualTransaction(s, c, e); err != nil {
 					failure(err, safeDatabaseError(err))
@@ -509,7 +510,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		p := e.browse.plan
 		contextMatches := sourceContext != ""
 		if !contextMatches {
-			scope, scopeErr := liveContext(e.ctx, c, s.grant.Config.Dialect)
+			scope, scopeErr := liveContext(e.ctx, c, d)
 			contextMatches = scopeErr == nil && scope.Database == p.view.Database
 		}
 		if !contextMatches || (p.view.Supported && opts != p.options) {
@@ -517,18 +518,18 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			return
 		}
 		if p.view.Supported && p.view.ServerVersion != "" {
-			version, reason, err := browseVendorContext(e.ctx, c, s.grant.Config.Dialect, opts)
+			version, reason, err := browseVendorContext(e.ctx, c, d, opts)
 			if err != nil || reason != "" || version != p.serverVersion {
 				failure(errors.New("browse_context_changed"), &APIError{"browse_context_changed", "Server capabilities changed; reopen this table"})
 				return
 			}
 		}
-		isView, kindErr := sqlservice.BrowseRelationIsView(e.ctx, c.conn, sqlservice.Dialect(s.grant.Config.Dialect), sqlservice.CatalogColumnRequest{Schema: p.view.Schema, Table: p.view.Table})
+		isView, kindErr := sqlservice.BrowseRelationIsView(e.ctx, c.conn, d, sqlservice.CatalogColumnRequest{Schema: p.view.Schema, Table: p.view.Table})
 		if kindErr != nil || isView != p.table.View || (isView && !p.reexecutionConfirmed) {
 			failure(errors.New("browse_source_changed"), &APIError{"browse_source_changed", "The table or view changed; reopen it before browsing"})
 			return
 		}
-		if err := validateBrowseWhere(e.ctx, c, s.grant.Config.Dialect, p); err != nil {
+		if err := validateBrowseWhere(e.ctx, c, d, p); err != nil {
 			failure(err, &APIError{"invalid_browse", err.Error()})
 			return
 		}
@@ -541,7 +542,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		runSQL, browseArgs = p.sql, p.args
 	}
 	if e.planMode != "" {
-		runSQL, planVersion, err = estimatedPlanSQL(e.ctx, c, s.grant.Config.Dialect, e.sql, opts)
+		runSQL, planVersion, err = estimatedPlanSQL(e.ctx, c, d, e.sql, opts)
 		if err != nil {
 			api := &APIError{err.Error(), "Estimated plans require a supported database and one read SELECT without INTO, locking clauses or nested EXPLAIN"}
 			var explicit *APIError
@@ -558,7 +559,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		e.mu.Unlock()
 	}
 	if e.queryPage != nil {
-		if err := validateQueryPage(e.ctx, c, s.grant.Config.Dialect, e.queryPage, opts, sourceContext != ""); err != nil {
+		if err := validateQueryPage(e.ctx, c, d, e.queryPage, opts, sourceContext != ""); err != nil {
 			failure(err, &APIError{"query_page_context_changed", err.Error()})
 			return
 		}
@@ -568,14 +569,14 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	if e.consoleMode {
 		analyze = sqlservice.AnalyzeConsole
 	}
-	analysis, err := analyze(sqlservice.Dialect(s.grant.Config.Dialect), runSQL, opts)
+	analysis, err := analyze(d, runSQL, opts)
 	// Generated windows may exceed the pinned TiDB grammar. Their source was
 	// admitted by the AST; only server-owned wrapping and bounded integers differ.
 	if e.queryPage != nil {
 		analysis = sqlservice.Analysis{Statements: []sqlservice.Statement{{SQL: runSQL, Kind: "select", ReturnsRows: true}}}
 		err = nil
 	}
-	if e.planMode != "" && specialPlanDialect(s.grant.Config.Dialect) {
+	if e.planMode != "" && specialPlanDialect(d) {
 		analysis = sqlservice.Analysis{Statements: []sqlservice.Statement{{SQL: runSQL, Kind: "explain", ReturnsRows: true}}}
 		err = nil
 	}
@@ -605,7 +606,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				failure(errors.New("raw_console_manual_mode"), &APIError{"raw_console_manual_mode", "This raw command has unknown transaction behavior; switch to automatic transaction mode before executing it"})
 				return
 			}
-			risk, control := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement)
+			risk, control := sqlservice.ManualTransactionRisk(d, statement)
 			if control {
 				failure(errors.New("transaction_control_sql"), &APIError{"transaction_control_sql", "Use the toolbar to change transactions; transaction and session-control SQL is unavailable in manual mode"})
 				return
@@ -685,8 +686,8 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		// AST facts remain valid while parser options are unchanged. Reuse them
 		// for dispatch and edit provenance instead of reparsing each consumer.
-		if e.queryPage == nil && !(e.planMode != "" && specialPlanDialect(s.grant.Config.Dialect)) && (statement.Facts == nil || current != opts) {
-			checked, err := analyze(sqlservice.Dialect(s.grant.Config.Dialect), statement.SQL, current)
+		if e.queryPage == nil && !(e.planMode != "" && specialPlanDialect(d)) && (statement.Facts == nil || current != opts) {
+			checked, err := analyze(d, statement.SQL, current)
 			if err != nil || len(checked.Statements) != 1 {
 				failure(errors.New("sql_context_changed"), &APIError{"sql_context_changed", "Statement boundaries changed with the connection SQL mode; run statements separately"})
 				return
@@ -702,12 +703,12 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			commands = append([]string{e.sql}, commands...)
 		}
 		if c.manual {
-			if risk, _ := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement); risk {
+			if risk, _ := sqlservice.ManualTransactionRisk(d, statement); risk {
 				commands = append(commands, "COMMIT")
 			}
 		}
 		if e.planMode != "" {
-			commands = append(commands, planAuthorizationSQL(s.grant.Config.Dialect, runSQL)...)
+			commands = append(commands, planAuthorizationSQL(d, runSQL)...)
 		}
 		e.finishDatabaseWork()
 		if e.cancelRequested.Load() {
@@ -765,7 +766,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				failure(errors.New("raw_console_manual_mode"), &APIError{"raw_console_manual_mode", "This raw command has unknown transaction behavior; switch to automatic transaction mode before executing it"})
 				return
 			}
-			risk, control := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement)
+			risk, control := sqlservice.ManualTransactionRisk(d, statement)
 			if control || (risk && !e.confirmImplicitCommit) {
 				failure(errors.New("transaction_changed"), &APIError{"transaction_changed", "SQL transaction behavior changed; submit again"})
 				return
@@ -781,7 +782,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 					v.update(s, e, func(x *ExecutionView) { x.Transaction.PriorCommitted = true })
 				}
 			} else {
-				if err := sqlservice.CheckTransactionTables(e.ctx, c.conn, sqlservice.Dialect(s.grant.Config.Dialect), statement, current); err != nil {
+				if err := sqlservice.CheckTransactionTables(e.ctx, c.conn, d, statement, current); err != nil {
 					api := safeDatabaseError(err)
 					if api.Code != "MYSQL_1146" && api.Code != "OCEANBASE_1146" {
 						api = &APIError{"transaction_table_unsupported", "Manual writes require verifiable transactional base tables"}
@@ -813,16 +814,16 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				if errors.As(err, &api) && !c.lost.Load() {
 					currentInFlight = false
 				}
-				confirmedCancel = isServerCancellation(err) || driverConfirmedCancellation(s.grant.Config.Dialect, err)
+				confirmedCancel = isServerCancellation(err) || driverConfirmedCancellation(d, err)
 				failure(err, planAPIError(err))
 				return
 			}
 		} else if statement.ReturnsRows {
 			e.resultSQL = statement.SQL
 			e.resultAnalysis = statement.Facts
-			rows, err := c.conn.QueryContext(executionContext(e.ctx, s.grant.Config.Dialect, e.view.ID), statement.SQL, browseArgs...)
+			rows, err := c.conn.QueryContext(executionContext(e.ctx, d, e.view.ID), statement.SQL, browseArgs...)
 			if err != nil {
-				confirmedCancel = isServerCancellation(err) || driverConfirmedCancellation(s.grant.Config.Dialect, err)
+				confirmedCancel = isServerCancellation(err) || driverConfirmedCancellation(d, err)
 				failure(err, safeDatabaseError(err))
 				return
 			}
@@ -863,9 +864,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				return
 			}
 		} else {
-			result, err := c.conn.ExecContext(executionContext(e.ctx, s.grant.Config.Dialect, e.view.ID), statement.SQL)
+			result, err := c.conn.ExecContext(executionContext(e.ctx, d, e.view.ID), statement.SQL)
 			if err != nil {
-				confirmedCancel = isServerCancellation(err) || driverConfirmedCancellation(s.grant.Config.Dialect, err)
+				confirmedCancel = isServerCancellation(err) || driverConfirmedCancellation(d, err)
 				failure(err, safeDatabaseError(err))
 				return
 			}
@@ -876,9 +877,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			})
 		}
 		if c.manual && e.planMode == "" {
-			risk, _ := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement)
+			risk, _ := sqlservice.ManualTransactionRisk(d, statement)
 			if risk {
-				state, probeErr := editTransactionState(e.ctx, c, s.grant.Config.Dialect)
+				state, probeErr := editTransactionState(e.ctx, c, d)
 				if probeErr != nil || state != editTxIdle {
 					invalidateEditConnection(s, c)
 					v.publishTransaction(s, c, e, "unknown")
@@ -898,8 +899,8 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		completedStatements++
 		// Read the actual scope on the pinned connection, including transaction rollback
 		// of a PostgreSQL search_path. Never publish the name requested by the client.
-		if sqlservice.ChangesConsoleContext(sqlservice.Dialect(s.grant.Config.Dialect), statement) {
-			scope, err := liveContext(e.ctx, c, s.grant.Config.Dialect)
+		if sqlservice.ChangesConsoleContext(d, statement) {
+			scope, err := liveContext(e.ctx, c, d)
 			if err != nil {
 				failure(err, safeDatabaseError(err))
 				return
@@ -937,9 +938,9 @@ func statementSQL(stmts []sqlservice.Statement) []string {
 	}
 	return out
 }
-func liveOptions(ctx context.Context, c *console, dialect string) (sqlservice.AnalyzeOptions, error) {
+func liveOptions(ctx context.Context, c *console, d dialect.ID) (sqlservice.AnalyzeOptions, error) {
 	var o sqlservice.AnalyzeOptions
-	if core.IsMySQLDialect(dialect) {
+	if d.UsesMySQLSyntax() {
 		var version string
 		if err := c.conn.QueryRowContext(ctx, "SELECT @@session.sql_mode, VERSION()").Scan(&o.MySQLSQLMode, &version); err != nil {
 			return o, err
@@ -1053,7 +1054,7 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows, starSo
 			browse = &browsePlan{view: BrowsePage{Supported: true, PageSize: e.queryPage.view.PageSize}}
 		}
 		result, err := v.readRowsWithMask(s, rows, func(labels []string) []string {
-			return e.resultMaskColumns(s.grant.Config.Dialect, labels)
+			return e.resultMaskColumns(s.grant.Dialect(), labels)
 		}, browse)
 		if err != nil {
 			return err
@@ -1153,7 +1154,7 @@ func (v *Server) readRowsWithMask(s *session, rows *sql.Rows, maskColumns func([
 			if data, ok := raw[i].([]byte); ok && data != nil && !binaryResultType(types[i].DatabaseTypeName()) && !validTextBytes(data) {
 				copyLossy[i] = true
 			}
-			raw[i], err = materializeValue(raw[i], types[i].DatabaseTypeName(), v.opts.MaxResultBytes, s.grant.Config.Dialect)
+			raw[i], err = materializeValue(raw[i], types[i].DatabaseTypeName(), v.opts.MaxResultBytes, s.grant.Dialect())
 			if err != nil {
 				return nil, err
 			}
@@ -1254,7 +1255,7 @@ func (v *Server) journal(s *session, e *execution, phase string) error {
 	entry := map[string]any{"session_id": s.id, "core_session_id": s.grant.ID, "execution": e.snapshot(), "sql": e.sql, "phase": phase, "recovery": "An unfinished intent has unknown outcome; never replay SQL"}
 	if e.planMode != "" {
 		entry["generated_sql"] = e.planSQL
-		entry["auxiliary_sql"] = planAuthorizationSQL(s.grant.Config.Dialect, e.planSQL)
+		entry["auxiliary_sql"] = planAuthorizationSQL(s.grant.Dialect(), e.planSQL)
 	}
 	data, err := json.Marshal(entry)
 	if err != nil {

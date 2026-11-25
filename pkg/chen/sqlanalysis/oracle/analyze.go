@@ -10,6 +10,7 @@ import (
 
 	"github.com/bytebase/omni/oracle/ast"
 	"github.com/bytebase/omni/oracle/parser"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	a "github.com/jumpserver/koko/pkg/chen/sqlanalysis"
 )
 
@@ -19,7 +20,7 @@ var _ a.Analyzer = Analyzer{}
 
 func (Analyzer) Analyze(in a.Input) (a.Result, error) {
 	out := a.Result{Profile: in.Profile, Syntax: a.Unknown, Compatibility: a.Unknown, Statements: []a.Statement{}}
-	if in.Profile.Dialect != a.Oracle {
+	if in.Profile.Dialect != dialect.Oracle {
 		return out, problem(a.Unsupported, "Oracle grammar is not a product adapter for this dialect", a.Span{}, nil)
 	}
 	if !utf8.ValidString(in.SQL) || strings.IndexByte(in.SQL, 0) >= 0 {

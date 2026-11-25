@@ -4,13 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 func (p *QueryPageSQL) pageAliases(columns []string) (aliases, projection []string) {
 	aliases = make([]string, len(columns))
 	projection = make([]string, len(columns))
 	quote := byte('"')
-	if p.Dialect == SQLServer {
+	if p.Dialect == dialect.SQLServer {
 		quote = '['
 	}
 	for i, name := range columns {
@@ -53,7 +55,7 @@ func (p *QueryPageSQL) vendorPage(offset, size int, columns []string) string {
 		body = p.Original
 	}
 	aliases, projection := p.pageAliases(columns)
-	if p.Dialect == Dameng {
+	if p.Dialect == dialect.Dameng {
 		if !p.HasWindow {
 			return p.Prefix + fmt.Sprintf("%s LIMIT %d OFFSET %d", body, size, offset)
 		}
@@ -64,7 +66,7 @@ func (p *QueryPageSQL) vendorPage(offset, size int, columns []string) string {
 		}
 		return prefix + fmt.Sprintf("SELECT %s FROM %s%s LIMIT %d OFFSET %d", strings.Join(projection, ","), source, order, size, offset)
 	}
-	if p.Dialect == ClickHouse {
+	if p.Dialect == dialect.ClickHouse {
 		if !p.HasWindow {
 			return p.Prefix + fmt.Sprintf("%s LIMIT %d OFFSET %d", body, size, offset)
 		}
@@ -74,14 +76,14 @@ func (p *QueryPageSQL) vendorPage(offset, size int, columns []string) string {
 		}
 		return p.Prefix + fmt.Sprintf("SELECT * FROM (\n%s\n) AS CHEN_QUERY_PAGE%s LIMIT %d OFFSET %d", body, order, size, offset)
 	}
-	if p.Dialect == SQLServer || p.Dialect == DB2 {
+	if p.Dialect == dialect.SQLServer || p.Dialect == dialect.DB2 {
 		input := p.bodyWithoutOuterOrder()
 		order, err := p.derivedOrder(columns)
 		if err != nil {
 			return ""
 		}
 		window := strings.TrimPrefix(order, " ")
-		if window == "" && p.Dialect == SQLServer {
+		if window == "" && p.Dialect == dialect.SQLServer {
 			window = "ORDER BY (SELECT NULL)"
 		}
 		return p.Prefix + fmt.Sprintf("SELECT %s FROM (SELECT CHEN_INPUT.*,ROW_NUMBER() OVER (%s) AS CHEN_ROW_NUMBER FROM (\n%s\n) AS CHEN_INPUT(%s)) AS CHEN_NUMBERED WHERE CHEN_ROW_NUMBER>%d AND CHEN_ROW_NUMBER<=%d ORDER BY CHEN_ROW_NUMBER", strings.Join(projection, ","), window, input, strings.Join(aliases, ","), offset, offset+size)
@@ -102,11 +104,11 @@ func (p *QueryPageSQL) vendorCount(columns int) string {
 	if query == "" {
 		query = p.Original
 	}
-	if IsOracleDialect(p.Dialect) {
+	if p.Dialect.UsesOracleSyntax() {
 		prefix, source := p.oraclePrefix(query, columns)
 		return prefix + "SELECT COUNT(*) FROM " + source
 	}
-	if p.Dialect == SQLServer || p.Dialect == DB2 {
+	if p.Dialect == dialect.SQLServer || p.Dialect == dialect.DB2 {
 		query = p.bodyWithoutOuterOrder()
 	}
 	aliases := make([]string, columns)
@@ -114,14 +116,14 @@ func (p *QueryPageSQL) vendorCount(columns int) string {
 		aliases[i] = fmt.Sprintf("c%d", i)
 	}
 	suffix := ""
-	if (p.Dialect == SQLServer || p.Dialect == DB2) && columns > 0 {
+	if (p.Dialect == dialect.SQLServer || p.Dialect == dialect.DB2) && columns > 0 {
 		suffix = "(" + strings.Join(aliases, ",") + ")"
 	}
 	count := "COUNT(*)"
-	if p.Dialect == SQLServer {
+	if p.Dialect == dialect.SQLServer {
 		count = "COUNT_BIG(*)"
 	}
-	if p.Dialect == DB2 {
+	if p.Dialect == dialect.DB2 {
 		count = "SYSIBM.COUNT_BIG(*)"
 	}
 	return p.Prefix + "SELECT " + count + " FROM (\n" + query + "\n) AS CHEN_QUERY_COUNT" + suffix
@@ -167,7 +169,7 @@ func (p *QueryPageSQL) derivedOrder(columns []string) (string, error) {
 			return "", errors.New("Database paging cannot preserve this original ORDER BY through its row window; project and order by explicit unique SQL aliases or use cached results")
 		}
 		name := fmt.Sprintf("c%d", index)
-		if p.Dialect == ClickHouse {
+		if p.Dialect == dialect.ClickHouse {
 			name = quoteIdentifier(columns[index], p.Dialect, '`')
 		}
 		if sort.Desc {
@@ -186,13 +188,13 @@ func (p *QueryPageSQL) derivedOrder(columns []string) (string, error) {
 	return " ORDER BY " + strings.Join(parts, ","), nil
 }
 func (p *QueryPageSQL) ValidatePageOrder(columns []string) error {
-	if !p.Ordered || p.Dialect == PostgreSQL || IsMySQLDialect(p.Dialect) {
+	if !p.Ordered || p.Dialect == dialect.PostgreSQL || p.Dialect.UsesMySQLSyntax() {
 		return nil
 	}
-	if !p.HasWindow && !IsOracleDialect(p.Dialect) && p.Dialect != SQLServer && p.Dialect != DB2 {
+	if !p.HasWindow && !p.Dialect.UsesOracleSyntax() && p.Dialect != dialect.SQLServer && p.Dialect != dialect.DB2 {
 		return nil
 	}
-	if p.Dialect == Dameng && !p.HasWindow {
+	if p.Dialect == dialect.Dameng && !p.HasWindow {
 		return nil
 	}
 	_, err := p.derivedOrder(columns)

@@ -6,10 +6,12 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
-func pinnedMySQLCatalog(dialect string) bool {
-	return dialect == "mysql" || dialect == "mariadb"
+func pinnedMySQLCatalog(d dialect.ID) bool {
+	return d == dialect.MySQL || d == dialect.MariaDB
 }
 
 // Keep the console locked until the interrupt has completed. Otherwise a late
@@ -21,7 +23,7 @@ func interruptCatalogOnCancel(ctx context.Context, s *session, c *console) conte
 		interrupt, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		if err := cancelBackend(interrupt, s, c, nil); err != nil {
-			slog.Warn("catalog_interrupt_failed", "dialect", s.grant.Config.Dialect, "error", err)
+			slog.Warn("catalog_interrupt_failed", "dialect", s.grant.Dialect(), "error", err)
 		}
 	})
 	return func() {
@@ -32,7 +34,7 @@ func interruptCatalogOnCancel(ctx context.Context, s *session, c *console) conte
 }
 
 func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e aiEditorContext, name string, raw json.RawMessage) (any, error) {
-	if e.ConsoleID == "" || !pinnedMySQLCatalog(s.grant.Config.Dialect) || (name != "inspect_schema" && name != "search_schema") {
+	if e.ConsoleID == "" || !pinnedMySQLCatalog(s.grant.Dialect()) || (name != "inspect_schema" && name != "search_schema") {
 		return v.executeAITool(ctx, r, s, e, name, raw)
 	}
 	// Return the tool result on time even if the interrupted driver still has

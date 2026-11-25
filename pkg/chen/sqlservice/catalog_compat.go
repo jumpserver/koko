@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	gooraerr "github.com/sijms/go-ora/v2/network"
 	"strings"
 )
@@ -11,9 +12,9 @@ import (
 // Oracle before 12c has no ORACLE_MAINTAINED flag. A retry removes only that
 // optional edit classification filter. ALL_* authorization, the edit path's
 // explicit system-owner guard, caller scope and bind arguments stay unchanged.
-func queryCatalogRows(ctx context.Context, conn *sql.Conn, d Dialect, query string, args ...any) (*sql.Rows, error) {
+func queryCatalogRows(ctx context.Context, conn *sql.Conn, d dialect.ID, query string, args ...any) (*sql.Rows, error) {
 	rows, err := conn.QueryContext(ctx, query, args...)
-	if err == nil || d != Oracle || !strings.Contains(query, "ORACLE_MAINTAINED") {
+	if err == nil || d != dialect.Oracle || !strings.Contains(query, "ORACLE_MAINTAINED") {
 		return rows, err
 	}
 	var oracle *gooraerr.OracleError
@@ -22,7 +23,7 @@ func queryCatalogRows(ctx context.Context, conn *sql.Conn, d Dialect, query stri
 	}
 	fallback := query
 	for _, owner := range []string{"o.OWNER", "f.OWNER", "schemaname"} {
-		fallback = strings.ReplaceAll(fallback, oracleApplicationOwner(Oracle, owner), "")
+		fallback = strings.ReplaceAll(fallback, oracleApplicationOwner(dialect.Oracle, owner), "")
 	}
 	if fallback == query {
 		return nil, err

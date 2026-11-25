@@ -7,13 +7,15 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 const catalogTimeout = 3 * time.Second
 
 type connectionCatalog struct {
 	conn    *sql.Conn
-	dialect Dialect
+	dialect dialect.ID
 }
 
 func (c connectionCatalog) Relations(ctx context.Context, r MetadataRequest) ([]Relation, error) {
@@ -23,9 +25,9 @@ func (c connectionCatalog) Columns(ctx context.Context, r ColumnRequest) ([]Colu
 	return Columns(ctx, c.conn, c.dialect, r)
 }
 
-func Metadata(ctx context.Context, conn *sql.Conn, dialect Dialect, req MetadataRequest) ([]Relation, error) {
+func Metadata(ctx context.Context, conn *sql.Conn, d dialect.ID, req MetadataRequest) ([]Relation, error) {
 	items := []Relation{}
-	if !supported(dialect) {
+	if !d.Supported() {
 		return items, ErrUnsupportedDialect
 	}
 	if conn == nil {
@@ -37,14 +39,14 @@ func Metadata(ctx context.Context, conn *sql.Conn, dialect Dialect, req Metadata
 	if !utf8.ValidString(req.Prefix) || utf8.RuneCountInString(req.Prefix) > 256 || strings.ContainsRune(req.Prefix, 0) {
 		return items, fmt.Errorf("metadata prefix must be valid text of at most 256 characters")
 	}
-	if extraCatalogDialect(dialect) {
-		return extraMetadata(ctx, conn, dialect, req)
+	if extraCatalogDialect(d) {
+		return extraMetadata(ctx, conn, d, req)
 	}
 	ctx, cancel := context.WithTimeout(ctx, catalogTimeout)
 	defer cancel()
 	var rows *sql.Rows
 	var err error
-	if IsMySQLDialect(dialect) {
+	if d.UsesMySQLSyntax() {
 		database := req.Context.Schema
 		if database == "" {
 			database = req.Context.Database
@@ -77,9 +79,9 @@ ORDER BY n.nspname, c.relname LIMIT $4`, req.Context.Schema, req.Context.Databas
 	return items, rows.Err()
 }
 
-func Columns(ctx context.Context, conn *sql.Conn, dialect Dialect, req ColumnRequest) ([]Column, error) {
+func Columns(ctx context.Context, conn *sql.Conn, d dialect.ID, req ColumnRequest) ([]Column, error) {
 	items := []Column{}
-	if !supported(dialect) {
+	if !d.Supported() {
 		return items, ErrUnsupportedDialect
 	}
 	if conn == nil {
@@ -93,14 +95,14 @@ func Columns(ctx context.Context, conn *sql.Conn, dialect Dialect, req ColumnReq
 			return items, fmt.Errorf("identifier must be valid text of at most 256 characters")
 		}
 	}
-	if extraCatalogDialect(dialect) {
-		return extraColumns(ctx, conn, dialect, req)
+	if extraCatalogDialect(d) {
+		return extraColumns(ctx, conn, d, req)
 	}
 	ctx, cancel := context.WithTimeout(ctx, catalogTimeout)
 	defer cancel()
 	var rows *sql.Rows
 	var err error
-	if IsMySQLDialect(dialect) {
+	if d.UsesMySQLSyntax() {
 		database := req.Schema
 		if database == "" {
 			database = req.Context.Schema

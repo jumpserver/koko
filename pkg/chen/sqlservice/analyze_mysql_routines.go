@@ -7,6 +7,7 @@ import (
 
 	omniast "github.com/bytebase/omni/mysql/ast"
 	omniparser "github.com/bytebase/omni/mysql/parser"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlanalysis"
 	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/mysql"
@@ -18,7 +19,7 @@ import (
 func analyzeMySQLRoutines(document, input string, mode mysql.SQLMode, native *parser.Parser) (Analysis, error) {
 	out := Analysis{Statements: []Statement{}, Syntax: sqlanalysis.Checked, Compatibility: sqlanalysis.Unknown}
 	parseInput := []byte(input)
-	for _, t := range lexMode(input, MySQL, mode.HasANSIQuotesMode(), mode.HasNoBackslashEscapesMode()) {
+	for _, t := range lexMode(input, dialect.MySQL, mode.HasANSIQuotesMode(), mode.HasNoBackslashEscapesMode()) {
 		if t.is("DELIMITER") && strings.TrimSpace(input[strings.LastIndexByte(input[:t.start], '\n')+1:t.start]) == "" {
 			return out, fmt.Errorf("DELIMITER is a client directive; submit the complete routine without it")
 		}

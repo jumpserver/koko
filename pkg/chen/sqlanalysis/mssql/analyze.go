@@ -10,6 +10,7 @@ import (
 
 	"github.com/bytebase/omni/mssql/ast"
 	"github.com/bytebase/omni/mssql/parser"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	a "github.com/jumpserver/koko/pkg/chen/sqlanalysis"
 )
 
@@ -19,7 +20,7 @@ var _ a.Analyzer = Analyzer{}
 
 func (Analyzer) Analyze(in a.Input) (a.Result, error) {
 	out := a.Result{Profile: in.Profile, Syntax: a.Unknown, Compatibility: a.Unknown, Statements: []a.Statement{}}
-	if in.Profile.Dialect != a.SQLServer {
+	if in.Profile.Dialect != dialect.SQLServer {
 		return out, problem(a.Unsupported, "T-SQL adapter requires SQL Server", a.Span{}, nil)
 	}
 	if !utf8.ValidString(in.SQL) || strings.IndexByte(in.SQL, 0) >= 0 {

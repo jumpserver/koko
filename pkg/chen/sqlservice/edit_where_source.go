@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlanalysis"
 )
 
@@ -12,7 +13,7 @@ import (
 // removing its outer WHERE is only a source-identity proof, never executable SQL.
 // The result edit path still resolves the live base table, actual result labels,
 // primary key and original values, and never replays this predicate on writes.
-func editWhereSubquerySource(d Dialect, document string, ts []token, analysis Analysis, opts AnalyzeOptions) (EditableSource, bool, error) {
+func editWhereSubquerySource(d dialect.ID, document string, ts []token, analysis Analysis, opts AnalyzeOptions) (EditableSource, bool, error) {
 	fail := func(reason string) (EditableSource, bool, error) {
 		return EditableSource{}, true, fmt.Errorf("%w: %s", ErrNotEditable, reason)
 	}

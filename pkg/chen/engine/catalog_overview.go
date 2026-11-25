@@ -14,7 +14,7 @@ func (v *Server) catalogOverview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer req.done()
-	data, err := sqlservice.CatalogOverviewRows(req.ctx, req.conn, sqlservice.Dialect(req.session.grant.Config.Dialect), sqlservice.OverviewRequest{
+	data, err := sqlservice.CatalogOverviewRows(req.ctx, req.conn, req.session.grant.Dialect(), sqlservice.OverviewRequest{
 		CatalogObjectRequest: sqlservice.CatalogObjectRequest{Database: req.database, Schema: req.scope.schema, Query: req.scope.query, Limit: req.scope.limit, AfterSchema: req.after.AfterSchema, AfterName: req.after.AfterName}, Section: req.scope.section, Sort: req.scope.sort, AfterTable: req.after.AfterTable, AfterOrdinal: req.after.AfterOrdinal, AfterContract: req.after.Contract})
 	if err != nil {
 		v.finishCatalog(w, r, req, 0, err)

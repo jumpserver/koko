@@ -6,6 +6,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 type token struct {
@@ -20,20 +22,20 @@ type token struct {
 
 func (t token) is(s string) bool { return !t.quoted && strings.EqualFold(t.value, s) }
 func (t token) ident() bool      { return t.kind == 'i' }
-func (t token) key(d Dialect) string {
-	if (d == PostgreSQL || upperCaseIdentifiers(d) || d == ClickHouse) && t.quoted {
+func (t token) key(d dialect.ID) string {
+	if (d == dialect.PostgreSQL || upperCaseIdentifiers(d) || d == dialect.ClickHouse) && t.quoted {
 		return t.value
 	}
 	if upperCaseIdentifiers(d) {
 		return strings.ToUpper(t.value)
 	}
-	if d == ClickHouse {
+	if d == dialect.ClickHouse {
 		return t.value
 	}
 	return strings.ToLower(t.value)
 }
-func (t token) name(d Dialect) string {
-	if d == PostgreSQL || upperCaseIdentifiers(d) {
+func (t token) name(d dialect.ID) string {
+	if d == dialect.PostgreSQL || upperCaseIdentifiers(d) {
 		return t.key(d)
 	}
 	return t.value
@@ -42,10 +44,10 @@ func (t token) name(d Dialect) string {
 // lex is an error-tolerant editor lexer, not the execution parser. Strings,
 // comments and quoted identifiers are kept indivisible, including unfinished
 // tokens, so keywords inside them cannot introduce scope or relation bindings.
-func lex(document string, d Dialect) []token {
+func lex(document string, d dialect.ID) []token {
 	return lexMode(document, d, false, false)
 }
-func lexMode(document string, d Dialect, ansiQuotes, noBackslash bool) []token {
+func lexMode(document string, d dialect.ID, ansiQuotes, noBackslash bool) []token {
 	tokens := make([]token, 0, len(document)/5)
 	for i := 0; i < len(document); {
 		r, n := utf8.DecodeRuneInString(document[i:])
@@ -54,7 +56,7 @@ func lexMode(document string, d Dialect, ansiQuotes, noBackslash bool) []token {
 			continue
 		}
 		start := i
-		if strings.HasPrefix(document[i:], "--") && (!IsMySQLDialect(d) || i+2 == len(document) || document[i+2] <= ' ') || (IsMySQLDialect(d) || d == ClickHouse) && document[i] == '#' {
+		if strings.HasPrefix(document[i:], "--") && (!d.UsesMySQLSyntax() || i+2 == len(document) || document[i+2] <= ' ') || (d.UsesMySQLSyntax() || d == dialect.ClickHouse) && document[i] == '#' {
 			for i < len(document) && document[i] != '\n' {
 				i++
 			}
@@ -65,7 +67,7 @@ func lexMode(document string, d Dialect, ansiQuotes, noBackslash bool) []token {
 			i += 2
 			depth := 1
 			for i < len(document) && depth > 0 {
-				if (d == PostgreSQL || d == SQLServer || d == DB2 || d == ClickHouse) && strings.HasPrefix(document[i:], "/*") {
+				if (d == dialect.PostgreSQL || d == dialect.SQLServer || d == dialect.DB2 || d == dialect.ClickHouse) && strings.HasPrefix(document[i:], "/*") {
 					depth++
 					i += 2
 				} else if strings.HasPrefix(document[i:], "*/") {
@@ -78,7 +80,7 @@ func lexMode(document string, d Dialect, ansiQuotes, noBackslash bool) []token {
 			tokens = append(tokens, token{text: document[start:i], start: start, end: i, kind: 'c', closed: depth == 0})
 			continue
 		}
-		if document[i] == '$' && d == PostgreSQL {
+		if document[i] == '$' && d == dialect.PostgreSQL {
 			j := i + 1
 			for j < len(document) && (document[j] == '_' || document[j] >= 'a' && document[j] <= 'z' || document[j] >= 'A' && document[j] <= 'Z' || j > i+1 && document[j] >= '0' && document[j] <= '9') {
 				j++
@@ -98,7 +100,7 @@ func lexMode(document string, d Dialect, ansiQuotes, noBackslash bool) []token {
 			}
 		}
 		qPrefix := 0
-		if IsOracleDialect(d) {
+		if d.UsesOracleSyntax() {
 			if i+2 < len(document) && (document[i] == 'q' || document[i] == 'Q') && document[i+1] == '\'' {
 				qPrefix = 2
 			}
@@ -130,7 +132,7 @@ func lexMode(document string, d Dialect, ansiQuotes, noBackslash bool) []token {
 			tokens = append(tokens, token{text: document[start:i], start: start, end: i, kind: 's', closed: closed})
 			continue
 		}
-		if document[i] == '\'' || document[i] == '"' || document[i] == '`' && (IsMySQLDialect(d) || d == ClickHouse) || document[i] == '[' && d == SQLServer {
+		if document[i] == '\'' || document[i] == '"' || document[i] == '`' && (d.UsesMySQLSyntax() || d == dialect.ClickHouse) || document[i] == '[' && d == dialect.SQLServer {
 			q := document[i]
 			endQuote := q
 			if q == '[' {
@@ -150,13 +152,13 @@ func lexMode(document string, d Dialect, ansiQuotes, noBackslash bool) []token {
 					closed = true
 					break
 				}
-				if d == ClickHouse && q != '\'' && document[i] == '\\' && i+1 < len(document) {
+				if d == dialect.ClickHouse && q != '\'' && document[i] == '\\' && i+1 < len(document) {
 					escaped, consumed := clickHouseIdentifierEscape(document[i:])
 					value.WriteString(escaped)
 					i += consumed
 					continue
 				}
-				if document[i] == '\\' && ((IsMySQLDialect(d) || d == ClickHouse) && !noBackslash && (q == '\'' || q == '"' && !ansiQuotes) || d == PostgreSQL && q == '\'' && start > 0 && (document[start-1] == 'e' || document[start-1] == 'E')) && i+1 < len(document) {
+				if document[i] == '\\' && ((d.UsesMySQLSyntax() || d == dialect.ClickHouse) && !noBackslash && (q == '\'' || q == '"' && !ansiQuotes) || d == dialect.PostgreSQL && q == '\'' && start > 0 && (document[start-1] == 'e' || document[start-1] == 'E')) && i+1 < len(document) {
 					value.WriteByte(document[i+1])
 					i += 2
 					continue
@@ -165,7 +167,7 @@ func lexMode(document string, d Dialect, ansiQuotes, noBackslash bool) []token {
 				i++
 			}
 			kind := byte('i')
-			if q == '\'' || IsMySQLDialect(d) && q == '"' && !ansiQuotes {
+			if q == '\'' || d.UsesMySQLSyntax() && q == '"' && !ansiQuotes {
 				kind = 's'
 			}
 			tokens = append(tokens, token{text: document[start:i], value: value.String(), start: start, end: i, quoted: true, kind: kind, quote: q, closed: closed})

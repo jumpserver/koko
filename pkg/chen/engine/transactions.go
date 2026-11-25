@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jumpserver/koko/pkg/chen/core"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 // Automatic-mode SQL may open a transaction outside Chen's managed transaction.
@@ -26,7 +27,7 @@ func (v *Server) consoleTransactionState(w http.ResponseWriter, r *http.Request)
 	state := editTxActive
 	if c.manualTx == nil {
 		var err error
-		state, err = editTransactionState(ctx, c, s.grant.Config.Dialect)
+		state, err = editTransactionState(ctx, c, s.grant.Dialect())
 		if err != nil {
 			state = editTxUnknown
 		}
@@ -59,9 +60,9 @@ type TransactionOutcome struct {
 	PriorCommitted bool   `json:"prior_committed,omitempty"`
 }
 
-func supportsManualTransaction(d string) bool {
+func supportsManualTransaction(d dialect.ID) bool {
 	switch d {
-	case "mysql", "mariadb", "oceanbase-mysql", "postgresql", "sqlserver", "oracle", "oceanbase-oracle", "dameng", "db2":
+	case dialect.MySQL, dialect.MariaDB, dialect.OceanBaseMySQL, dialect.PostgreSQL, dialect.SQLServer, dialect.Oracle, dialect.OceanBaseOracle, dialect.Dameng, dialect.DB2:
 		return true
 	}
 	return false
@@ -82,7 +83,7 @@ func (c *console) view() ConsoleView {
 
 func (v *Server) publishTransaction(s *session, c *console, e *execution, outcome string) {
 	previous := c.transaction.Load()
-	view := TransactionView{Supported: supportsManualTransaction(s.grant.Config.Dialect), Manual: c.manual, State: "idle", Revision: 1, IdleTimeoutSeconds: v.transactionIdleSeconds()}
+	view := TransactionView{Supported: supportsManualTransaction(s.grant.Dialect()), Manual: c.manual, State: "idle", Revision: 1, IdleTimeoutSeconds: v.transactionIdleSeconds()}
 	if previous != nil {
 		view.Revision = previous.Revision + 1
 		view.Notice = previous.Notice
@@ -166,7 +167,7 @@ func transactionCommand(action, onPending string) (string, bool) {
 }
 
 func (v *Server) transactionAction(s *session, c *console, e *execution, audit *core.AuditRecord) error {
-	if !supportsManualTransaction(s.grant.Config.Dialect) {
+	if !supportsManualTransaction(s.grant.Dialect()) {
 		return &APIError{"transaction_unsupported", "This database does not support manual transactions"}
 	}
 	commands := []string{e.sql}
@@ -206,7 +207,7 @@ func (v *Server) transactionAction(s *session, c *console, e *execution, audit *
 	switch e.transactionAction {
 	case "manual":
 		if !c.manual {
-			state, err := editTransactionState(e.ctx, c, s.grant.Config.Dialect)
+			state, err := editTransactionState(e.ctx, c, s.grant.Dialect())
 			if err != nil || state != editTxIdle {
 				return &APIError{"transaction_busy", "Finish the existing SQL transaction before enabling manual mode"}
 			}

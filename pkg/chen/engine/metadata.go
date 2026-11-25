@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/jumpserver/koko/pkg/chen/core"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlanalysis"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
@@ -55,12 +56,12 @@ func (v *Server) analyzeDocument(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "audit_persistence_failed", "SQL analysis access could not be audited")
 		return
 	}
-	options, err := liveOptions(ctx, c, s.grant.Config.Dialect)
+	options, err := liveOptions(ctx, c, s.grant.Dialect())
 	if err != nil {
 		fail(w, 502, "metadata_failed", "Unable to read database SQL settings")
 		return
 	}
-	analysis, err := sqlservice.AnalyzeWithOptions(sqlservice.Dialect(s.grant.Config.Dialect), req.Document, options)
+	analysis, err := sqlservice.AnalyzeWithOptions(s.grant.Dialect(), req.Document, options)
 	if err != nil {
 		var diagnostic *sqlanalysis.Error
 		if errors.As(err, &diagnostic) {
@@ -75,7 +76,7 @@ func (v *Server) analyzeDocument(w http.ResponseWriter, r *http.Request) {
 		response.Diagnostics = append(response.Diagnostics, editorDiagnosticFor(req.Document, d))
 	}
 	for _, statement := range analysis.Statements {
-		implicit, control := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement)
+		implicit, control := sqlservice.ManualTransactionRisk(s.grant.Dialect(), statement)
 		response.Statements = append(response.Statements, editorStatement{
 			ByteSpan:           sqlanalysis.Span{Start: statement.Start, End: statement.End, Known: true},
 			From:               len(utf16.Encode([]rune(req.Document[:statement.Start]))),
@@ -142,8 +143,8 @@ func (v *Server) auditCatalog(ctx context.Context, s *session, c *console, kind 
 
 // Read live context: USE and SET search_path from user SQL must also affect
 // completion. Only the database can confirm the active scope.
-func liveContext(ctx context.Context, c *console, dialect string) (sqlservice.Context, error) {
-	return connectionContext(ctx, c.conn, dialect, c.context)
+func liveContext(ctx context.Context, c *console, d dialect.ID) (sqlservice.Context, error) {
+	return connectionContext(ctx, c.conn, d, c.context)
 }
 func (v *Server) relations(w http.ResponseWriter, r *http.Request) {
 	s, c, ctx, done := v.catalogConsole(w, r)
@@ -155,15 +156,15 @@ func (v *Server) relations(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "audit_persistence_failed", "Metadata access could not be audited")
 		return
 	}
-	current, err := liveContext(ctx, c, s.grant.Config.Dialect)
+	current, err := liveContext(ctx, c, s.grant.Dialect())
 	if err != nil {
 		fail(w, 502, "metadata_failed", "Unable to read database context")
 		return
 	}
-	if s.grant.Config.Dialect == "postgresql" {
+	if s.grant.Dialect() == dialect.PostgreSQL {
 		current.Schema = "" // This endpoint lists unqualified suggestions in the live search_path.
 	}
-	items, err := sqlservice.Metadata(ctx, c.conn, sqlservice.Dialect(s.grant.Config.Dialect), sqlservice.MetadataRequest{Context: current, Prefix: r.URL.Query().Get("prefix"), Limit: 200})
+	items, err := sqlservice.Metadata(ctx, c.conn, s.grant.Dialect(), sqlservice.MetadataRequest{Context: current, Prefix: r.URL.Query().Get("prefix"), Limit: 200})
 	if err != nil {
 		fail(w, 502, "metadata_failed", "Unable to load authorized database relations")
 		return
@@ -180,12 +181,12 @@ func (v *Server) columns(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "audit_persistence_failed", "Metadata access could not be audited")
 		return
 	}
-	current, err := liveContext(ctx, c, s.grant.Config.Dialect)
+	current, err := liveContext(ctx, c, s.grant.Dialect())
 	if err != nil {
 		fail(w, 502, "metadata_failed", "Unable to read database context")
 		return
 	}
-	items, err := sqlservice.Columns(ctx, c.conn, sqlservice.Dialect(s.grant.Config.Dialect), sqlservice.ColumnRequest{Context: current, Schema: r.URL.Query().Get("schema"), Table: r.URL.Query().Get("table")})
+	items, err := sqlservice.Columns(ctx, c.conn, s.grant.Dialect(), sqlservice.ColumnRequest{Context: current, Schema: r.URL.Query().Get("schema"), Table: r.URL.Query().Get("table")})
 	if err != nil {
 		fail(w, 502, "metadata_failed", "Unable to load authorized database columns")
 		return
@@ -206,19 +207,19 @@ func (v *Server) completion(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "audit_persistence_failed", "Completion access could not be audited")
 		return
 	}
-	current, err := liveContext(ctx, c, s.grant.Config.Dialect)
+	current, err := liveContext(ctx, c, s.grant.Dialect())
 	if err != nil {
 		fail(w, 502, "metadata_failed", "Unable to read database context")
 		return
 	}
 	req.Context = current
-	options, err := liveOptions(ctx, c, s.grant.Config.Dialect)
+	options, err := liveOptions(ctx, c, s.grant.Dialect())
 	if err != nil {
 		fail(w, 502, "metadata_failed", "Unable to read database SQL settings")
 		return
 	}
 	req.Options = options
-	response, err := sqlservice.Completion(ctx, c.conn, sqlservice.Dialect(s.grant.Config.Dialect), req)
+	response, err := sqlservice.Completion(ctx, c.conn, s.grant.Dialect(), req)
 	if err != nil {
 		fail(w, 400, "completion_failed", "Unable to analyze completion context")
 		return

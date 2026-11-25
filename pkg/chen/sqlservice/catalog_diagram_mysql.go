@@ -17,7 +17,7 @@ var ErrDiagramContractChanged = errors.New("diagram catalog contract changed; re
 
 // Probe on the same authorized connection for each page, independently of
 // overview. A fingerprint is meaningful only within the diagram cursor scope.
-func probeDiagramMyContract(ctx context.Context, conn *sql.Conn, d Dialect, database string) (contract, source, reason string, columnPrivileges bool, err error) {
+func probeDiagramMyContract(ctx context.Context, conn *sql.Conn, d dialect.ID, database string) (contract, source, reason string, columnPrivileges bool, err error) {
 	var reported, mode, casing string
 	if err = conn.QueryRowContext(ctx, "SELECT VERSION(), @@lower_case_table_names").Scan(&reported, &casing); err != nil {
 		return
@@ -42,11 +42,11 @@ func probeDiagramMyContract(ctx context.Context, conn *sql.Conn, d Dialect, data
 		return
 	}
 	source = string(d) + " " + version.Product + "; information_schema"
-	if d == MariaDB && !strings.Contains(strings.ToLower(version.Product), "mariadb") || d == OceanBaseMySQL && !dialect.HasOceanBaseBrand(version.Product) {
+	if d == dialect.MariaDB && !strings.Contains(strings.ToLower(version.Product), "mariadb") || d == dialect.OceanBaseMySQL && !dialect.HasOceanBaseBrand(version.Product) {
 		reason = "Unverified product/version for catalog relationships"
 		return
 	}
-	if d == OceanBaseMySQL {
+	if d == dialect.OceanBaseMySQL {
 		if err = conn.QueryRowContext(ctx, "SELECT @@ob_compatibility_mode").Scan(&mode); err != nil {
 			return
 		}
@@ -103,9 +103,9 @@ func probeDiagramMyContract(ctx context.Context, conn *sql.Conn, d Dialect, data
 	return
 }
 
-func diagramCompatibleSQL(d Dialect, r DiagramRequest) (string, []any) {
+func diagramCompatibleSQL(d dialect.ID, r DiagramRequest) (string, []any) {
 	types := "('BASE TABLE')"
-	if d == MariaDB {
+	if d == dialect.MariaDB {
 		types = "('BASE TABLE','SYSTEM VERSIONED')"
 	}
 	if r.Section == "nodes" {

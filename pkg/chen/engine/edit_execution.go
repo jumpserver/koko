@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jumpserver/koko/pkg/chen/core"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 // Grid saves use a transaction or savepoint when supported by the table.
@@ -18,7 +19,7 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 	cancelDone := make(chan struct{})
 	stopCancel := context.AfterFunc(e.ctx, func() {
 		defer close(cancelDone)
-		if !core.IsMySQLWire(s.grant.Config.Dialect) || !touched.Load() || e.cancelRequested.Load() {
+		if !s.grant.Dialect().UsesMySQLWire() || !touched.Load() || e.cancelRequested.Load() {
 			return
 		}
 		interruptExecutionBackend(s, c, e)
@@ -180,7 +181,7 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 	if c.manual {
 		touched.Store(true)
 	}
-	boundary, err := beginEditBoundary(e.ctx, c, s.grant.Config.Dialect)
+	boundary, err := beginEditBoundary(e.ctx, c, s.grant.Dialect())
 	if err != nil {
 		failEdit(err)
 		return
@@ -259,7 +260,7 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 		attempted = true
 		result, execErr := boundary.exec(e.ctx, command.sql, command.args...)
 		if execErr != nil {
-			if s.grant.Config.Dialect == "db2" {
+			if s.grant.Dialect() == dialect.DB2 {
 				if api := db2EditDiagnostic(execErr, command.argColumns, &resolved.table); api != nil {
 					execErr = api
 				}

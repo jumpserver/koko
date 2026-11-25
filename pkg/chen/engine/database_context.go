@@ -95,23 +95,23 @@ func closeConsoleConnection(conn *sql.Conn) {
 	_ = conn.Close()
 }
 
-func connectionContext(ctx context.Context, conn *sql.Conn, dialect string, configured sqlservice.Context) (sqlservice.Context, error) {
+func connectionContext(ctx context.Context, conn *sql.Conn, d dialect.ID, configured sqlservice.Context) (sqlservice.Context, error) {
 	current := configured
 	var err error
 	switch {
-	case core.IsMySQLDialect(dialect):
+	case d.UsesMySQLSyntax():
 		err = conn.QueryRowContext(ctx, "SELECT COALESCE(DATABASE(),'')").Scan(&current.Database)
 		current.Schema = current.Database
-	case dialect == "postgresql":
+	case d == dialect.PostgreSQL:
 		err = conn.QueryRowContext(ctx, "SELECT current_database(), COALESCE(current_schema(),'')").Scan(&current.Database, &current.Schema)
-	case dialect == "sqlserver":
+	case d == dialect.SQLServer:
 		err = conn.QueryRowContext(ctx, "SELECT DB_NAME(), COALESCE(SCHEMA_NAME(),'dbo')").Scan(&current.Database, &current.Schema)
-	case dialect == "clickhouse":
+	case d == dialect.ClickHouse:
 		err = conn.QueryRowContext(ctx, "SELECT currentDatabase()").Scan(&current.Database)
 		current.Schema = current.Database
-	case dialect == "db2":
+	case d == dialect.DB2:
 		err = conn.QueryRowContext(ctx, "VALUES (CURRENT SERVER, CURRENT SCHEMA)").Scan(&current.Database, &current.Schema)
-	case sqlservice.Dialect(dialect).UsesOracleSyntax():
+	case d.UsesOracleSyntax():
 		err = conn.QueryRowContext(ctx, "SELECT SYS_CONTEXT('USERENV','CURRENT_SCHEMA') FROM DUAL").Scan(&current.Schema)
 		if current.Database == "" {
 			current.Database = current.Schema
@@ -123,9 +123,10 @@ func connectionContext(ctx context.Context, conn *sql.Conn, dialect string, conf
 }
 
 func initializeConsole(ctx context.Context, c *console, cfg core.ConnectionConfig, requested sqlservice.Context) (sqlservice.Context, int64, error) {
+	d := dialect.ID(cfg.Dialect)
 	conn := c.conn
 	var err error
-	if cfg.Dialect == "dameng" && cfg.Database == "" {
+	if d == dialect.Dameng && cfg.Database == "" {
 		// Dameng's catalog uses the login schema as its database label when
 		// Core omits a database. A pooled console may have changed CURRENT_SCHEMA.
 		if err = conn.QueryRowContext(ctx, "SELECT SYS_CONTEXT('USERENV','SESSION_USER') FROM DUAL").Scan(&cfg.Database); err != nil {
@@ -138,12 +139,12 @@ func initializeConsole(ctx context.Context, c *console, cfg core.ConnectionConfi
 	if requested.Schema == "" {
 		requested.Schema = cfg.Schema
 	}
-	if cfg.Dialect == "mysql" {
+	if d == dialect.MySQL {
 		// The driver already selects its configured database during authentication.
 		// Read its effective settings and cancellation ID together. These
 		// session-local settings remain valid until the first user execution.
 		selectDatabase := func() error {
-			_, err := conn.ExecContext(ctx, "USE "+quoteDatabaseIdentifier(requested.Database, cfg.Dialect))
+			_, err := conn.ExecContext(ctx, "USE "+quoteDatabaseIdentifier(requested.Database, d))
 			return err
 		}
 		if requested.Database != "" && requested.Database != cfg.Database {
@@ -166,31 +167,31 @@ func initializeConsole(ctx context.Context, c *console, cfg core.ConnectionConfi
 	}
 	if requested.Database != "" {
 		switch {
-		case core.IsMySQLDialect(cfg.Dialect) || cfg.Dialect == "sqlserver" || cfg.Dialect == "clickhouse":
-			_, err = conn.ExecContext(ctx, "USE "+quoteDatabaseIdentifier(requested.Database, cfg.Dialect))
-		case cfg.Dialect != "postgresql" && requested.Database != cfg.Database:
+		case d.UsesMySQLSyntax() || d == dialect.SQLServer || d == dialect.ClickHouse:
+			_, err = conn.ExecContext(ctx, "USE "+quoteDatabaseIdentifier(requested.Database, d))
+		case d != dialect.PostgreSQL && requested.Database != cfg.Database:
 			// Catalogs return the server's canonical name, which need not equal
 			// the configured alias (Db2 folds names; Dameng may omit a database).
 			// Verify against this connection before treating it as a switch.
-			current, contextErr := connectionContext(ctx, conn, cfg.Dialect, sqlservice.Context{Database: cfg.Database, Schema: cfg.Schema})
+			current, contextErr := connectionContext(ctx, conn, d, sqlservice.Context{Database: cfg.Database, Schema: cfg.Schema})
 			if contextErr != nil {
 				return requested, 0, contextErr
 			}
 			if requested.Database != current.Database {
-				return requested, 0, unsupportedContext(cfg.Dialect)
+				return requested, 0, unsupportedContext(d)
 			}
 		}
 	}
 	if err == nil && requested.Schema != "" {
-		quoted := quoteDatabaseIdentifier(requested.Schema, cfg.Dialect)
-		switch cfg.Dialect {
-		case "postgresql":
+		quoted := quoteDatabaseIdentifier(requested.Schema, d)
+		switch d {
+		case dialect.PostgreSQL:
 			_, err = conn.ExecContext(ctx, "SET search_path TO "+quoted)
-		case "oracle", "oceanbase-oracle":
+		case dialect.Oracle, dialect.OceanBaseOracle:
 			_, err = conn.ExecContext(ctx, "ALTER SESSION SET CURRENT_SCHEMA = "+quoted)
-		case "dameng":
+		case dialect.Dameng:
 			_, err = conn.ExecContext(ctx, "SET SCHEMA "+quoted)
-		case "db2":
+		case dialect.DB2:
 			_, err = conn.ExecContext(ctx, "SET CURRENT SCHEMA "+quoted)
 			// SQL Server's default schema belongs to the database principal. A UI
 			// context is not allowed to ALTER USER merely to browse another schema.
@@ -203,18 +204,18 @@ func initializeConsole(ctx context.Context, c *console, cfg core.ConnectionConfi
 	current := requested
 	var backend int64
 	switch {
-	case core.IsMySQLDialect(cfg.Dialect):
+	case d.UsesMySQLSyntax():
 		err = conn.QueryRowContext(ctx, "SELECT COALESCE(DATABASE(),''), CONNECTION_ID()").Scan(&current.Database, &backend)
 		current.Schema = current.Database
-	case cfg.Dialect == "postgresql":
+	case d == dialect.PostgreSQL:
 		err = conn.QueryRowContext(ctx, "SELECT pg_catalog.current_database(), COALESCE(pg_catalog.current_schema(),''), pg_catalog.pg_backend_pid()").Scan(&current.Database, &current.Schema, &backend)
-	case cfg.Dialect == "oceanbase-oracle":
+	case d == dialect.OceanBaseOracle:
 		err = conn.QueryRowContext(ctx, "SELECT SYS_CONTEXT('USERENV','CURRENT_SCHEMA'), USERENV('SID') FROM DUAL").Scan(&current.Schema, &backend)
 		if current.Database == "" {
 			current.Database = current.Schema
 		}
 	default:
-		current, err = connectionContext(ctx, conn, cfg.Dialect, requested)
+		current, err = connectionContext(ctx, conn, d, requested)
 	}
 	return current, backend, err
 }

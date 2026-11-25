@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlanalysis"
 
 	"github.com/pingcap/tidb/pkg/parser/mysql"
@@ -31,7 +32,7 @@ type EditableSource struct {
 // match this projection to LoadEditTable and the actual result columns as well.
 // The outer SELECT deliberately excludes joins, CTEs and computed projections;
 // predicate subqueries do not change the identity of its direct result columns.
-func AnalyzeEditableQuery(d Dialect, document string, opts AnalyzeOptions) (EditableSource, error) {
+func AnalyzeEditableQuery(d dialect.ID, document string, opts AnalyzeOptions) (EditableSource, error) {
 	var out EditableSource
 	fail := func(reason string) (EditableSource, error) {
 		return EditableSource{}, fmt.Errorf("%w: %s", ErrNotEditable, reason)
@@ -103,7 +104,7 @@ func AnalyzeEditableQuery(d Dialect, document string, opts AnalyzeOptions) (Edit
 	if ts[projectionStart].is("ALL") {
 		projectionStart++
 	}
-	if d == SQLServer && projectionStart < from && ts[projectionStart].is("TOP") {
+	if d == dialect.SQLServer && projectionStart < from && ts[projectionStart].is("TOP") {
 		projectionStart++
 		parenthesized := projectionStart < from && ts[projectionStart].kind == '('
 		if parenthesized {
@@ -185,7 +186,7 @@ func AnalyzeEditableQuery(d Dialect, document string, opts AnalyzeOptions) (Edit
 		if consumed < len(item) {
 			alias := item[consumed]
 			// MySQL allows a quoted string as a SELECT label, even without ANSI_QUOTES.
-			if alias.ident() || IsMySQLDialect(d) && alias.kind == 's' && alias.closed {
+			if alias.ident() || d.UsesMySQLSyntax() && alias.kind == 's' && alias.closed {
 				col.Label = alias.name(d)
 				consumed++
 			}
@@ -204,7 +205,7 @@ func AnalyzeEditableQuery(d Dialect, document string, opts AnalyzeOptions) (Edit
 	return out, nil
 }
 
-func editQualifiedName(ts []token, at int, d Dialect) ([]string, int) {
+func editQualifiedName(ts []token, at int, d dialect.ID) ([]string, int) {
 	var parts []string
 	for at < len(ts) && ts[at].ident() {
 		parts = append(parts, ts[at].name(d))
@@ -222,13 +223,13 @@ func editQualifiedName(ts []token, at int, d Dialect) ([]string, int) {
 func editTailStart(t token) bool {
 	return t.is("WHERE") || t.is("ORDER") || t.is("LIMIT") || t.is("OFFSET") || t.is("FETCH")
 }
-func editNameKey(s string, d Dialect) string {
-	if IsMySQLDialect(d) || d == SQLServer {
+func editNameKey(s string, d dialect.ID) string {
+	if d.UsesMySQLSyntax() || d == dialect.SQLServer {
 		return strings.ToLower(s)
 	}
 	return s
 }
-func editOwnerMatches(s string, source EditableSource, d Dialect) bool {
+func editOwnerMatches(s string, source EditableSource, d dialect.ID) bool {
 	owner := source.Alias
 	if owner == "" {
 		owner = source.Table

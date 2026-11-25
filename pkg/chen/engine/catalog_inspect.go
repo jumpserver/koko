@@ -11,7 +11,7 @@ func (v *Server) catalogInspect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer req.done()
-	info, err := sqlservice.InspectTable(req.ctx, req.conn, sqlservice.Dialect(req.session.grant.Config.Dialect), sqlservice.CatalogColumnRequest{Database: req.database, Schema: req.scope.schema, Table: req.scope.table})
+	info, err := sqlservice.InspectTable(req.ctx, req.conn, req.session.grant.Dialect(), sqlservice.CatalogColumnRequest{Database: req.database, Schema: req.scope.schema, Table: req.scope.table})
 	if v.finishCatalog(w, r, req, len(info.Columns), err) {
 		writeJSON(w, 200, info)
 	}
@@ -23,7 +23,7 @@ func (v *Server) catalogDDL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer req.done()
-	info, err := sqlservice.TableDefinition(req.ctx, req.conn, sqlservice.Dialect(req.session.grant.Config.Dialect), sqlservice.CatalogColumnRequest{Database: req.database, Schema: req.scope.schema, Table: req.scope.table})
+	info, err := sqlservice.TableDefinition(req.ctx, req.conn, req.session.grant.Dialect(), sqlservice.CatalogColumnRequest{Database: req.database, Schema: req.scope.schema, Table: req.scope.table})
 	if v.finishCatalog(w, r, req, 1, err) {
 		writeJSON(w, 200, info)
 	}

@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 // Values remain decimal strings across JSON and JavaScript. State is never
@@ -57,7 +59,7 @@ func overviewText(value, source string) OverviewValue {
 // CatalogOverviewRows performs section-level system catalog queries, never
 // business COUNT or per-object inspection. MySQL can inspect any database visible
 // to the account; an empty PG schema means all visible schemas.
-func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req OverviewRequest) (result CatalogOverview, err error) {
+func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req OverviewRequest) (result CatalogOverview, err error) {
 	defer func() {
 		if overviewPermissionDenied(err) {
 			err = ErrCatalogForbidden
@@ -70,20 +72,20 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 	if req.Sort != "name_asc" && req.Sort != "name_desc" {
 		return result, fmt.Errorf("invalid overview sort")
 	}
-	if (IsMySQLDialect(d) || d == ClickHouse) && req.Schema != "" && req.Schema != req.Database {
+	if (d.UsesMySQLSyntax() || d == dialect.ClickHouse) && req.Schema != "" && req.Schema != req.Database {
 		return result, ErrCatalogForbidden
 	}
 	if err := catalogDatabaseAccess(ctx, conn, d, req.Database); err != nil {
 		return result, err
 	}
-	if d == PostgreSQL && req.Schema != "" {
+	if d == dialect.PostgreSQL && req.Schema != "" {
 		if err := catalogSchemaAccess(ctx, conn, req.Schema); err != nil {
 			return result, err
 		}
 	}
 	result.Contract = string(d)
 	var clickHouse *clickHouseCapabilities
-	if d == ClickHouse {
+	if d == dialect.ClickHouse {
 		clickHouse, err = probeClickHouseCapabilities(ctx, conn, req.Section, true)
 		if err != nil {
 			return result, err
@@ -99,18 +101,18 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 		}
 	}
 	oracleBroadSegments := false
-	if d == Oracle && (req.Section == "tables" || req.Section == "views" || req.Section == "statistics") {
+	if d == dialect.Oracle && (req.Section == "tables" || req.Section == "views" || req.Section == "statistics") {
 		oracleBroadSegments, err = overviewOracleSegmentAccess(ctx, conn)
 		if err != nil {
 			return result, err
 		}
 		result.Contract += fmt.Sprintf(":segments_dba=%t", oracleBroadSegments)
 	}
-	if !IsMySQLDialect(d) && req.AfterName != "" && req.AfterContract != "" && req.AfterContract != result.Contract {
+	if !d.UsesMySQLSyntax() && req.AfterName != "" && req.AfterContract != "" && req.AfterContract != result.Contract {
 		return result, ErrOverviewContractChanged
 	}
 	var capabilities *overviewMyCapabilities
-	if IsMySQLDialect(d) {
+	if d.UsesMySQLSyntax() {
 		var err error
 		capabilities, err = probeOverviewMyCapabilities(ctx, conn, d, req.Section)
 		if err != nil {
@@ -220,7 +222,7 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 			if err := rows.Scan(dest...); err != nil {
 				return result, err
 			}
-			if IsOracleDialect(d) && expression.Valid && strings.TrimSpace(expression.String) != "" {
+			if d.UsesOracleSyntax() && expression.Valid && strings.TrimSpace(expression.String) != "" {
 				column = sql.NullString{}
 			}
 			row.Name = name.String
@@ -228,15 +230,15 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 				row.Fields["included"] = overviewExtraValue(d, req.Section, "included", included)
 			}
 			row.Ordinal, err = strconv.Atoi(position.String)
-			if IsMySQLDialect(d) && (err != nil || row.Ordinal < 1) {
+			if d.UsesMySQLSyntax() && (err != nil || row.Ordinal < 1) {
 				return result, fmt.Errorf("invalid overview index ordinal")
 			}
 			for k, v := range map[string]sql.NullString{"unique": unique, "method": method, "definition": definition, "column": column, "expression": expression, "position": position, "direction": direction, "prefix_length": prefix} {
 				state := "unknown"
-				if d == PostgreSQL && k == "definition" {
+				if d == dialect.PostgreSQL && k == "definition" {
 					state = "restricted"
 				}
-				if (d == PostgreSQL && k != "definition" && k != "unique" && k != "method") || (IsMySQLDialect(d) && k == "definition") {
+				if (d == dialect.PostgreSQL && k != "definition" && k != "unique" && k != "method") || (d.UsesMySQLSyntax() && k == "definition") {
 					state = "unsupported"
 				}
 				f := overviewValue(v, state, overviewSource(d, req.Section, k))
@@ -259,7 +261,7 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 		} else {
 			var comment sql.NullString
 			valueKeys := []string{"estimated_rows", "data_bytes", "index_bytes", "total_bytes", "last_analyzed", "engine", "character_set", "collation"}
-			if IsMySQLDialect(d) {
+			if d.UsesMySQLSyntax() {
 				valueKeys = append(valueKeys, "created", "average_row_length")
 			}
 			if extraCatalogDialect(d) {
@@ -293,7 +295,7 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 			storage := row.Object.ObjectType == "table" || row.Object.ObjectType == "materialized_view"
 			for i, k := range valueKeys {
 				state := "unknown"
-				if d == PostgreSQL && (i >= 5 || !storage && i <= 4) || IsMySQLDialect(d) && row.Object.Kind == "view" {
+				if d == dialect.PostgreSQL && (i >= 5 || !storage && i <= 4) || d.UsesMySQLSyntax() && row.Object.Kind == "view" {
 					state = "unsupported"
 				}
 				row.Fields[k] = overviewValue(vals[i], state, overviewSource(d, req.Section, k))
@@ -319,8 +321,8 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 	return result, rows.Err()
 }
 func validOverviewText(v string) bool { return strings.ToValidUTF8(v, "") == v }
-func overviewSource(d Dialect, section, key string) string {
-	if d == PostgreSQL {
+func overviewSource(d dialect.ID, section, key string) string {
+	if d == dialect.PostgreSQL {
 		switch key {
 		case "estimated_rows":
 			return "pg_class.reltuples; negative=unknown; partition parents/foreign tables excluded"
@@ -336,7 +338,7 @@ func overviewSource(d Dialect, section, key string) string {
 		return "pg_catalog; visible objects only"
 	}
 	if section == "indexes" {
-		if d == OceanBaseMySQL {
+		if d == dialect.OceanBaseMySQL {
 			return "OceanBase MySQL information_schema.STATISTICS; ordered catalog column names, including generated columns; EXPRESSION is a NULL compatibility placeholder"
 		}
 		return string(d) + " information_schema.STATISTICS; one row per ordered index part; fields probed on the authorized catalog connection"
@@ -344,10 +346,10 @@ func overviewSource(d Dialect, section, key string) string {
 	if key == "last_analyzed" {
 		return "unknown; UPDATE_TIME is not ANALYZE freshness"
 	}
-	if d == MariaDB {
+	if d == dialect.MariaDB {
 		return "MariaDB information_schema; TABLE_ROWS may be estimated; InnoDB/XtraDB page allocation, Aria/MyISAM file bytes, MEMORY allocated memory; TABLES partition totals counted once; visible base/system-versioned tables only"
 	}
-	if d == OceanBaseMySQL {
+	if d == dialect.OceanBaseMySQL {
 		return "OceanBase MySQL information_schema; TABLE_ROWS catalog estimate; DATA_LENGTH table macroblock bytes, INDEX_LENGTH non-primary index macroblock bytes; TABLES logical-table totals counted once, not replica or tenant totals"
 	}
 	return "information_schema; TABLE_ROWS is engine-dependent estimate; DATA_LENGTH includes clustered data; INDEX_LENGTH secondary indexes; partition totals reported by TABLES; external LOB storage may be excluded"
@@ -358,20 +360,20 @@ const overviewPGFrom = ` FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace
  AND n.nspname IN (SELECT schema_name FROM information_schema.schemata)`
 const overviewMyFrom = ` FROM information_schema.TABLES t WHERE BINARY t.TABLE_SCHEMA=BINARY ? AND t.TABLE_TYPE IN ('BASE TABLE','VIEW')`
 
-func overviewSQL(d Dialect, r OverviewRequest) (string, []any) {
+func overviewSQL(d dialect.ID, r OverviewRequest) (string, []any) {
 	desc := r.Sort == "name_desc"
 	op, order := ">", "ASC"
 	if desc {
 		op, order = "<", "DESC"
 	}
 	if r.Section == "properties" {
-		if d == PostgreSQL {
+		if d == dialect.PostgreSQL {
 			return `SELECT pg_catalog.pg_encoding_to_char(encoding) AS encoding, datcollate AS collation, datctype AS character_classification FROM pg_catalog.pg_database WHERE datname=$1`, []any{r.Database}
 		}
 		return `SELECT DEFAULT_CHARACTER_SET_NAME AS character_set, DEFAULT_COLLATION_NAME AS collation FROM information_schema.SCHEMATA WHERE BINARY SCHEMA_NAME=BINARY ?`, []any{r.Database}
 	}
 	if r.Section == "statistics" {
-		if d == PostgreSQL {
+		if d == dialect.PostgreSQL {
 			return `SELECT COUNT(*) FILTER(WHERE c.relkind IN ('r','p','f'))::text AS tables, COUNT(*) FILTER(WHERE c.relkind IN ('v','m'))::text AS views,
  COALESCE(SUM((SELECT COUNT(*) FROM pg_catalog.pg_index i WHERE i.indrelid=c.oid)),0)::text AS indexes,
  SUM(CASE WHEN c.relkind IN ('r','m') AND c.reltuples>=0 THEN FLOOR(c.reltuples)::numeric END)::text AS estimated_rows,
@@ -392,7 +394,7 @@ func overviewSQL(d Dialect, r OverviewRequest) (string, []any) {
  CAST(COALESCE(SUM(t.TABLE_TYPE='BASE TABLE' AND (t.DATA_LENGTH IS NULL OR t.INDEX_LENGTH IS NULL)),0) AS CHAR) AS total_bytes_unknown` + overviewMyFrom, []any{r.Database}
 	}
 	if r.Section == "indexes" {
-		if d == PostgreSQL {
+		if d == dialect.PostgreSQL {
 			return `SELECT pg_catalog.current_database(),n.nspname,c.relname,CASE WHEN c.relkind='m' THEN 'view' ELSE 'table' END,CASE c.relkind WHEN 'm' THEN 'materialized_view' WHEN 'p' THEN 'partitioned_table' ELSE 'table' END,
  ix.relname,i.indisunique::text,am.amname,LEFT(pg_catalog.pg_get_indexdef(ix.oid),16385),
  (SELECT string_agg(pg_catalog.pg_get_indexdef(ix.oid,k,true),', ' ORDER BY k) FROM generate_series(1,i.indnatts) k),NULL::text,'0',NULL::text,NULL::text
@@ -409,7 +411,7 @@ func overviewSQL(d Dialect, r OverviewRequest) (string, []any) {
 	if r.Section != "tables" && r.Section != "views" {
 		return "", nil
 	}
-	if d == PostgreSQL {
+	if d == dialect.PostgreSQL {
 		kinds := "('r','p','f')"
 		if r.Section == "views" {
 			kinds = "('v','m')"

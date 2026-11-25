@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 const DiagramMaxPairs = 64
@@ -55,7 +57,7 @@ type CatalogDiagram struct {
 
 // Two independent keyset streams: visible tables and complete constraints. A
 // page never splits a composite FK. Only catalog connections/queries are used.
-func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r DiagramRequest) (result CatalogDiagram, err error) {
+func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d dialect.ID, r DiagramRequest) (result CatalogDiagram, err error) {
 	defer func() {
 		if overviewPermissionDenied(err) {
 			err = ErrCatalogForbidden
@@ -68,27 +70,27 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 	if (r.Section != "nodes" && r.Section != "edges") || (r.Direction != "schema" && r.Direction != "incoming") || r.Direction == "incoming" && (r.Table == "" || r.Schema == "") {
 		return result, fmt.Errorf("invalid diagram request")
 	}
-	if d != PostgreSQL && !IsMySQLDialect(d) && !extraCatalogDialect(d) {
+	if d != dialect.PostgreSQL && !d.UsesMySQLSyntax() && !extraCatalogDialect(d) {
 		result.State = "unsupported"
 		return result, nil
 	}
 	result.Source = "information_schema"
-	if d == PostgreSQL {
+	if d == dialect.PostgreSQL {
 		result.Source = "pg_catalog"
 	}
-	if (IsMySQLDialect(d) || d == ClickHouse) && r.Schema != "" && r.Schema != r.Database {
+	if (d.UsesMySQLSyntax() || d == dialect.ClickHouse) && r.Schema != "" && r.Schema != r.Database {
 		return result, ErrCatalogForbidden
 	}
 	if err := catalogDatabaseAccess(ctx, conn, d, r.Database); err != nil {
 		return result, err
 	}
-	if d == PostgreSQL && r.Schema != "" {
+	if d == dialect.PostgreSQL && r.Schema != "" {
 		if err := catalogSchemaAccess(ctx, conn, r.Schema); err != nil {
 			return result, err
 		}
 	}
 	columnPrivileges := false
-	if d == MariaDB || d == OceanBaseMySQL {
+	if d == dialect.MariaDB || d == dialect.OceanBaseMySQL {
 		result.Contract, result.Source, result.Reason, columnPrivileges, err = probeDiagramMyContract(ctx, conn, d, r.Database)
 		if err != nil {
 			return result, err
@@ -103,7 +105,7 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 	}
 	// Column-only grants can hide an entire FK in KCU, not just its column
 	// names. Be conservative even if the account also holds wider grants.
-	if d == MariaDB || d == OceanBaseMySQL {
+	if d == dialect.MariaDB || d == dialect.OceanBaseMySQL {
 		var columnGrants bool
 		if !columnPrivileges {
 			result.State = "partial"
@@ -131,7 +133,7 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 		if r.Continuation && r.Contract != result.Contract {
 			return result, ErrDiagramContractChanged
 		}
-		if d == ClickHouse && r.Section == "edges" {
+		if d == dialect.ClickHouse && r.Section == "edges" {
 			result.State = "unsupported"
 			result.Reason = "ClickHouse has no foreign-key relationship catalog"
 			return result, nil
@@ -145,7 +147,7 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 		}
 		query, args = q.SQL, q.Args
 	}
-	if d == MariaDB || d == OceanBaseMySQL {
+	if d == dialect.MariaDB || d == dialect.OceanBaseMySQL {
 		query, args = diagramCompatibleSQL(d, r)
 	}
 	rows, err := queryCatalogRows(ctx, conn, d, query, args...)
@@ -181,7 +183,7 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 			edge = &DiagramEdge{ColumnCount: count, Name: name, Source: CatalogObject{Database: r.Database, Schema: schema, Name: table, Kind: "table", ObjectType: "table"}, State: "complete", Pairs: []DiagramPair{}, TargetOpenable: openable}
 			if targetSchema.Valid && targetName.Valid {
 				database := r.Database
-				if IsMySQLDialect(d) {
+				if d.UsesMySQLSyntax() {
 					database = targetSchema.String
 				}
 				edge.Target = &CatalogObject{Database: database, Schema: targetSchema.String, Name: targetName.String, Kind: "table", ObjectType: "table"}
@@ -250,20 +252,20 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 	return result, nil
 }
 
-func diagramSQL(d Dialect, r DiagramRequest) (string, []any) {
+func diagramSQL(d dialect.ID, r DiagramRequest) (string, []any) {
 	if r.Section == "nodes" {
 		if r.Direction == "incoming" {
-			if d == PostgreSQL {
+			if d == dialect.PostgreSQL {
 				return `SELECT n.nspname,c.relname,CASE c.relkind WHEN 'p' THEN 'partitioned_table' ELSE 'table' END FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=$1 AND c.relname=$2 AND c.relkind IN ('r','p','f')`, []any{r.Schema, r.Table}
 			}
 			return `SELECT TABLE_SCHEMA,TABLE_NAME,'table' FROM information_schema.TABLES WHERE BINARY TABLE_SCHEMA=BINARY ? AND BINARY TABLE_NAME=BINARY ? AND TABLE_TYPE='BASE TABLE'`, []any{r.Schema, r.Table}
 		}
-		if d == PostgreSQL {
+		if d == dialect.PostgreSQL {
 			return `SELECT n.nspname,c.relname,CASE c.relkind WHEN 'p' THEN 'partitioned_table' WHEN 'f' THEN 'foreign_table' ELSE 'table' END` + overviewPGFrom + ` AND c.relkind IN ('r','p','f') AND (n.nspname COLLATE pg_catalog."C",c.relname COLLATE pg_catalog."C") > ($3 COLLATE pg_catalog."C",$4 COLLATE pg_catalog."C") ORDER BY n.nspname COLLATE pg_catalog."C",c.relname COLLATE pg_catalog."C" LIMIT $5`, []any{r.Database, r.Schema, r.AfterSchema, r.AfterName, r.Limit + 1}
 		}
 		return `SELECT TABLE_SCHEMA,TABLE_NAME,'table' FROM information_schema.TABLES WHERE BINARY TABLE_SCHEMA=BINARY ? AND TABLE_TYPE='BASE TABLE' AND (BINARY TABLE_SCHEMA,BINARY TABLE_NAME)>(BINARY ?,BINARY ?) ORDER BY BINARY TABLE_SCHEMA,BINARY TABLE_NAME LIMIT ?`, []any{r.Database, r.AfterSchema, r.AfterName, r.Limit + 1}
 	}
-	if d == PostgreSQL {
+	if d == dialect.PostgreSQL {
 		// Keep source and target schemas within the native visible-schema list.
 		// Constraint/column metadata does not require SELECT on business tables.
 		scope := `($2='' OR n.nspname=$2)`
@@ -306,8 +308,8 @@ func diagramSQL(d Dialect, r DiagramRequest) (string, []any) {
  WHERE k.ORDINAL_POSITION<=64 ORDER BY BINARY k.TABLE_SCHEMA,BINARY k.TABLE_NAME,BINARY k.CONSTRAINT_NAME,k.ORDINAL_POSITION`, args
 }
 
-func diagramObjectAccess(ctx context.Context, conn *sql.Conn, d Dialect, r DiagramRequest) error {
-	if d != MariaDB && d != OceanBaseMySQL {
+func diagramObjectAccess(ctx context.Context, conn *sql.Conn, d dialect.ID, r DiagramRequest) error {
+	if d != dialect.MariaDB && d != dialect.OceanBaseMySQL {
 		return CatalogObjectAccess(ctx, conn, d, r.Schema, r.Table)
 	}
 	q, args := diagramCompatibleSQL(d, DiagramRequest{CatalogObjectRequest: r.CatalogObjectRequest, Section: "nodes", Direction: "incoming", Table: r.Table})
