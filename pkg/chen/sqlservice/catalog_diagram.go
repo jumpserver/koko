@@ -259,7 +259,7 @@ func diagramSQL(d Dialect, r DiagramRequest) (string, []any) {
 			return `SELECT TABLE_SCHEMA,TABLE_NAME,'table' FROM information_schema.TABLES WHERE BINARY TABLE_SCHEMA=BINARY ? AND BINARY TABLE_NAME=BINARY ? AND TABLE_TYPE='BASE TABLE'`, []any{r.Schema, r.Table}
 		}
 		if d == PostgreSQL {
-			return `SELECT n.nspname,c.relname,CASE c.relkind WHEN 'p' THEN 'partitioned_table' WHEN 'f' THEN 'foreign_table' ELSE 'table' END` + overviewPGFrom + ` AND c.relkind IN ('r','p','f') AND (n.nspname COLLATE pg_catalog."C",c.relname COLLATE pg_catalog."C") > ($3 COLLATE pg_catalog."C",$4 COLLATE pg_catalog."C") ORDER BY n.nspname COLLATE pg_catalog."C",c.relname COLLATE pg_catalog."C" LIMIT $5`, []any{r.Database, r.Schema, r.AfterSchema, r.AfterName, r.Limit + 1}
+			return `SELECT n.nspname,c.relname,CASE c.relkind WHEN 'p' THEN 'partitioned_table' WHEN 'f' THEN 'foreign_table' ELSE 'table' END` + overviewPGFrom + ` AND c.relkind IN ('r','p','f') AND (n.nspname,c.relname) > ($3::pg_catalog.name,$4::pg_catalog.name) ORDER BY n.nspname,c.relname LIMIT $5`, []any{r.Database, r.Schema, r.AfterSchema, r.AfterName, r.Limit + 1}
 		}
 		return `SELECT TABLE_SCHEMA,TABLE_NAME,'table' FROM information_schema.TABLES WHERE BINARY TABLE_SCHEMA=BINARY ? AND TABLE_TYPE='BASE TABLE' AND (BINARY TABLE_SCHEMA,BINARY TABLE_NAME)>(BINARY ?,BINARY ?) ORDER BY BINARY TABLE_SCHEMA,BINARY TABLE_NAME LIMIT ?`, []any{r.Database, r.AfterSchema, r.AfterName, r.Limit + 1}
 	}
@@ -275,13 +275,13 @@ func diagramSQL(d Dialect, r DiagramRequest) (string, []any) {
    FROM pg_catalog.pg_constraint k JOIN pg_catalog.pg_class c ON c.oid=k.conrelid JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace JOIN pg_catalog.pg_class tr ON tr.oid=k.confrelid JOIN pg_catalog.pg_namespace nr ON nr.oid=tr.relnamespace
    WHERE pg_catalog.current_database()=$1 AND k.contype='f' AND ` + scope + ` AND ($3::text IS NOT NULL)
    AND n.nspname IN (SELECT schema_name FROM information_schema.schemata)
-   AND (n.nspname COLLATE pg_catalog."C",c.relname COLLATE pg_catalog."C",k.conname COLLATE pg_catalog."C") > ($4 COLLATE pg_catalog."C",$5 COLLATE pg_catalog."C",$6 COLLATE pg_catalog."C")
-   ORDER BY n.nspname COLLATE pg_catalog."C",c.relname COLLATE pg_catalog."C",k.conname COLLATE pg_catalog."C" LIMIT $7)
+   AND (n.nspname,c.relname,k.conname) > ($4::pg_catalog.name,$5::pg_catalog.name,$6::pg_catalog.name)
+   ORDER BY n.nspname,c.relname,k.conname LIMIT $7)
   SELECT p.source_schema,p.source_table,p.conname,CASE WHEN p.target_visible THEN p.target_schema END,CASE WHEN p.target_visible THEN p.target_table END,p.target_visible,u.ord,cardinality(p.conkey),
    a.attname, CASE WHEN p.target_visible THEN b.attname END
   FROM p CROSS JOIN LATERAL unnest(p.conkey,p.confkey) WITH ORDINALITY u(a,b,ord)
   LEFT JOIN pg_catalog.pg_attribute a ON a.attrelid=p.conrelid AND a.attnum=u.a LEFT JOIN pg_catalog.pg_attribute b ON b.attrelid=p.confrelid AND b.attnum=u.b
-  WHERE u.ord<=64 ORDER BY p.source_schema COLLATE pg_catalog."C",p.source_table COLLATE pg_catalog."C",p.conname COLLATE pg_catalog."C",u.ord`, []any{r.Database, r.Schema, r.Table, r.AfterSchema, r.AfterTable, r.AfterName, r.Limit + 1}
+  WHERE u.ord<=64 ORDER BY p.source_schema,p.source_table,p.conname,u.ord`, []any{r.Database, r.Schema, r.Table, r.AfterSchema, r.AfterTable, r.AfterName, r.Limit + 1}
 	}
 	filter := ""
 	args := []any{r.Database}

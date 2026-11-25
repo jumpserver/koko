@@ -31,8 +31,8 @@ func DatabaseRows(ctx context.Context, conn *sql.Conn, dialect Dialect, database
 		// target connection, which can still be denied by the server.
 		query = `SELECT d.datname, d.datname FROM pg_catalog.pg_database d
 WHERE NOT d.datistemplate
-AND d.datname COLLATE pg_catalog."C" > $1 COLLATE pg_catalog."C"
-ORDER BY d.datname COLLATE pg_catalog."C" LIMIT $2`
+AND d.datname > $1::pg_catalog.name
+ORDER BY d.datname LIMIT $2`
 	case SQLServer:
 		query = `SELECT TOP (@p2) name, name FROM sys.databases
 WHERE name COLLATE Latin1_General_BIN2 > @p1
