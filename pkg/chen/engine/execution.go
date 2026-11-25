@@ -518,7 +518,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		if p.view.Supported && p.view.ServerVersion != "" {
 			version, reason, err := browseVendorContext(e.ctx, c, s.grant.Config.Dialect, opts)
-			if err != nil || reason != "" || version != p.view.ServerVersion {
+			if err != nil || reason != "" || version != p.serverVersion {
 				failure(errors.New("browse_context_changed"), &APIError{"browse_context_changed", "Server capabilities changed; reopen this table"})
 				return
 			}

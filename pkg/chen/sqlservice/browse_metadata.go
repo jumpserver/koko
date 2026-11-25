@@ -52,20 +52,17 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 			return out, ErrCatalogForbidden
 		}
 	} else if schema == "" {
-		if d == PostgreSQL {
-			if err := conn.QueryRowContext(ctx, `SELECT n.nspname FROM pg_catalog.pg_class t JOIN pg_catalog.pg_namespace n ON n.oid=t.relnamespace WHERE t.oid=pg_catalog.to_regclass($1)`, quoteIdentifier(table, d, '"')).Scan(&schema); err != nil {
-				return out, err
-			}
-		} else if d == SQLServer {
-			if err := conn.QueryRowContext(ctx, `SELECT OBJECT_SCHEMA_NAME(OBJECT_ID(@p1))`, quoteIdentifier(table, d, '[')).Scan(&schema); err != nil {
-				return out, err
-			}
-		} else {
-			var err error
+		var err error
+		switch d {
+		case PostgreSQL:
+			schema, err = postgresRelationSchema(ctx, conn, table)
+		case SQLServer:
+			err = conn.QueryRowContext(ctx, `SELECT OBJECT_SCHEMA_NAME(OBJECT_ID(@p1))`, quoteIdentifier(table, d, '[')).Scan(&schema)
+		default:
 			schema, err = extraDefaultSchema(ctx, conn, d, scope.Database)
-			if err != nil {
-				return out, err
-			}
+		}
+		if err != nil {
+			return out, err
 		}
 	}
 	out.Schema = schema

@@ -6,9 +6,9 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/jumpserver/koko/pkg/chen/core"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
@@ -84,9 +84,7 @@ func readMySQLStarSession(ctx context.Context, conn *sql.Conn, hint sqlservice.Q
 }
 
 func mysqlAnalyzeOptions(mode, version string) sqlservice.AnalyzeOptions {
-	var major, minor, patch int
-	fmt.Sscanf(version, "%d.%d.%d", &major, &minor, &patch)
-	return sqlservice.AnalyzeOptions{MySQLSQLMode: mode, MySQLVersion: major*10000 + minor*100 + patch}
+	return sqlservice.AnalyzeOptions{MySQLSQLMode: mode, MySQLVersion: dialect.MySQLCompatibilityNumber(version)}
 }
 
 func closeConsoleConnection(conn *sql.Conn) {
@@ -113,7 +111,7 @@ func connectionContext(ctx context.Context, conn *sql.Conn, dialect string, conf
 		current.Schema = current.Database
 	case dialect == "db2":
 		err = conn.QueryRowContext(ctx, "VALUES (CURRENT SERVER, CURRENT SCHEMA)").Scan(&current.Database, &current.Schema)
-	case dialect == "oracle" || dialect == "dameng" || dialect == "oceanbase-oracle":
+	case sqlservice.Dialect(dialect).UsesOracleSyntax():
 		err = conn.QueryRowContext(ctx, "SELECT SYS_CONTEXT('USERENV','CURRENT_SCHEMA') FROM DUAL").Scan(&current.Schema)
 		if current.Database == "" {
 			current.Database = current.Schema

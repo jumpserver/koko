@@ -7,25 +7,26 @@ import (
 	"context"
 	"errors"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlanalysis"
 )
 
-type Dialect string
+type Dialect = dialect.ID
 
 const (
-	MySQL                Dialect = "mysql"
-	PostgreSQL           Dialect = "postgresql"
-	MariaDB              Dialect = "mariadb"
-	SQLServer            Dialect = "sqlserver"
-	Oracle               Dialect = "oracle"
-	Dameng               Dialect = "dameng"
-	DB2                  Dialect = "db2"
-	ClickHouse           Dialect = "clickhouse"
-	OceanBaseMySQL       Dialect = "oceanbase-mysql"
-	OceanBaseOracle      Dialect = "oceanbase-oracle"
-	MaxDocumentCodeUnits         = 4 << 20 // Java: 1,024 chunks of 4,096 UTF-16 code units.
-	MaxDocumentBytes             = 3 * MaxDocumentCodeUnits
-	MaxCompletionItems           = 200
+	MySQL                = dialect.MySQL
+	PostgreSQL           = dialect.PostgreSQL
+	MariaDB              = dialect.MariaDB
+	SQLServer            = dialect.SQLServer
+	Oracle               = dialect.Oracle
+	Dameng               = dialect.Dameng
+	DB2                  = dialect.DB2
+	ClickHouse           = dialect.ClickHouse
+	OceanBaseMySQL       = dialect.OceanBaseMySQL
+	OceanBaseOracle      = dialect.OceanBaseOracle
+	MaxDocumentCodeUnits = 4 << 20 // Java: 1,024 chunks of 4,096 UTF-16 code units.
+	MaxDocumentBytes     = 3 * MaxDocumentCodeUnits
+	MaxCompletionItems   = 200
 )
 
 // DocumentExceedsLimit preserves the Java chunk transport's text capacity for
@@ -53,22 +54,17 @@ func DocumentExceedsLimit(document string) bool {
 // These families describe SQL syntax, not the wire protocol. In particular an
 // OceanBase Oracle tenant must not be opened with an Oracle database driver.
 func IsMySQLDialect(d Dialect) bool {
-	return d == MySQL || d == MariaDB || d == OceanBaseMySQL
+	return d.UsesMySQLSyntax()
 }
 
 func IsOracleDialect(d Dialect) bool {
-	return d == Oracle || d == Dameng || d == OceanBaseOracle
+	return d.UsesOracleSyntax()
 }
 
 func upperCaseIdentifiers(d Dialect) bool { return IsOracleDialect(d) || d == DB2 }
 
 func supported(d Dialect) bool {
-	switch d {
-	case MySQL, MariaDB, PostgreSQL, SQLServer, Oracle, Dameng, DB2, ClickHouse, OceanBaseMySQL, OceanBaseOracle:
-		return true
-	default:
-		return false
-	}
+	return d.Supported()
 }
 
 var (

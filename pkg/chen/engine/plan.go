@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	dbdialect "github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
@@ -320,8 +321,10 @@ func planPrefix(s string, limit int) string {
 	return s
 }
 func normalizePlan(dialect string, r *Result, versions ...string) *ExecutionPlan {
-	if mysqlReturnsOceanBasePlan(dialect, r) && len(versions) > 0 && oceanBasePlanVersion.MatchString(versions[0]) {
-		dialect = "oceanbase-mysql"
+	if mysqlReturnsOceanBasePlan(dialect, r) && len(versions) > 0 {
+		if _, ok := dbdialect.ParseOceanBaseVersion(versions[0]); ok {
+			dialect = "oceanbase-mysql"
+		}
 	}
 	p := emptyPlan(dialect)
 	if len(versions) > 0 {

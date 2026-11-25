@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
@@ -75,6 +76,7 @@ type browsePlan struct {
 	reexecutionConfirmed                                             bool
 	fetchSize                                                        int // final append may be smaller than the selected batch size
 	view                                                             BrowsePage
+	serverVersion                                                    sqlservice.MySQLServerVersion
 	table                                                            sqlservice.EditTable
 	options                                                          sqlservice.AnalyzeOptions
 	sql, policySQL, fullSQL, fullPolicySQL, countSQL, countPolicySQL string
@@ -237,7 +239,8 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 			return nil, errors.New("This table is unavailable for authorized browsing; open it as a normal query")
 		}
 		p.table = table
-		p.view = BrowsePage{Supported: reason == "", Reason: reason, ServerVersion: version, Database: table.Database, Schema: table.Schema, Table: table.Table, Where: strings.TrimSpace(req.Where), Filter: req.Filter, Sort: append([]browseOrder{}, req.Sort...), Offset: req.Offset, PageSize: req.PageSize, MaxPageSize: min(1000, v.opts.MaxRows), MaxOffset: browseMaxOffset, MaxLoadedRows: v.opts.MaxRows}
+		p.serverVersion = version
+		p.view = BrowsePage{Supported: reason == "", Reason: reason, ServerVersion: version.Product, Database: table.Database, Schema: table.Schema, Table: table.Table, Where: strings.TrimSpace(req.Where), Filter: req.Filter, Sort: append([]browseOrder{}, req.Sort...), Offset: req.Offset, PageSize: req.PageSize, MaxPageSize: min(1000, v.opts.MaxRows), MaxOffset: browseMaxOffset, MaxLoadedRows: v.opts.MaxRows}
 		p.view.RequiresReexecution = table.View
 		p.reexecutionConfirmed = req.ConfirmReexecution
 		if table.View && !req.ConfirmReexecution {
@@ -569,53 +572,62 @@ func (v *Server) collectBrowseAppend(s *session, e *execution, rows *sql.Rows) e
 }
 
 var browseVersionNumber = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(?:[.-]|$)`)
-var browseOceanBaseVersion = regexp.MustCompile(`(?i)OceanBase[^\s]*-v(\d+\.\d+\.\d+(?:[.-].*)?)$`)
 
 // Keep browse admission independent from informational catalogs and EXPLAIN
 // formats. These families have the required LIMIT/metadata contract; each
 // connection must still supply complete authorized edit metadata.
-func browseVendorVersionSupported(d, version string) bool {
+func browseVendorVersionSupported(d string, version sqlservice.MySQLServerVersion) bool {
 	switch d {
 	case "mariadb":
-		if !strings.Contains(strings.ToLower(version), "mariadb") {
+		if !strings.Contains(strings.ToLower(version.Product), "mariadb") {
 			return false
 		}
-		version = strings.TrimPrefix(version, "5.5.5-")
+		parts := browseVersionNumber.FindStringSubmatch(strings.TrimPrefix(version.Product, "5.5.5-"))
+		if parts == nil {
+			return false
+		}
+		major, _ := strconv.Atoi(parts[1])
+		return major > 0
 	case "oceanbase-mysql":
-		parts := browseOceanBaseVersion.FindStringSubmatch(version)
-		if len(parts) != 2 {
-			return false
+		// Direct VERSION() banners retain their combined MySQL/OceanBase
+		// format gate. A separate product comment can use the release banner.
+		parse := dialect.ParseOceanBaseMySQLBanner
+		if version.FromVersionComment() {
+			parse = dialect.ParseOceanBaseVersion
 		}
-		version = parts[1]
+		release, ok := parse(version.Product)
+		return ok && release.Major > 0
 	default:
 		return false
 	}
-	parts := browseVersionNumber.FindStringSubmatch(version)
-	if len(parts) != 4 {
-		return false
-	}
-	major, _ := strconv.Atoi(parts[1])
-	// The statements use the same LIMIT/information_schema contract as
-	// v5.1.1. Actual metadata/SQL-mode probes, not a release whitelist,
-	// determine availability on this connection.
-	return major > 0
 }
 
-func browseVendorContext(ctx context.Context, c *console, d string, options sqlservice.AnalyzeOptions) (version, reason string, err error) {
+func browseVendorContext(ctx context.Context, c *console, d string, options sqlservice.AnalyzeOptions) (version sqlservice.MySQLServerVersion, reason string, err error) {
 	switch d {
 	case "postgresql", "mysql", "oracle", "sqlserver", "dameng", "db2", "oceanbase-oracle", "clickhouse":
-		return "", "", nil
+		return version, "", nil
 	case "mariadb", "oceanbase-mysql":
 		if err = sqlservice.ValidateBrowseSQLMode(sqlservice.Dialect(d), options); err != nil {
 			return
 		}
-		if err = c.conn.QueryRowContext(ctx, "SELECT VERSION()").Scan(&version); err != nil {
-			return "", "", errors.New("Unable to verify the server version for database browsing")
+		version, err = sqlservice.ReadMySQLServerVersion(ctx, c.conn, sqlservice.Dialect(d))
+		if err != nil {
+			if ctx.Err() != nil {
+				return version, "", ctx.Err()
+			}
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return version, "", err
+			}
+			if version.Source == "" {
+				return version, "", errors.New("Unable to verify the server version for database browsing")
+			}
+			// The version comment was unavailable. Preserve cached browsing
+			// after verifying the tenant on this connection.
 		}
 		if d == "oceanbase-mysql" {
 			var mode string
 			if err = c.conn.QueryRowContext(ctx, "SELECT @@ob_compatibility_mode").Scan(&mode); err != nil || !strings.EqualFold(mode, "MYSQL") {
-				return "", "", errors.New("Database browsing requires a verified OceanBase MySQL tenant")
+				return version, "", errors.New("Database browsing requires a verified OceanBase MySQL tenant")
 			}
 		}
 		if !browseVendorVersionSupported(d, version) {
@@ -623,6 +635,6 @@ func browseVendorContext(ctx context.Context, c *console, d string, options sqls
 		}
 		return version, "", nil
 	default:
-		return "", "legacy_cached_browse", nil
+		return version, "legacy_cached_browse", nil
 	}
 }

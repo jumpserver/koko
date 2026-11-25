@@ -461,6 +461,13 @@ WHERE BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ? AND TABLE_
 	return err
 }
 
+// Resolve the unqualified relation against the current connection's search_path.
+func postgresRelationSchema(ctx context.Context, conn *sql.Conn, table string) (string, error) {
+	var schema string
+	err := conn.QueryRowContext(ctx, `SELECT n.nspname FROM pg_catalog.pg_class t JOIN pg_catalog.pg_namespace n ON n.oid=t.relnamespace WHERE t.oid=pg_catalog.to_regclass($1)`, quoteIdentifier(table, PostgreSQL, '"')).Scan(&schema)
+	return schema, err
+}
+
 func postgresEditableObjectKind(ctx context.Context, conn *sql.Conn, schema, table string) (string, error) {
 	var kind string
 	var schemaAllowed, objectAllowed, columnsAllowed bool

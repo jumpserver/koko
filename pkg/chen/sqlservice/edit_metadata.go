@@ -87,14 +87,11 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 			schema = out.Database
 		}
 	} else if d == PostgreSQL && schema == "" {
-		// Resolve against the actual search_path (which user SQL can change),
-		// never assume that a cached workspace schema names the selected table.
-		var resolved string
-		err := conn.QueryRowContext(ctx, `SELECT n.nspname FROM pg_catalog.pg_class t JOIN pg_catalog.pg_namespace n ON n.oid=t.relnamespace WHERE t.oid=pg_catalog.to_regclass($1)`, quoteIdentifier(table, d, '"')).Scan(&resolved)
+		var err error
+		schema, err = postgresRelationSchema(ctx, conn, table)
 		if err != nil {
 			return out, fmt.Errorf("resolve editable table: %w", err)
 		}
-		schema = resolved
 	} else if schema == "" && d == SQLServer {
 		// SQL Server first searches the default schema and then dbo.
 		if err := conn.QueryRowContext(ctx, `SELECT OBJECT_SCHEMA_NAME(OBJECT_ID(@p1, 'U'))`, quoteIdentifier(table, d, '[')).Scan(&schema); err != nil {

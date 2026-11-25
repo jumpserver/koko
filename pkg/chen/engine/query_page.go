@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
@@ -188,6 +189,7 @@ func queryPageContext(ctx context.Context, c *console, d string) (string, error)
 // the paging settings. Return both from the same read on this console.
 func readQueryPageContext(ctx context.Context, c *console, d string) (string, sqlservice.Context, error) {
 	scope := c.context
+	id := dialect.ID(d)
 	var values []string
 	if d == "postgresql" {
 		values = make([]string, 7)
@@ -198,7 +200,7 @@ func readQueryPageContext(ctx context.Context, c *console, d string) (string, sq
 		if values[3] != "on" {
 			return "", scope, errors.New("Database paging requires standard_conforming_strings=on")
 		}
-	} else if d != "mysql" && d != "mariadb" && d != "oceanbase-mysql" {
+	} else if !id.UsesMySQLSyntax() {
 		var err error
 		values, err = vendorQueryPageContext(ctx, c, d)
 		if err != nil {
@@ -211,10 +213,10 @@ func readQueryPageContext(ctx context.Context, c *console, d string) (string, sq
 			return "", scope, err
 		}
 	}
-	switch d {
-	case "mysql", "mariadb", "oceanbase-mysql", "clickhouse":
+	switch {
+	case id.UsesMySQLSyntax() || id == dialect.ClickHouse:
 		scope.Database, scope.Schema = values[0], values[0]
-	case "oracle", "dameng", "oceanbase-oracle":
+	case id.UsesOracleSyntax():
 		// The configured service alias identifies the database in the catalog.
 		scope.Schema = values[1]
 		if scope.Database == "" {
@@ -400,6 +402,7 @@ func validateQueryPageSources(ctx context.Context, c *console, d string, q *sqls
 		return errors.New("Query paging source inspection exceeds its limit")
 	}
 	var tableQuery string
+	id := dialect.ID(d)
 	seen := map[string]bool{}
 	for _, r := range q.Relations {
 		key := r.Schema + "\x00" + r.Name
@@ -428,18 +431,18 @@ func validateQueryPageSources(ctx context.Context, c *console, d string, q *sqls
 			}
 			err = c.conn.QueryRowContext(ctx, query, r.Schema, r.Name).Scan(&safe)
 		}
-		if errors.Is(err, sql.ErrNoRows) && (d == "postgresql" || sqlservice.IsMySQLDialect(sqlservice.Dialect(d))) && r.Schema == "" && q.CTEs[cteName] {
+		if errors.Is(err, sql.ErrNoRows) && (id == dialect.PostgreSQL || id.UsesMySQLSyntax()) && r.Schema == "" && q.CTEs[cteName] {
 			continue
 		}
 		if err != nil || !safe {
 			return errors.New("Database paging requires visible ordinary tables; views, inherited/partitioned or foreign tables, row security and unverified types cannot be safely replayed")
 		}
 	}
-	if d != "postgresql" && d != "mysql" && d != "mariadb" && d != "oceanbase-mysql" {
+	if id != dialect.PostgreSQL && !id.UsesMySQLSyntax() {
 		if err := validateVendorQueryFunctions(ctx, c, d, q.Functions); err != nil {
 			return err
 		}
-		if sqlservice.IsOracleDialect(sqlservice.Dialect(d)) {
+		if id.UsesOracleSyntax() {
 			if err := validateOracleColumnBindings(ctx, c, d, q.Scopes); err != nil {
 				return err
 			}

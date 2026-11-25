@@ -6,32 +6,43 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 var ErrDiagramContractChanged = errors.New("diagram catalog contract changed; refresh the diagram")
 
-// Catalog field probes below determine compatibility. Version numbers alone
-// must not disable the relationship feature retained from v5.1.1.
-var diagramMariaVersion = regexp.MustCompile(`(?i)MariaDB`)
-var diagramOBVersion = regexp.MustCompile(`(?i)OceanBase`)
-
 // Probe on the same authorized connection for each page, independently of
 // overview. A fingerprint is meaningful only within the diagram cursor scope.
 func probeDiagramMyContract(ctx context.Context, conn *sql.Conn, d Dialect, database string) (contract, source, reason string, columnPrivileges bool, err error) {
-	var version, mode, casing string
-	if err = conn.QueryRowContext(ctx, "SELECT VERSION(), @@lower_case_table_names").Scan(&version, &casing); err != nil {
+	var reported, mode, casing string
+	if err = conn.QueryRowContext(ctx, "SELECT VERSION(), @@lower_case_table_names").Scan(&reported, &casing); err != nil {
 		return
 	}
-	if len(version) > 256 || !validOverviewText(version) {
+	if len(reported) > 256 || !validOverviewText(reported) {
 		err = errors.New("invalid diagram server version")
 		return
 	}
-	source = string(d) + " " + version + "; information_schema"
-	if d == MariaDB && !diagramMariaVersion.MatchString(version) || d == OceanBaseMySQL && !diagramOBVersion.MatchString(version) {
+	version, probeErr := resolveMySQLServerVersion(ctx, conn, d, reported)
+	if probeErr != nil {
+		if err = ctx.Err(); err != nil {
+			return
+		}
+		if errors.Is(probeErr, context.Canceled) || errors.Is(probeErr, context.DeadlineExceeded) {
+			err = probeErr
+			return
+		}
+		// A missing optional comment leaves the product unverified.
+	}
+	if len(version.Product) > 256 || !validOverviewText(version.Product) {
+		err = errors.New("invalid diagram server version")
+		return
+	}
+	source = string(d) + " " + version.Product + "; information_schema"
+	if d == MariaDB && !strings.Contains(strings.ToLower(version.Product), "mariadb") || d == OceanBaseMySQL && !dialect.HasOceanBaseBrand(version.Product) {
 		reason = "Unverified product/version for catalog relationships"
 		return
 	}
@@ -84,7 +95,11 @@ func probeDiagramMyContract(ctx context.Context, conn *sql.Conn, d Dialect, data
 	}
 	columnPrivileges = seen["COLUMN_PRIVILEGES.TABLE_SCHEMA"] && seen["COLUMN_PRIVILEGES.TABLE_NAME"]
 	sort.Strings(names)
-	contract = fmt.Sprintf("%x", sha256.Sum256([]byte("diagram-v1\x00"+string(d)+"\x00"+version+"\x00"+mode+"\x00"+casing+"\x00"+strings.Join(names, ","))))
+	contractVersion := reported
+	if version.FromVersionComment() {
+		contractVersion += "\x00" + version.Source + "\x00" + version.Product
+	}
+	contract = fmt.Sprintf("%x", sha256.Sum256([]byte("diagram-v1\x00"+string(d)+"\x00"+contractVersion+"\x00"+mode+"\x00"+casing+"\x00"+strings.Join(names, ","))))
 	return
 }
 

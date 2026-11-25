@@ -8,10 +8,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 var planVersionNumber = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)`)
-var oceanBasePlanVersion = regexp.MustCompile(`(?i)OceanBase[^\s]*(?:-v|\s+v?)(\d+\.\d+\.\d+)`)
 
 func mysqlReturnsOceanBasePlan(dialect string, r *Result) bool {
 	return dialect == "mysql" && len(r.Columns) == 1 && strings.EqualFold(r.Columns[0].Name, "Query Plan")
@@ -19,19 +20,16 @@ func mysqlReturnsOceanBasePlan(dialect string, r *Result) bool {
 
 // These are format compatibility families, not a claim of live testing every
 // release. New families must provide versioned output evidence before admission.
-func supportedPlanVersion(dialect, version string) bool {
-	switch dialect {
+func supportedPlanVersion(d, version string) bool {
+	switch d {
 	case "mariadb":
 		if !strings.Contains(strings.ToLower(version), "mariadb") {
 			return false
 		}
 		version = strings.TrimPrefix(version, "5.5.5-")
 	case "oceanbase-mysql", "oceanbase-oracle":
-		match := oceanBasePlanVersion.FindStringSubmatch(version)
-		if len(match) != 2 {
-			return false
-		}
-		version = match[1]
+		v, ok := dialect.ParseOceanBaseVersion(version)
+		return ok && v.Major == 4 && (v.Minor == 2 || v.Minor == 3 || d == "oceanbase-mysql" && v.Minor == 4)
 	}
 	match := planVersionNumber.FindStringSubmatch(version)
 	if len(match) != 4 {
@@ -39,11 +37,9 @@ func supportedPlanVersion(dialect, version string) bool {
 	}
 	major, _ := strconv.Atoi(match[1])
 	minor, _ := strconv.Atoi(match[2])
-	switch dialect {
+	switch d {
 	case "mariadb":
 		return major == 10 && minor == 11 || major == 11 && minor <= 8
-	case "oceanbase-mysql", "oceanbase-oracle":
-		return major == 4 && (minor == 2 || minor == 3 || (dialect == "oceanbase-mysql" && minor == 4))
 	case "clickhouse":
 		return major == 21 && minor >= 6 || major >= 22 && major <= 26
 	}

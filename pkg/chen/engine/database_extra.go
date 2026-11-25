@@ -120,10 +120,6 @@ func (pool databasePool) extraDatabase(c core.ConnectionConfig, t *tls.Config) (
 	}
 }
 
-func supportedProtocols() []string {
-	return []string{"mysql", "mariadb", "postgresql", "sqlserver", "oracle", "dameng", "clickhouse", "oceanbase", "oceanbase-mysql", "oceanbase-oracle", "db2"}
-}
-
 func quoteDatabaseIdentifier(name, dialect string) string {
 	switch {
 	case dialect == "clickhouse":

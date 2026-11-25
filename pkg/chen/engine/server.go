@@ -18,6 +18,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/jumpserver/koko/pkg/chen/core"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
@@ -45,7 +46,7 @@ func (v *Server) Handler() http.Handler {
 		if v.opts.SingleMode {
 			mode = "single"
 		}
-		writeJSON(w, 200, map[string]any{"version": 1, "mode": mode, "protocols": supportedProtocols(), "transport": "http+sse", "features": []string{"query", "cancel", "completion", "audit", "grid_edit", "csv_import", "copy_sql"}})
+		writeJSON(w, 200, map[string]any{"version": 1, "mode": mode, "protocols": dialect.SupportedProtocols(), "transport": "http+sse", "features": []string{"query", "cancel", "completion", "audit", "grid_edit", "csv_import", "copy_sql"}})
 	})
 	mux.HandleFunc("POST "+apiPath+"/sessions", v.createSession)
 	mux.HandleFunc("GET "+apiPath+"/sessions/{sid}", v.sessionStatus)

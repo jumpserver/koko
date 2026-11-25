@@ -6,13 +6,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	mysql "github.com/go-sql-driver/mysql"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	ob "github.com/oceanbase/go-oceanbase-driver"
 )
 
@@ -30,22 +29,16 @@ type overviewMyCapabilities struct {
 }
 
 func probeOverviewMyCapabilities(ctx context.Context, conn *sql.Conn, d Dialect, section string) (*overviewMyCapabilities, error) {
-	c := &overviewMyCapabilities{dialect: d, versionQuery: "SELECT VERSION()", columns: map[string]bool{}, storage: true}
-	var err error
-	if d == OceanBaseMySQL {
-		c.version, c.versionQuery, err = OceanBaseMySQLVersion(ctx, conn)
-	} else {
-		err = conn.QueryRowContext(ctx, c.versionQuery).Scan(&c.version)
-	}
+	version, err := ReadMySQLServerVersion(ctx, conn, d)
 	if err != nil {
 		return nil, err
 	}
+	c := &overviewMyCapabilities{dialect: d, version: version.Product, versionQuery: version.Source, columns: map[string]bool{}, storage: true}
 	if len(c.version) > 256 || !validOverviewText(c.version) {
 		return nil, errors.New("invalid overview server version")
 	}
-	lower := strings.ToLower(c.version)
-	oceanBase := strings.Contains(lower, "oceanbase")
-	mariaDB := strings.Contains(lower, "mariadb")
+	oceanBase := dialect.HasOceanBaseBrand(c.version)
+	mariaDB := strings.Contains(strings.ToLower(c.version), "mariadb")
 	switch {
 	case d == MySQL && oceanBase:
 		// A MySQL-protocol asset may use OceanBase. Its server version identifies
@@ -98,19 +91,11 @@ func probeOverviewMyCapabilities(ctx context.Context, conn *sql.Conn, d Dialect,
 	return c, nil
 }
 
-var overviewOBVersion = regexp.MustCompile(`(?i)OceanBase[^\s]*(?:-v|\s+v?)(\d+)\.(\d+)\.(\d+)`)
-
 func overviewOBStorageVersion(version string) bool {
-	m := overviewOBVersion.FindStringSubmatch(version)
-	if len(m) != 4 {
-		return false
-	}
-	major, _ := strconv.Atoi(m[1])
-	minor, _ := strconv.Atoi(m[2])
-	patch, _ := strconv.Atoi(m[3])
+	v, ok := dialect.ParseOceanBaseVersion(version)
 	// Official TABLES contract: 4.2.4+ and 4.3.5+ expose macroblock
 	// storage sizes; older compatibility placeholders are not measured zeroes.
-	return major == 4 && (minor == 2 && patch >= 4 || minor == 3 && patch >= 5 || minor >= 4)
+	return ok && v.Major == 4 && (v.Minor == 2 && v.Patch >= 4 || v.Minor == 3 && v.Patch >= 5 || v.Minor >= 4)
 }
 
 func (c *overviewMyCapabilities) state(key string) string {
