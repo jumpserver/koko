@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/jumpserver/koko/pkg/chen/dialect"
+	ob "github.com/oceanbase/go-oceanbase-driver"
 )
 
 type MySQLVersionSource uint8
@@ -61,24 +63,50 @@ type MySQLVersionProbeError struct {
 func (e *MySQLVersionProbeError) Error() string { return e.cause.Error() }
 func (e *MySQLVersionProbeError) Unwrap() error { return e.cause }
 
-// RequireReportedVersion applies the browse and diagram policy. Both require a
-// successful VERSION() and propagate cancellation. A failed optional comment
-// leaves the product unverified. Overview requires both probes to succeed.
+// RequireReportedVersion lets a successful VERSION() stand when the server
+// cannot expose @@version_comment. Overview requires both probes to succeed.
 func RequireReportedVersion(ctx context.Context, err error) error {
-	if err == nil {
-		return nil
-	}
 	if stopped := ctx.Err(); stopped != nil {
 		return stopped
+	}
+	if err == nil {
+		return nil
 	}
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
 	var probe *MySQLVersionProbeError
-	if errors.As(err, &probe) && probe.Source == MySQLVersionComment {
+	if errors.As(err, &probe) && probe.Source == MySQLVersionComment && versionCommentUnavailable(err) {
 		return nil
 	}
 	return err
+}
+
+func versionCommentUnavailable(err error) bool {
+	// Follow a single cause. A joined error can also carry a connection failure.
+	for {
+		cause := errors.Unwrap(err)
+		if cause == nil {
+			break
+		}
+		err = cause
+	}
+	var code uint16
+	switch server := err.(type) {
+	case *mysql.MySQLError:
+		code = server.Number
+	case *ob.MySQLError:
+		code = server.Number
+	default:
+		return false
+	}
+	switch code {
+	case 1193: // Unknown system variable.
+		return true
+	case 1142, 1143, 1227: // Command, column, or required privilege denied.
+		return true
+	}
+	return false
 }
 
 // ReadMySQLServerVersion preserves the original report if the optional lookup

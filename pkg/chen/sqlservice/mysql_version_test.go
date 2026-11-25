@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"syscall"
 	"testing"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/jumpserver/koko/pkg/chen/dialect"
+	ob "github.com/oceanbase/go-oceanbase-driver"
 )
 
 type versionReply struct {
@@ -136,23 +139,45 @@ func TestReadMySQLServerVersionErrors(t *testing.T) {
 }
 
 func TestRequireReportedVersion(t *testing.T) {
-	// Optional probe errors retain the report for cached browse/diagram paths.
-	const primary, comment = "SELECT VERSION()", "SELECT @@version_comment"
 	ctx := context.Background()
-	_, primaryErr := probeTestVersion(t, dialect.OceanBaseMySQL, versionReply{query: primary, err: driver.ErrBadConn})
-	_, optionalErr := probeTestVersion(t, dialect.OceanBaseMySQL, versionReply{query: primary, value: "5.7.25"}, versionReply{query: comment, err: driver.ErrBadConn})
-	if !errors.Is(RequireReportedVersion(ctx, primaryErr), driver.ErrBadConn) || RequireReportedVersion(ctx, optionalErr) != nil {
-		t.Fatal("primary and optional connection errors lost their error policy")
+	for _, tc := range []struct {
+		number   uint16
+		optional bool
+	}{
+		{1193, true}, {1142, true}, {1143, true}, {1227, true},
+		{1044, false}, {1045, false}, {1146, false}, {2006, false}, {2013, false},
+	} {
+		for _, cause := range []error{&mysql.MySQLError{Number: tc.number}, &ob.MySQLError{Number: tc.number}} {
+			for _, source := range []MySQLVersionSource{MySQLVersionComment, MySQLVersionFunction} {
+				err := &MySQLVersionProbeError{source, fmt.Errorf("read: %w", cause)}
+				got := RequireReportedVersion(ctx, err)
+				if tc.optional && source == MySQLVersionComment {
+					if got != nil {
+						t.Errorf("%T %d optional: got %v", cause, tc.number, got)
+					}
+				} else if !errors.Is(got, cause) {
+					t.Errorf("%T %d %s: lost cause, got %v", cause, tc.number, source.Query(), got)
+				}
+			}
+		}
 	}
-	for _, interrupt := range []error{context.Canceled, context.DeadlineExceeded} {
-		_, err := probeTestVersion(t, dialect.OceanBaseMySQL, versionReply{query: primary, value: "5.7.25"}, versionReply{query: comment, err: interrupt})
-		if !errors.Is(RequireReportedVersion(ctx, err), interrupt) {
-			t.Errorf("lost probe interruption %v", interrupt)
+	unsupported := &mysql.MySQLError{Number: 1193}
+	for _, cause := range []error{
+		context.Canceled, context.DeadlineExceeded, driver.ErrBadConn, sql.ErrConnDone,
+		mysql.ErrInvalidConn, ob.ErrInvalidConn, io.EOF, io.ErrUnexpectedEOF,
+		&net.OpError{Op: "read", Err: syscall.ECONNRESET}, errors.New("Unknown system variable"),
+		errors.Join(unsupported, driver.ErrBadConn),
+	} {
+		err := &MySQLVersionProbeError{MySQLVersionComment, fmt.Errorf("read: %w", cause)}
+		if got := RequireReportedVersion(ctx, err); !errors.Is(got, cause) {
+			t.Errorf("lost optional probe cause %v", cause)
 		}
 	}
 	cancelled, cancel := context.WithCancel(ctx)
 	cancel()
-	if !errors.Is(RequireReportedVersion(cancelled, optionalErr), context.Canceled) {
-		t.Fatal("lost cancellation while handling optional driver error")
+	for _, err := range []error{nil, &MySQLVersionProbeError{MySQLVersionComment, unsupported}} {
+		if !errors.Is(RequireReportedVersion(cancelled, err), context.Canceled) {
+			t.Errorf("lost caller cancellation with probe result %v", err)
+		}
 	}
 }
