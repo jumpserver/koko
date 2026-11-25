@@ -61,7 +61,7 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d dialect.ID, scope Co
 		case dialect.SQLServer:
 			err = conn.QueryRowContext(ctx, `SELECT OBJECT_SCHEMA_NAME(OBJECT_ID(@p1))`, quoteIdentifier(table, d, '[')).Scan(&schema)
 		default:
-			schema, err = extraDefaultSchema(ctx, conn, d, scope.Database)
+			schema, err = readCatalogDefaultSchema(ctx, conn, d, scope.Database)
 		}
 		if err != nil {
 			return out, err
@@ -223,7 +223,7 @@ AND c.relkind IN ('r','p','v','m') AND n.nspname IN (SELECT schema_name FROM inf
 		return view, err
 	}
 	b := &catalogBinder{dialect: d}
-	source, err := extraObjectSource(d, b, r.Schema)
+	source, err := b.objectSource(r.Schema, false)
 	if err != nil {
 		return false, err
 	}
@@ -394,9 +394,6 @@ func browseUniqueKey(ctx context.Context, conn *sql.Conn, d dialect.ID, table Ed
 func browseUniqueKeySQL(d dialect.ID, schema, table string) (string, []any) {
 	b := catalogBinder{dialect: d}
 	s, t := b.bind(schema), b.bind(table)
-	if d == dialect.PostgreSQL {
-		s, t = "$1", "$2"
-	}
 	var q string
 	switch {
 	case d.UsesMySQLSyntax():

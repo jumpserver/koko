@@ -179,7 +179,7 @@ func vendorQueryPageSource(ctx context.Context, c *console, d dialect.ID, r sqls
 	case dialect.Oracle, dialect.Dameng, dialect.OceanBaseOracle:
 		owner := r.Schema
 		if owner == "" {
-			if err := c.conn.QueryRowContext(ctx, `SELECT SYS_CONTEXT('USERENV','CURRENT_SCHEMA') FROM DUAL`).Scan(&owner); err != nil {
+			if err := c.conn.QueryRowContext(ctx, sqlservice.OracleCurrentSchemaSQL).Scan(&owner); err != nil {
 				return err
 			}
 		}

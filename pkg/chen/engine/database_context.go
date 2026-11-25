@@ -112,7 +112,7 @@ func connectionContext(ctx context.Context, conn *sql.Conn, d dialect.ID, config
 	case d == dialect.DB2:
 		err = conn.QueryRowContext(ctx, "VALUES (CURRENT SERVER, CURRENT SCHEMA)").Scan(&current.Database, &current.Schema)
 	case d.UsesOracleSyntax():
-		err = conn.QueryRowContext(ctx, "SELECT SYS_CONTEXT('USERENV','CURRENT_SCHEMA') FROM DUAL").Scan(&current.Schema)
+		err = conn.QueryRowContext(ctx, sqlservice.OracleCurrentSchemaSQL).Scan(&current.Schema)
 		if current.Database == "" {
 			current.Database = current.Schema
 		}

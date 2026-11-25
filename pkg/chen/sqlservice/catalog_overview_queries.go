@@ -3,17 +3,16 @@ package sqlservice
 import (
 	"context"
 	"database/sql"
-	"errors"
-	"github.com/jumpserver/koko/pkg/chen/dialect"
-	gooraerr "github.com/sijms/go-ora/v2/network"
 	"strings"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 // These are catalog estimates/allocation counters, never business-table COUNTs.
 // Numeric values stay decimal strings at the API boundary. Missing vendor facts
 // remain unknown; an absent index or storage statistic is not an observed zero.
-func overviewExtraSource(d dialect.ID, b *catalogBinder, database string, broadSegments ...bool) (string, error) {
-	base, err := extraObjectSource(d, b, database)
+func overviewCatalogSource(d dialect.ID, b *catalogBinder, database string, broadSegments bool) (string, error) {
+	base, err := b.objectSource(database, false)
 	if err != nil {
 		return "", err
 	}
@@ -37,7 +36,7 @@ func overviewExtraSource(d dialect.ID, b *catalogBinder, database string, broadS
 		join = ` LEFT JOIN ALL_TABLES t ON t.OWNER=o.schemaname AND t.TABLE_NAME=o.objectname`
 		if d == dialect.Oracle {
 			fields = strings.Replace(fields, "NULL AS data_bytes,NULL AS index_bytes,NULL AS total_bytes", `z.data_bytes AS data_bytes,z.index_bytes AS index_bytes,z.total_bytes AS total_bytes`, 1)
-			join += overviewOracleSegmentJoin(len(broadSegments) > 0 && broadSegments[0])
+			join += overviewOracleSegmentJoin(broadSegments)
 		}
 	case d == dialect.DB2:
 		fields = `CASE WHEN t.TYPE IN ('T','S') AND t.CARD>=0 THEN t.CARD END AS estimated_rows,
@@ -76,7 +75,7 @@ func overviewExtraSource(d dialect.ID, b *catalogBinder, database string, broadS
 	return `SELECT o.dbname,o.schemaname,o.objectname,o.objectkind,o.objecttype,o.objectcomment,` + fields + `,` + properties + ` FROM (` + base + `) o` + join, nil
 }
 
-func overviewExtraSQLWithClickHouse(d dialect.ID, r OverviewRequest, clickHouse *clickHouseCapabilities, broadSegments ...bool) (catalogQuery, error) {
+func overviewCatalogQuery(d dialect.ID, r OverviewRequest, clickHouse *clickHouseCapabilities, broadSegments bool) (catalogQuery, error) {
 	switch r.Section {
 	case "tables", "views", "indexes", "statistics", "properties":
 	default:
@@ -84,14 +83,14 @@ func overviewExtraSQLWithClickHouse(d dialect.ID, r OverviewRequest, clickHouse 
 	}
 	b := &catalogBinder{dialect: d, clickHouse: clickHouse}
 	if r.Section == "properties" {
-		return overviewExtraProperties(d, r, b)
+		return overviewCatalogProperties(d, r, b)
 	}
 	var source string
 	var err error
 	if r.Section == "indexes" {
-		source, err = overviewExtraIndexes(d, b, r.Database)
+		source, err = overviewCatalogIndexes(d, b, r.Database)
 	} else {
-		source, err = overviewExtraSource(d, b, r.Database, broadSegments...)
+		source, err = overviewCatalogSource(d, b, r.Database, broadSegments)
 	}
 	if err != nil {
 		return catalogQuery{}, err
@@ -134,17 +133,7 @@ func overviewExtraSQLWithClickHouse(d dialect.ID, r OverviewRequest, clickHouse 
 		}
 		filter += " AND objectkind=" + b.bind(kind)
 	}
-	if r.Query != "" {
-		if d == dialect.ClickHouse {
-			filter += " AND lowerUTF8(objectname) LIKE lowerUTF8(" + b.bind("%"+clickHouseLike(r.Query)+"%") + ")"
-		} else {
-			like := b.bind(catalogSearch(r.Query))
-			if d == dialect.DB2 {
-				like = "CAST(" + like + " AS VARCHAR(1024))"
-			}
-			filter += " AND LOWER(objectname) LIKE LOWER(" + like + ") ESCAPE '!'"
-		}
-	}
+	filter += b.objectNameFilter(r.Query, false)
 	op, order := ">", "ASC"
 	if r.Sort == "name_desc" {
 		op, order = "<", "DESC"
@@ -158,7 +147,7 @@ func overviewExtraSQLWithClickHouse(d dialect.ID, r OverviewRequest, clickHouse 
 			}
 			left, right := col, b.bind(after[i])
 			if col != "part_ordinal" {
-				left, right = extraOrder(d, left), extraOrder(d, right)
+				left, right = catalogNameOrder(d, left), catalogNameOrder(d, right)
 			}
 			equal = append(equal, left+op+right)
 			terms = append(terms, "("+strings.Join(equal, " AND ")+")")
@@ -168,7 +157,7 @@ func overviewExtraSQLWithClickHouse(d dialect.ID, r OverviewRequest, clickHouse 
 	var ordering []string
 	for _, c := range columns {
 		if c != "part_ordinal" {
-			c = extraOrder(d, c)
+			c = catalogNameOrder(d, c)
 		}
 		ordering = append(ordering, c+" "+order)
 	}
@@ -187,7 +176,7 @@ func overviewExtraSQLWithClickHouse(d dialect.ID, r OverviewRequest, clickHouse 
 		for _, c := range columns {
 			left := "p." + c
 			if c != "part_ordinal" {
-				left = extraOrder(d, left)
+				left = catalogNameOrder(d, left)
 			}
 			finalOrder = append(finalOrder, left+" "+order)
 		}
@@ -196,11 +185,11 @@ func overviewExtraSQLWithClickHouse(d dialect.ID, r OverviewRequest, clickHouse 
 	return page, nil
 }
 
-func overviewExtraIndexes(d dialect.ID, b *catalogBinder, database string) (string, error) {
+func overviewCatalogIndexes(d dialect.ID, b *catalogBinder, database string) (string, error) {
 	if d == dialect.ClickHouse && (b.clickHouse == nil || b.clickHouse.skippingIndexes != CapabilitySupported) {
 		return "", nil
 	}
-	objects, err := extraObjectSource(d, b, database)
+	objects, err := b.objectSource(database, false)
 	if err != nil {
 		return "", err
 	}
@@ -218,7 +207,7 @@ func overviewExtraIndexes(d dialect.ID, b *catalogBinder, database string) (stri
 	return "", ErrUnsupportedDialect
 }
 
-func overviewExtraProperties(d dialect.ID, r OverviewRequest, b *catalogBinder) (catalogQuery, error) {
+func overviewCatalogProperties(d dialect.ID, r OverviewRequest, b *catalogBinder) (catalogQuery, error) {
 	var q string
 	switch {
 	case d == dialect.SQLServer:
@@ -227,7 +216,7 @@ func overviewExtraProperties(d dialect.ID, r OverviewRequest, b *catalogBinder) 
 		if r.Schema == "" {
 			q = `SELECT SYS_CONTEXT('USERENV','CURRENT_SCHEMA') AS current_schema FROM DUAL`
 		} else {
-			source, err := extraObjectSource(d, b, r.Database)
+			source, err := b.objectSource(r.Database, false)
 			if err != nil {
 				return catalogQuery{}, err
 			}
@@ -237,7 +226,7 @@ func overviewExtraProperties(d dialect.ID, r OverviewRequest, b *catalogBinder) 
 		if r.Schema == "" {
 			q = `SELECT RTRIM(CURRENT SERVER) AS database_name,RTRIM(CURRENT SCHEMA) AS current_schema FROM SYSIBM.SYSDUMMY1`
 		} else {
-			source, err := extraObjectSource(d, b, r.Database)
+			source, err := b.objectSource(r.Database, false)
 			if err != nil {
 				return catalogQuery{}, err
 			}
@@ -251,7 +240,7 @@ func overviewExtraProperties(d dialect.ID, r OverviewRequest, b *catalogBinder) 
 	return catalogQuery{q, b.args}, nil
 }
 
-func overviewExtraValue(d dialect.ID, section, key string, v sql.NullString, broadSegments ...bool) OverviewValue {
+func overviewCatalogValue(d dialect.ID, key string, v sql.NullString, broadSegments bool) OverviewValue {
 	state := "unknown"
 	if key == "schema_ddl" || key == "definition" || key == "prefix_length" || (key == "included" && d != dialect.SQLServer) {
 		state = "unsupported"
@@ -271,7 +260,7 @@ func overviewExtraValue(d dialect.ID, section, key string, v sql.NullString, bro
 	}
 	if d == dialect.Oracle && strings.HasSuffix(key, "_bytes") {
 		source = "USER_SEGMENTS allocated table/index/LOB bytes; own schema only; other owners unknown"
-		if len(broadSegments) > 0 && broadSegments[0] {
+		if broadSegments {
 			source = "Authorized DBA_SEGMENTS allocated table/index/LOB bytes; joined only to objects visible in ALL_*"
 		}
 	}
@@ -288,7 +277,7 @@ func overviewExtraValue(d dialect.ID, section, key string, v sql.NullString, bro
 	return overviewValue(v, state, source)
 }
 
-func overviewExtraDDL(ctx context.Context, conn *sql.Conn, d dialect.ID, r OverviewRequest) (OverviewValue, error) {
+func overviewCatalogDDL(ctx context.Context, conn *sql.Conn, d dialect.ID, r OverviewRequest) (OverviewValue, error) {
 	if d != dialect.ClickHouse {
 		return OverviewValue{State: "unsupported", Source: "Schema-wide DDL streaming is not provided by this adapter; native object definitions remain available separately"}, nil
 	}
@@ -308,36 +297,4 @@ func overviewExtraDDL(ctx context.Context, conn *sql.Conn, d dialect.ID, r Overv
 		return OverviewValue{State: "unknown", Source: "SHOW CREATE DATABASE"}, nil
 	}
 	return overviewText(text, "SHOW CREATE DATABASE; native database definition, does not include contained objects"), nil
-}
-
-// DBA_* is optional: SELECT on a business table does not grant segment metadata.
-// A failed optional privilege probe never triggers a privilege change.
-func overviewOracleSegmentAccess(ctx context.Context, conn *sql.Conn) (bool, error) {
-	rows, err := conn.QueryContext(ctx, "SELECT BYTES FROM DBA_SEGMENTS WHERE 1=0")
-	if err != nil {
-		var oracle *gooraerr.OracleError
-		if errors.As(err, &oracle) && (oracle.ErrCode == 942 || oracle.ErrCode == 1031) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, rows.Close()
-}
-func overviewOracleSegmentJoin(broad bool) string {
-	segments, indexes, lobs, owner := "USER_SEGMENTS", "USER_INDEXES", "USER_LOBS", "USER"
-	if broad {
-		segments, indexes, lobs, owner = "DBA_SEGMENTS", "ALL_INDEXES", "ALL_LOBS", "s.OWNER"
-	}
-	tableRows := `SELECT ` + owner + ` AS owner,s.SEGMENT_NAME AS table_name,s.BYTES,'data' AS category FROM ` + segments + ` s WHERE s.SEGMENT_TYPE IN ('TABLE','TABLE PARTITION','TABLE SUBPARTITION')`
-	indexOwner, indexJoin := "i.TABLE_OWNER", ""
-	lobOwner, lobJoin := "USER", ""
-	if broad {
-		indexJoin = " AND i.OWNER=s.OWNER"
-		lobOwner = "l.OWNER"
-		lobJoin = " AND l.OWNER=s.OWNER"
-	}
-	return ` LEFT JOIN (SELECT owner,table_name,SUM(CASE WHEN category='data' THEN bytes ELSE 0 END) AS data_bytes,SUM(CASE WHEN category='index' THEN bytes ELSE 0 END) AS index_bytes,SUM(bytes) AS total_bytes FROM (` + tableRows + `
- UNION ALL SELECT ` + indexOwner + `,i.TABLE_NAME,s.BYTES,'index' FROM ` + segments + ` s JOIN ` + indexes + ` i ON i.INDEX_NAME=s.SEGMENT_NAME` + indexJoin + ` WHERE s.SEGMENT_TYPE IN ('INDEX','INDEX PARTITION','INDEX SUBPARTITION')
- UNION ALL SELECT ` + lobOwner + `,l.TABLE_NAME,s.BYTES,CASE WHEN s.SEGMENT_NAME=l.INDEX_NAME THEN 'index' ELSE 'data' END FROM ` + segments + ` s JOIN ` + lobs + ` l ON s.SEGMENT_NAME IN (l.SEGMENT_NAME,l.INDEX_NAME)` + lobJoin + `
- ) segments GROUP BY owner,table_name) z ON z.owner=o.schemaname AND z.table_name=o.objectname`
 }

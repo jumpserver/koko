@@ -7,9 +7,6 @@ import "github.com/jumpserver/koko/pkg/chen/dialect"
 func inspectionConstraints(d dialect.ID, schema, table string) (catalogQuery, []string, bool) {
 	b := catalogBinder{dialect: d}
 	s, t := b.bind(schema), b.bind(table)
-	if d == dialect.PostgreSQL {
-		s, t = "$1", "$2"
-	}
 	q := ""
 	switch {
 	case d.UsesMySQLSyntax():

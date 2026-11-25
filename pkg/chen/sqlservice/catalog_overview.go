@@ -124,8 +124,8 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req 
 		}
 	}
 	query, args := overviewSQL(d, req)
-	if extraCatalogDialect(d) {
-		q, e := overviewExtraSQLWithClickHouse(d, req, clickHouse, oracleBroadSegments)
+	if usesCatalogObjectSource(d) {
+		q, e := overviewCatalogQuery(d, req, clickHouse, oracleBroadSegments)
 		if e != nil {
 			return result, e
 		}
@@ -164,8 +164,8 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req 
 				if capabilities != nil {
 					result.Fields[n] = capabilities.value(n, values[i], req.Section)
 				}
-				if extraCatalogDialect(d) {
-					result.Fields[n] = overviewExtraValue(d, req.Section, n, values[i], oracleBroadSegments)
+				if usesCatalogObjectSource(d) {
+					result.Fields[n] = overviewCatalogValue(d, n, values[i], oracleBroadSegments)
 				}
 				if clickHouse != nil {
 					result.Fields[n] = clickHouse.value(n, result.Fields[n])
@@ -194,8 +194,8 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req 
 		}
 		if req.Section == "properties" {
 			result.Fields["schema_ddl"] = OverviewValue{State: "unsupported", Source: "No native schema DDL implemented for this product"}
-			if extraCatalogDialect(d) {
-				result.Fields["schema_ddl"], err = overviewExtraDDL(ctx, conn, d, req)
+			if usesCatalogObjectSource(d) {
+				result.Fields["schema_ddl"], err = overviewCatalogDDL(ctx, conn, d, req)
 				if err != nil {
 					return result, err
 				}
@@ -216,7 +216,7 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req 
 		if req.Section == "indexes" {
 			var name, unique, method, definition, column, expression, position, direction, prefix, included sql.NullString
 			dest := []any{&row.Object.Database, &row.Object.Schema, &row.Object.Name, &row.Object.Kind, &row.Object.ObjectType, &name, &unique, &method, &definition, &column, &expression, &position, &direction, &prefix}
-			if extraCatalogDialect(d) {
+			if usesCatalogObjectSource(d) {
 				dest = append(dest, &included)
 			}
 			if err := rows.Scan(dest...); err != nil {
@@ -226,8 +226,8 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req 
 				column = sql.NullString{}
 			}
 			row.Name = name.String
-			if extraCatalogDialect(d) {
-				row.Fields["included"] = overviewExtraValue(d, req.Section, "included", included)
+			if usesCatalogObjectSource(d) {
+				row.Fields["included"] = overviewCatalogValue(d, "included", included, oracleBroadSegments)
 			}
 			row.Ordinal, err = strconv.Atoi(position.String)
 			if d.UsesMySQLSyntax() && (err != nil || row.Ordinal < 1) {
@@ -245,8 +245,8 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req 
 				if capabilities != nil {
 					f = capabilities.value(k, v, req.Section)
 				}
-				if extraCatalogDialect(d) {
-					f = overviewExtraValue(d, req.Section, k, v, oracleBroadSegments)
+				if usesCatalogObjectSource(d) {
+					f = overviewCatalogValue(d, k, v, oracleBroadSegments)
 				}
 				if v.Valid && len(v.String) > 16384 {
 					short := v.String[:16384]
@@ -264,7 +264,7 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req 
 			if d.UsesMySQLSyntax() {
 				valueKeys = append(valueKeys, "created", "average_row_length")
 			}
-			if extraCatalogDialect(d) {
+			if usesCatalogObjectSource(d) {
 				valueKeys = append(valueKeys, "tablespace", "status", "average_row_length", "sample_size", "created")
 			}
 			vals := make([]sql.NullString, len(valueKeys))
@@ -299,8 +299,8 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req 
 					state = "unsupported"
 				}
 				row.Fields[k] = overviewValue(vals[i], state, overviewSource(d, req.Section, k))
-				if extraCatalogDialect(d) {
-					row.Fields[k] = overviewExtraValue(d, req.Section, k, vals[i], oracleBroadSegments)
+				if usesCatalogObjectSource(d) {
+					row.Fields[k] = overviewCatalogValue(d, k, vals[i], oracleBroadSegments)
 					if row.Object.Kind == "view" && k != "engine" {
 						row.Fields[k] = OverviewValue{State: "unsupported", Source: "View has no stored table statistics"}
 					}

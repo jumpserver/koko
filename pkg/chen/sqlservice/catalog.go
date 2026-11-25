@@ -70,9 +70,9 @@ func SchemaRows(ctx context.Context, conn *sql.Conn, d dialect.ID, database, aft
 	}
 	var rows *sql.Rows
 	var err error
-	if extraCatalogDialect(d) {
+	if usesCatalogObjectSource(d) {
 		var query catalogQuery
-		query, err = extraSchemaQuery(d, database, after, limit)
+		query, err = catalogSchemaQuery(d, database, after, limit)
 		if err == nil {
 			rows, err = queryCatalogRows(ctx, conn, d, query.SQL, query.Args...)
 		}
@@ -122,7 +122,7 @@ func ObjectRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req CatalogOb
 	}
 	var rows *sql.Rows
 	var err error
-	if extraCatalogDialect(d) {
+	if usesCatalogObjectSource(d) {
 		var query catalogQuery
 		var clickHouse *clickHouseCapabilities
 		if d == dialect.ClickHouse {
@@ -131,7 +131,7 @@ func ObjectRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req CatalogOb
 				return items, err
 			}
 		}
-		query, err = extraObjectQuery(d, req, false, catalogLimit(req.Limit)+1, clickHouse)
+		query, err = catalogObjectQuery(d, req, false, catalogLimit(req.Limit)+1, clickHouse)
 		if err == nil {
 			rows, err = queryCatalogRows(ctx, conn, d, query.SQL, query.Args...)
 		}
@@ -282,13 +282,13 @@ func columnRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req CatalogCo
 	}
 	var rows *sql.Rows
 	var err error
-	if extraCatalogDialect(d) {
+	if usesCatalogObjectSource(d) {
 		var query catalogQuery
-		query, err = extraColumnQuery(d, req, limit, true)
+		query, err = catalogColumnQuery(d, req, limit, catalogColumnTypeModifiers)
 		if err == nil {
 			rows, err = queryCatalogRows(ctx, conn, d, query.SQL, query.Args...)
 			if err != nil && d == dialect.DB2 && catalogMissingStringUnits(err) {
-				query, err = extraColumnQuery(d, req, limit, true, false)
+				query, err = catalogColumnQuery(d, req, limit, catalogDB2LegacyTypeModifiers)
 				if err == nil {
 					rows, err = queryCatalogRows(ctx, conn, d, query.SQL, query.Args...)
 				}
@@ -378,91 +378,6 @@ AND pg_catalog.has_column_privilege(c.oid, a.attnum, 'SELECT,INSERT,UPDATE,REFER
 	return items, ctx.Err()
 }
 
-func catalogDatabaseAccess(ctx context.Context, conn *sql.Conn, d dialect.ID, database string) error {
-	if extraCatalogDialect(d) {
-		return extraCatalogDatabaseAccess(ctx, conn, d, database)
-	}
-	var allowed bool
-	var err error
-	if d.UsesMySQLSyntax() {
-		err = conn.QueryRowContext(CatalogQueryContext(ctx), `SELECT EXISTS (SELECT 1 FROM information_schema.SCHEMATA WHERE BINARY SCHEMA_NAME = BINARY ?)`, database).Scan(&allowed)
-	} else {
-		err = conn.QueryRowContext(ctx, `SELECT pg_catalog.current_database() = $1`, database).Scan(&allowed)
-	}
-	if err != nil {
-		return fmt.Errorf("check catalog database: %w", err)
-	}
-	if !allowed {
-		return ErrCatalogForbidden
-	}
-	return nil
-}
-func catalogSchemaAccess(ctx context.Context, conn *sql.Conn, schema string) error {
-	var allowed bool
-	err := conn.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = $1)`, schema).Scan(&allowed)
-	if errors.Is(err, sql.ErrNoRows) {
-		return ErrCatalogNotFound
-	}
-	if err != nil {
-		return fmt.Errorf("check catalog schema: %w", err)
-	}
-	if !allowed {
-		return ErrCatalogForbidden
-	}
-	return nil
-}
-
-// CatalogObjectAccess checks visibility of an exact relation in the catalog. PostgreSQL and Db2 expose catalog
-// rows independently of SELECT privileges on the described table. Actual reads
-// still run as the account, and editing uses the separate admission check below.
-func CatalogObjectAccess(ctx context.Context, conn *sql.Conn, d dialect.ID, schema, table string) error {
-	if d != dialect.PostgreSQL {
-		return catalogObjectAccessMode(ctx, conn, d, schema, table, false)
-	}
-	var schemaVisible, objectExists bool
-	err := conn.QueryRowContext(ctx, `SELECT
-EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = $1),
-EXISTS (SELECT 1 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p', 'v', 'm', 'f'))`, schema, table).Scan(&schemaVisible, &objectExists)
-	if err != nil {
-		return fmt.Errorf("check catalog object: %w", err)
-	}
-	if !schemaVisible {
-		return ErrCatalogForbidden
-	}
-	if !objectExists {
-		return ErrCatalogNotFound
-	}
-	return nil
-}
-
-func catalogEditableObjectAccess(ctx context.Context, conn *sql.Conn, d dialect.ID, schema, table string) error {
-	return catalogObjectAccessMode(ctx, conn, d, schema, table, true)
-}
-
-func catalogObjectAccessMode(ctx context.Context, conn *sql.Conn, d dialect.ID, schema, table string, editable bool) error {
-	if extraCatalogDialect(d) {
-		return extraCatalogObjectAccess(ctx, conn, d, schema, table, editable)
-	}
-	if d.UsesMySQLSyntax() {
-		var exists bool
-		query := `SELECT EXISTS (SELECT 1 FROM information_schema.TABLES
-WHERE BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ? AND TABLE_TYPE IN ('BASE TABLE', 'VIEW', 'SYSTEM VIEW', 'SYSTEM VERSIONED'))`
-		err := conn.QueryRowContext(CatalogQueryContext(ctx), query, schema, table).Scan(&exists)
-		if err != nil {
-			return fmt.Errorf("check catalog object: %w", err)
-		}
-		// MySQL hides inaccessible tables in INFORMATION_SCHEMA. Absence may
-		// mean nonexistent or hidden; do not probe user tables to distinguish.
-		if !exists {
-			return ErrCatalogNotFound
-		}
-		return nil
-	}
-	_, err := postgresEditableObjectKind(ctx, conn, schema, table)
-	return err
-}
-
 // Resolve the unqualified relation against the current connection's search_path.
 func postgresRelationSchema(ctx context.Context, conn *sql.Conn, table string) (string, error) {
 	var schema string
@@ -470,25 +385,6 @@ func postgresRelationSchema(ctx context.Context, conn *sql.Conn, table string) (
 	return schema, err
 }
 
-func postgresEditableObjectKind(ctx context.Context, conn *sql.Conn, schema, table string) (string, error) {
-	var kind string
-	var schemaAllowed, objectAllowed, columnsAllowed bool
-	err := conn.QueryRowContext(ctx, `SELECT c.relkind::text, pg_catalog.has_schema_privilege(n.oid, 'USAGE'),
-(pg_catalog.has_table_privilege(c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') OR pg_catalog.has_any_column_privilege(c.oid, 'SELECT,INSERT,UPDATE,REFERENCES')),
-pg_catalog.has_any_column_privilege(c.oid, 'SELECT,INSERT,UPDATE,REFERENCES')
-FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p', 'v', 'm', 'f')`, schema, table).Scan(&kind, &schemaAllowed, &objectAllowed, &columnsAllowed)
-	if errors.Is(err, sql.ErrNoRows) {
-		return "", ErrCatalogNotFound
-	}
-	if err != nil {
-		return "", fmt.Errorf("check catalog object: %w", err)
-	}
-	if !schemaAllowed || !objectAllowed || !columnsAllowed {
-		return "", ErrCatalogForbidden
-	}
-	return kind, nil
-}
 func validateCatalogInput(conn *sql.Conn, d dialect.ID, database string, values ...string) error {
 	if err := validateCatalogNames(conn, d, append([]string{database}, values...)...); err != nil {
 		return err

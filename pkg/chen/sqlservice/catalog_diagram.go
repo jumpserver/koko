@@ -70,7 +70,7 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d dialect.ID, r Dia
 	if (r.Section != "nodes" && r.Section != "edges") || (r.Direction != "schema" && r.Direction != "incoming") || r.Direction == "incoming" && (r.Table == "" || r.Schema == "") {
 		return result, fmt.Errorf("invalid diagram request")
 	}
-	if d != dialect.PostgreSQL && !d.UsesMySQLSyntax() && !extraCatalogDialect(d) {
+	if d != dialect.PostgreSQL && !d.UsesMySQLSyntax() && !usesCatalogObjectSource(d) {
 		result.State = "unsupported"
 		return result, nil
 	}
@@ -127,7 +127,7 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d dialect.ID, r Dia
 		}
 	}
 	r.Limit = min(catalogLimit(r.Limit), 100)
-	if extraCatalogDialect(d) {
+	if usesCatalogObjectSource(d) {
 		result.Contract = string(d) + ":authorized_catalog:v1"
 		result.Source = string(d) + "; authorized system catalog"
 		if r.Continuation && r.Contract != result.Contract {
@@ -140,8 +140,8 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d dialect.ID, r Dia
 		}
 	}
 	query, args := diagramSQL(d, r)
-	if extraCatalogDialect(d) {
-		q, e := diagramExtraSQL(d, r)
+	if usesCatalogObjectSource(d) {
+		q, e := diagramCatalogQuery(d, r)
 		if e != nil {
 			return result, e
 		}

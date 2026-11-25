@@ -172,9 +172,6 @@ func inspectionQuery(d dialect.ID, r CatalogColumnRequest, kind string, keySize 
 	}
 	b := catalogBinder{dialect: d}
 	a, c := b.bind(r.Schema), b.bind(r.Table)
-	if d == dialect.PostgreSQL {
-		a, c = "$1", "$2"
-	}
 	q := ""
 	names := []string{}
 	switch kind {

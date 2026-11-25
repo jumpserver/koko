@@ -67,3 +67,24 @@ ORDER BY name COLLATE Latin1_General_BIN2`
 	}
 	return items, rows.Err()
 }
+
+func readCatalogDefaultSchema(ctx context.Context, conn *sql.Conn, d dialect.ID, database string) (string, error) {
+	var query string
+	switch d {
+	case dialect.SQLServer:
+		query = "SELECT COALESCE(SCHEMA_NAME(), 'dbo')"
+	case dialect.DB2:
+		query = "SELECT RTRIM(CURRENT SCHEMA) FROM SYSIBM.SYSDUMMY1"
+	case dialect.Oracle, dialect.Dameng, dialect.OceanBaseOracle:
+		query = OracleCurrentSchemaSQL
+	case dialect.ClickHouse:
+		return database, nil
+	default:
+		return "", ErrUnsupportedDialect
+	}
+	var schema string
+	if err := conn.QueryRowContext(ctx, query).Scan(&schema); err != nil {
+		return "", fmt.Errorf("read catalog schema: %w", err)
+	}
+	return schema, nil
+}

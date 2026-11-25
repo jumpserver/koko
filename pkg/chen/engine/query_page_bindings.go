@@ -42,7 +42,7 @@ func (r *oraclePageNames) currentSchema() (string, error) {
 	if r.schema != "" {
 		return r.schema, nil
 	}
-	err := r.console.conn.QueryRowContext(r.ctx, `SELECT SYS_CONTEXT('USERENV','CURRENT_SCHEMA') FROM DUAL`).Scan(&r.schema)
+	err := r.console.conn.QueryRowContext(r.ctx, sqlservice.OracleCurrentSchemaSQL).Scan(&r.schema)
 	return r.schema, err
 }
 func (r *oraclePageNames) baseColumns(base *sqlservice.QueryPageRelation) ([]string, error) {

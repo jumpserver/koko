@@ -101,7 +101,7 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d dialect.ID, scope Cont
 		}
 	} else if schema == "" {
 		var err error
-		schema, err = extraDefaultSchema(ctx, conn, d, scope.Database)
+		schema, err = readCatalogDefaultSchema(ctx, conn, d, scope.Database)
 		if err != nil {
 			return out, err
 		}
@@ -424,9 +424,6 @@ WHERE c.OWNER=` + s + ` AND c.TABLE_NAME=` + t + ` ORDER BY c.COLUMN_ID`
 		return catalogQuery{SQL: q, Args: b.args}, nil
 	}
 	s, t := b.bind(r.Schema), b.bind(r.Table)
-	if d == dialect.PostgreSQL {
-		s, t = "$1", "$2"
-	}
 	var q string
 	switch {
 	case d.UsesMySQLSyntax():

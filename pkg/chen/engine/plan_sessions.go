@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jumpserver/koko/pkg/chen/dialect"
+	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
 const showplanStateSQL = "SELECT CAST(431205 AS int) AS chen_showplan_state_probe, @@TRANCOUNT AS chen_trancount, XACT_STATE() AS chen_xact_state, @@OPTIONS & 2 AS chen_implicit"
@@ -455,7 +456,7 @@ func planAuxTransactionState(ctx context.Context, c *console, d dialect.ID) (edi
 
 func resolveOraclePlanTable(ctx context.Context, c *console) (string, error) {
 	var owner string
-	if err := c.conn.QueryRowContext(ctx, "SELECT SYS_CONTEXT('USERENV','CURRENT_SCHEMA') FROM DUAL").Scan(&owner); err != nil {
+	if err := c.conn.QueryRowContext(ctx, sqlservice.OracleCurrentSchemaSQL).Scan(&owner); err != nil {
 		return "", err
 	}
 	name := "PLAN_TABLE"
