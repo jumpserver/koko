@@ -1,0 +1,20 @@
+#!/command/with-contenv sh
+set -eu
+
+cd /etc/services.d
+case "${KAEL_ENABLED:-true}" in
+    true|1)
+        if [ -d /opt/kael/data ] && [ -w /opt/kael/data ]; then
+            if [ -d .kael ]; then mv .kael kael; fi
+            exit 0
+        fi
+        echo "Kael requires a writable data directory at /opt/kael/data" >&2
+        status=1
+        ;;
+    false|0) status=0 ;;
+    *) echo "Invalid KAEL_ENABLED: ${KAEL_ENABLED}" >&2; status=1 ;;
+esac
+
+# s6 imports visible services even if a cont-init script fails.
+if [ -d kael ]; then mv kael .kael; fi
+exit "$status"

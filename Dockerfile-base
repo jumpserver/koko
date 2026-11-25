@@ -41,6 +41,20 @@ RUN set -ex \
     && wget -O /opt/s6-overlay/s6-overlay-noarch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" \
     && wget -O /opt/s6-overlay/s6-overlay-arch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${s6_arch}.tar.xz"
 
+ARG CODEX_VERSION=0.172.0
+RUN set -eu; \
+    case "${TARGETARCH}" in \
+        amd64) target=x86_64; checksum=63e3b00065ed7f62166d0522e17f663cb866a31d80d03e63365482ed34a1d991 ;; \
+        arm64) target=aarch64; checksum=faf17b8071927f33346a805dc8cb45de4e08c0d75cf0e5e68cecddca28b8861e ;; \
+        *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    wget --max-redirect=0 --timeout=30 --tries=3 -qO /tmp/codex.tar.gz "https://releases.openai.com/codex/releases/${CODEX_VERSION}/codex-package-${target}-unknown-linux-musl.tar.gz"; \
+    echo "${checksum}  /tmp/codex.tar.gz" | sha256sum -c -; \
+    mkdir -p /opt/codex; \
+    tar --no-same-owner -xzf /tmp/codex.tar.gz -C /opt/codex; \
+    rm /tmp/codex.tar.gz; \
+    test "$(/opt/codex/bin/codex --version)" = "codex-cli ${CODEX_VERSION}"
+
 WORKDIR /opt/koko
 
 COPY --from=libghostty-vt /opt/libghostty-vt /opt/libghostty-vt

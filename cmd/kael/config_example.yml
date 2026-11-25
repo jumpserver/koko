@@ -1,0 +1,64 @@
+# Codex harness is the sole Agent runtime; install CLI version 0.153.2 or newer.
+# Set CODEX_BINARY to the CLI provided by the deployment.
+CODEX_BINARY: codex
+# CHAT_AI_BASE_URL in Core must support Responses API. Chat Completions is not supported.
+# 与 Koko 一致，Kael 只使用平铺配置。
+# 默认名称为 [Kael]-主机名-7位随机大小写字母；设置 SERVER_HOSTNAME 环境变量时会拼在主机名前。
+# 超过 128 个字符时保留前 64 和后 64 个字符；手动指定 NAME 时需保证名称唯一。
+# NAME: "[Kael]-custom-name"
+
+CORE_HOST: http://127.0.0.1:8080
+
+# 首次注册使用；AccessKey 写入 data/keys/.access_key 后可以删除。
+BOOTSTRAP_TOKEN: <PleaseChangeMe>
+
+# BIND_HOST: 0.0.0.0
+# HTTPD_PORT: 8083
+# HTTP_REQUEST_TIMEOUT: 30
+# Deadline for each relayed tool response, independent of command lifetime and approvals.
+# Async commands yield after 2s; wait_command_execution is bounded at 30s.
+# TOOL_RESULT_TIMEOUT: 45s
+# IGNORE_VERIFY_CERTS: false
+# 同时写入 stdout 和 data/logs/kael.log；文件达到 50 MB 时轮转，保留 7 份、7 天。
+# LOG_LEVEL: INFO
+
+# 普通会话的问答历史通过组件签名写回 JumpServer Core。
+# Terminal AI 固定写入 data/terminal/，保留本地可读事件 JSONL，不上传 Core。
+# 按最后一次消息/会话更新时间保留，活跃 Run 和有效 Panel 不清理。
+# 启动及每小时清理过期会话；容量达到 90% 或磁盘余量不足时，
+# 每分钟最多淘汰 100 个最旧的非活跃会话，目标降至 80%。
+# 容量统计包含 data/terminal/ 下的 store/、events/ 及快照临时文件。
+# 附件原始文件和普通服务日志不属于该配额。
+# 新请求额外预留最多 64 MiB 给在途执行；空间不足返回 storage_capacity_exceeded。
+# 清理既有超额数据时允许有界的临时快照开销，实际磁盘必须容纳完整快照。
+# TERMINAL_AI_KEEP_DAYS: 7
+# TERMINAL_AI_MAX_BYTES: 1073741824
+# TERMINAL_AI_MIN_FREE_BYTES: 1073741824
+
+# 标准浏览器部署由 Lina 所在站点把 /kael/ 同源反向代理到 Kael。若网关终止 HTTPS，
+# 优先在这里精确填写 Lina 的外部 origin，避免 Kael 所见内部 HTTP 导致 Origin 拒绝。
+# 此项只扩展 Kael 的 Origin/CSRF 放行列表，不会发送 CORS 响应头。
+# ALLOWED_ORIGINS: [https://jumpserver.example.com]
+# 只有无法固定外部 origin 时才在可信网关后设为 true；网关必须覆盖客户端提供的
+# X-Forwarded-Host/X-Forwarded-Proto，且 Kael 端口不可直接暴露。
+
+# 默认不校验 origin；如需启用校验，列出允许的 origin。
+# ALLOWED_ORIGINS: []
+# 仅在启用 origin 校验时，用于信任反向代理传入的 Host 和协议。
+
+# TRUST_FORWARDED_HEADERS: false
+
+# Platform Gateway 默认且必须启用，因为 Lina 默认 general 依赖它访问授权 Core API。
+# 业务请求沿用用户 Cookie（或已有 Authorization），写请求同时携带 CSRF token。
+# 用户凭据只按 Run 保存在进程内存中，不写入 Journal 或模型输入。
+# 启用前必须确认 Core 已应用 Runtime Store migration，且组件签名可访问
+# /api/swagger.json，并提供 x-jms-required-permissions、
+# x-jms-permission-dynamic 与 x-jms-rbac-protected。
+# Swagger Registry 在启动后后台加载；加载前 Core API 能力会返回未就绪。
+PLATFORM_GATEWAY_ENABLED: true
+# PLATFORM_CA_CERT: ""
+# PLATFORM_CLIENT_CERT: ""
+# PLATFORM_CLIENT_KEY: ""
+# PLATFORM_ALLOWED_METHODS: [GET, POST, PUT, PATCH, DELETE]
+# PLATFORM_TIMEOUT: 15s
+# PLATFORM_MAX_RESPONSE_BYTES: 1048576

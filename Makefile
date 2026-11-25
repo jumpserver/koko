@@ -40,10 +40,19 @@ define make_artifact_full
 	rm -rf $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(1)-$(2)
 endef
 
+define build_koko
+	@set -e; \
+	if ! "$${PKG_CONFIG:-pkg-config}" --exists libghostty-vt-static; then \
+		libghostty_dir="$$(./utils/setup-libghostty-vt.sh)"; \
+		export PKG_CONFIG_PATH="$$libghostty_dir/lib/pkgconfig$${PKG_CONFIG_PATH:+:$$PKG_CONFIG_PATH}"; \
+	fi; \
+	GOARCH=$(GOARCH) GOOS=$(GOOS) $(KOKOBUILD) -o "$(1)" $(KOKOSRCFILE)
+endef
+
 .PHONY: build
 build:
-	mkdir -p $(BUILDDIR)
-	GOARCH=$(GOARCH) GOOS=$(GOOS) $(KOKOBUILD) -o $(BUILDDIR)/$(NAME) $(KOKOSRCFILE)
+	$(call build_koko,$(BUILDDIR)/$(NAME))
+	GOARCH=$(GOARCH) GOOS=$(GOOS) CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS) -X 'main.Version=$(VERSION)'" -o "$(BUILDDIR)/kael" ./cmd/kael
 
 .PHONY: chen-resources
 chen-resources:
@@ -104,22 +113,7 @@ guacd:
 	docker compose -f docker-compose-guacd.yml up -d
 
 .PHONY: run dev
-run: guacd
-
+run dev: KOKOBUILD = CGO_ENABLED=1 go build -trimpath
 run dev:
-	@cleanup() { \
-		status=$$?; \
-		trap - EXIT INT TERM; \
-		if [ "$@" = "run" ]; then \
-			docker compose -f docker-compose-guacd.yml down; \
-		fi; \
-		exit $$status; \
-	}; \
-	trap cleanup EXIT; \
-	trap 'exit 130' INT; \
-	trap 'exit 143' TERM; \
-	LIBGHOSTTY_VT_ROOT="$$(./utils/setup-libghostty-vt.sh)" || exit $$?; \
-	USQL_BIN_DIR="$$(./utils/setup-usql.sh)" || exit $$?; \
-	PATH="$${USQL_BIN_DIR}:$${PATH}" \
-	PKG_CONFIG_PATH="$${LIBGHOSTTY_VT_ROOT}/lib/pkgconfig$${PKG_CONFIG_PATH:+:$${PKG_CONFIG_PATH}}" \
-	CGO_ENABLED=1 go run ./cmd/koko/
+	$(call build_koko,$(BUILDDIR)/dev/koko)
+	@./utils/run-dev.sh "$@" "$(abspath $(BUILDDIR)/dev)"

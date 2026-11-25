@@ -58,8 +58,8 @@ cd koko
 
 2. 运行 server 后端
 
-`make run` 需要 Docker Compose，用于启动 guacd，并在退出时停止它。
-使用 `make dev` 运行 Koko 时不会启动或停止 guacd，无需 Docker Compose。
+`make run` 和 `make dev` 都默认在本地启动 KoKo 和 Kael。两个命令都可以通过 `KAEL_ENABLED=false` 或 `0` 关闭 Kael。
+`make run` 还会通过 Docker Compose 启动 guacd，并在退出时停止它。使用 `make dev` 时，如需 guacd 可自行启动。
 
 ```shell
 
@@ -71,6 +71,8 @@ BOOTSTRAP_TOKEN: PleaseChangeMe<改成和core一样的>
 $ make run # 3. 运行，首次运行会自动下载预编译的 libghostty-vt 和 usql
 ```
 
+
+`make build` 生成 `build/koko` 和 `build/kael`。本地运行 Kael 前，先根据 `cmd/kael/config_example.yml` 配置 `cmd/kael/config.yml`，并将 Codex CLI 加入 `PATH` 或设置 `CODEX_BINARY`。Kael 数据保存在 `cmd/kael/data/`。[Kael 文档](docs/kael/README.md)
 
 ## 构建docker镜像
 使用 Docker Buildx 构建镜像并加载到本地 Docker：

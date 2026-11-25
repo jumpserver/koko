@@ -55,6 +55,7 @@ require (
 	go.etcd.io/bbolt v1.5.0
 	go.mitchellh.com/libghostty v0.0.0-20260710165742-102a50836ce6
 	go.mongodb.org/mongo-driver v1.17.9
+	go.uber.org/zap v1.28.0
 	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/crypto v0.56.0
 	golang.org/x/sys v0.47.0
@@ -65,6 +66,7 @@ require (
 	k8s.io/api v0.36.4
 	k8s.io/apimachinery v0.36.4
 	k8s.io/client-go v0.36.4
+	mvdan.cc/sh/v3 v3.14.0
 )
 
 require (
@@ -199,7 +201,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.46.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	golang.org/x/arch v0.30.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
