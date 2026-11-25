@@ -273,7 +273,8 @@ func (v *Server) runEstimatedPlan(s *session, c *console, e *execution, command,
 	if err == nil && !hasExtraResults && !result.Truncated && mysqlReturnsOceanBasePlan(d, result) {
 		// A MySQL-protocol asset can return a native OceanBase plan. Verify the
 		// product on the same console before choosing its vendor formatter.
-		version, _, _ = sqlservice.OceanBaseMySQLVersion(e.ctx, c.conn)
+		report, _ := sqlservice.ReadMySQLServerVersion(e.ctx, c.conn, dialect.OceanBaseMySQL)
+		version = report.Product
 	}
 	// readRows has applied the existing masking and per-session row/byte limits.
 	// Retain only the masked plan, never the result's original/edit buffers.

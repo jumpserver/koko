@@ -26,23 +26,16 @@ func probeDiagramMyContract(ctx context.Context, conn *sql.Conn, d dialect.ID, d
 		err = errors.New("invalid diagram server version")
 		return
 	}
-	version, probeErr := resolveMySQLServerVersion(ctx, conn, d, reported)
-	if probeErr != nil {
-		if err = ctx.Err(); err != nil {
-			return
-		}
-		if errors.Is(probeErr, context.Canceled) || errors.Is(probeErr, context.DeadlineExceeded) {
-			err = probeErr
-			return
-		}
-		// A missing optional comment leaves the product unverified.
+	version, err := resolveMySQLServerVersion(ctx, conn, d, reported)
+	if err = RequireReportedVersion(ctx, err); err != nil {
+		return
 	}
 	if len(version.Product) > 256 || !validOverviewText(version.Product) {
 		err = errors.New("invalid diagram server version")
 		return
 	}
 	source = string(d) + " " + version.Product + "; information_schema"
-	if d == dialect.MariaDB && !strings.Contains(strings.ToLower(version.Product), "mariadb") || d == dialect.OceanBaseMySQL && !dialect.HasOceanBaseBrand(version.Product) {
+	if d == dialect.MariaDB && !version.ReportsMariaDB() || d == dialect.OceanBaseMySQL && !version.ReportsOceanBase() {
 		reason = "Unverified product/version for catalog relationships"
 		return
 	}
@@ -97,7 +90,7 @@ func probeDiagramMyContract(ctx context.Context, conn *sql.Conn, d dialect.ID, d
 	sort.Strings(names)
 	contractVersion := reported
 	if version.FromVersionComment() {
-		contractVersion += "\x00" + version.Source + "\x00" + version.Product
+		contractVersion += "\x00" + version.Source.Query() + "\x00" + version.Product
 	}
 	contract = fmt.Sprintf("%x", sha256.Sum256([]byte("diagram-v1\x00"+string(d)+"\x00"+contractVersion+"\x00"+mode+"\x00"+casing+"\x00"+strings.Join(names, ","))))
 	return

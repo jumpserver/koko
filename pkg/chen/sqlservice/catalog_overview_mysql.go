@@ -21,11 +21,11 @@ var ErrOverviewContractChanged = errors.New("overview product, version or catalo
 // catalog connection used for its data. Failure stops the request, without
 // trying a query containing unverified columns or claiming an empty catalog.
 type overviewMyCapabilities struct {
-	dialect           dialect.ID
-	version, contract string
-	versionQuery      string
-	columns           map[string]bool
-	storage           bool
+	dialect  dialect.ID
+	version  MySQLServerVersion
+	contract string
+	columns  map[string]bool
+	storage  bool
 }
 
 func probeOverviewMyCapabilities(ctx context.Context, conn *sql.Conn, d dialect.ID, section string) (*overviewMyCapabilities, error) {
@@ -33,22 +33,20 @@ func probeOverviewMyCapabilities(ctx context.Context, conn *sql.Conn, d dialect.
 	if err != nil {
 		return nil, err
 	}
-	c := &overviewMyCapabilities{dialect: d, version: version.Product, versionQuery: version.Source, columns: map[string]bool{}, storage: true}
-	if len(c.version) > 256 || !validOverviewText(c.version) {
+	c := &overviewMyCapabilities{dialect: d, version: version, columns: map[string]bool{}, storage: true}
+	if len(version.Product) > 256 || !validOverviewText(version.Product) {
 		return nil, errors.New("invalid overview server version")
 	}
-	oceanBase := dialect.HasOceanBaseBrand(c.version)
-	mariaDB := strings.Contains(strings.ToLower(c.version), "mariadb")
 	switch {
-	case d == dialect.MySQL && oceanBase:
+	case d == dialect.MySQL && version.ReportsOceanBase():
 		// A MySQL-protocol asset may use OceanBase. Its server version identifies
 		// which storage and index capabilities apply to the shared catalog SQL.
 		c.dialect = dialect.OceanBaseMySQL
-	case d == dialect.MariaDB && !mariaDB, d == dialect.OceanBaseMySQL && !oceanBase, d == dialect.MySQL && mariaDB:
+	case d == dialect.MariaDB && !version.ReportsMariaDB(), d == dialect.OceanBaseMySQL && !version.ReportsOceanBase(), d == dialect.MySQL && version.ReportsMariaDB():
 		return nil, ErrOverviewContractChanged
 	}
 	if c.dialect == dialect.OceanBaseMySQL {
-		c.storage = overviewOBStorageVersion(c.version)
+		c.storage = overviewOBStorageVersion(version.Product)
 	}
 	table := "TABLES"
 	required := []string{"TABLE_SCHEMA", "TABLE_NAME", "TABLE_TYPE"}
@@ -87,7 +85,7 @@ func probeOverviewMyCapabilities(ctx context.Context, conn *sql.Conn, d dialect.
 		}
 	}
 	sort.Strings(names)
-	c.contract = fmt.Sprintf("%x", sha256.Sum256([]byte(string(c.dialect)+"\x00"+c.version+"\x00"+table+"\x00"+strings.Join(names, ","))))
+	c.contract = fmt.Sprintf("%x", sha256.Sum256([]byte(string(c.dialect)+"\x00"+version.Product+"\x00"+table+"\x00"+strings.Join(names, ","))))
 	return c, nil
 }
 

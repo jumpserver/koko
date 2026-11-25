@@ -601,18 +601,11 @@ func browseVendorContext(ctx context.Context, c *console, d dialect.ID, options 
 			return
 		}
 		version, err = sqlservice.ReadMySQLServerVersion(ctx, c.conn, d)
-		if err != nil {
-			if ctx.Err() != nil {
-				return version, "", ctx.Err()
-			}
+		if err = sqlservice.RequireReportedVersion(ctx, err); err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return version, "", err
 			}
-			if version.Source == "" {
-				return version, "", errors.New("Unable to verify the server version for database browsing")
-			}
-			// The version comment was unavailable. Preserve cached browsing
-			// after verifying the tenant on this connection.
+			return version, "", errors.New("Unable to verify the server version for database browsing")
 		}
 		if d == dialect.OceanBaseMySQL {
 			var mode string

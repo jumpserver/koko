@@ -100,18 +100,20 @@ func estimatedPlanSQL(ctx context.Context, c *console, d dialect.ID, document st
 			return "", "", err
 		}
 		return command, version, nil
-	case dialect.OceanBaseMySQL:
-		version, _, err := sqlservice.OceanBaseMySQLVersion(ctx, c.conn)
-		if err != nil && version == "" {
+	case dialect.MariaDB, dialect.OceanBaseMySQL:
+		version, err := sqlservice.ReadMySQLServerVersion(ctx, c.conn, d)
+		// An optional product-comment error still leaves the reported banner
+		// available for the raw EXPLAIN fallback.
+		if err != nil && version.Product == "" {
 			return "", "", err
 		}
-		return command, version, nil
-	case dialect.MariaDB, dialect.ClickHouse:
+		return command, version.Product, nil
+	case dialect.ClickHouse:
 		var version string
 		if err := c.conn.QueryRowContext(ctx, "SELECT VERSION()").Scan(&version); err != nil {
 			return "", "", err
 		}
-		if d == dialect.ClickHouse && supportedPlanVersion(d, version) {
+		if supportedPlanVersion(d, version) {
 			command = strings.Replace(command, "EXPLAIN PLAN ", sqlservice.ClickHouseJSONPlanPrefix, 1)
 		}
 		return command, version, nil
