@@ -2,6 +2,7 @@ package sessiontools
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql/driver"
 	"encoding/binary"
 	"errors"
@@ -12,21 +13,14 @@ import (
 
 	dm "gitee.com/chunanyong/dm"
 	db2 "github.com/go-db2/go-db2"
+	"github.com/jumpserver/koko/internal/dbconn"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
-func newAgentDB2DamengConnector(config DatabaseConfig) (*agentSQLRelayConnector, error) {
-	c := &agentSQLRelayConnector{
-		address: net.JoinHostPort(config.Host, strconv.Itoa(config.Port)), dial: config.DialContext,
-	}
+func newAgentDB2DamengConnector(config DatabaseConfig) (driver.Connector, error) {
 	switch config.Protocol {
 	case srvconn.ProtocolDB2:
-		if strings.TrimSpace(config.Database) == "" || len(config.Database) > 18 {
-			return nil, errors.New("Db2 requires a database name of at most 18 bytes")
-		}
-		cfg := db2.NewConfig()
-		cfg.User, cfg.Password, cfg.Database = config.Username, config.Password, config.Database
-		cfg.UseSSL = config.UseSSL
+		var secure *tls.Config
 		if config.UseSSL {
 			if config.AllowInvalidCert {
 				return nil, errors.New("Db2 requires server certificate verification")
@@ -38,15 +32,19 @@ func newAgentDB2DamengConnector(config DatabaseConfig) (*agentSQLRelayConnector,
 			if err != nil {
 				return nil, err
 			}
-			cfg.TLSConfig = tlsConfig
+			secure = tlsConfig
 		}
-		c.driver = &db2.Driver{}
-		c.connector = func(host string, port int) (driver.Connector, error) {
-			local := *cfg
-			local.Host, local.Port = host, port
-			return db2.NewConnector(&local), nil
+		cfg, err := dbconn.DB2Config(config.connectionConfig(), secure)
+		if err != nil {
+			return nil, err
 		}
+		// The native connector carries the budgeted dialer through TLS and DRDA;
+		// its context watcher interrupts blocked I/O without a loopback relay.
+		return db2.NewConnector(cfg), nil
 	case srvconn.ProtocolDameng:
+		c := &agentSQLRelayConnector{
+			address: net.JoinHostPort(config.Host, strconv.Itoa(config.Port)), dial: config.DialContext,
+		}
 		// The pinned DM driver hardcodes InsecureSkipVerify and cannot consume
 		// our CA policy. Reject required TLS instead of silently dropping it.
 		if config.UseSSL || config.CACert != "" || config.ClientCert != "" || config.ClientKey != "" {
@@ -77,15 +75,15 @@ func newAgentDB2DamengConnector(config DatabaseConfig) (*agentSQLRelayConnector,
 			}
 			return &agentDamengWireConn{Conn: conn}, nil
 		}
+		return c, nil
 	default:
 		return nil, errors.New("unsupported agent database protocol")
 	}
-	return c, nil
 }
 
-// Both pinned drivers need a loopback relay: Db2 has no injectable dialer,
-// and DM drops the caller's context while connecting. Only one local socket
-// is accepted, forwarding solely to the authorized, budgeted asset transport.
+// Dameng needs a relay because its connector drops the caller's dial context.
+// The relay accepts one local driver connection and forwards it solely to the
+// authorized, budgeted asset transport. Canceling the context closes both sockets.
 type agentSQLRelayConnector struct {
 	driver    driver.Driver
 	address   string

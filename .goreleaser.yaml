@@ -9,6 +9,8 @@ before:
     - go generate ./...
 
 builds:
+  # Use --single-target on a native release runner with PKG_CONFIG_PATH set
+  # by utils/setup-libghostty-vt.sh, as in the tag release workflow.
   - id: koko
     main: ./cmd/koko/
     binary: koko
@@ -26,7 +28,7 @@ builds:
       - riscv64
       - loong64
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     ldflags:
       - -w -s
       - -X 'main.Buildstamp={{ .Date }}'
@@ -42,6 +44,9 @@ archives:
       - LICENSE
       - README.md
       - config_example.yml
+      - src: pkg/chen/standalone/standalone_backends_example.yaml
+        strip_parent: true
+      - pkg/chen/third_party/*/LICENSE
       - entrypoint.sh
       - locale/*
       - src: utils/init-kubectl.sh

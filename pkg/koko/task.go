@@ -162,8 +162,19 @@ func uploadRemainFTPFile(jmsService *service.JMService) {
 }
 
 // keepHeartbeat 保持心跳
-func keepHeartbeat(jmsService *service.JMService, lionRuntime *lion.Runtime) {
-	KeepWsHeartbeat(jmsService, lionRuntime)
+func keepHeartbeat(jmsService *service.JMService, lionRuntime *lion.Runtime, onControl ...func(bool)) {
+	setAvailable := func(available bool) {
+		for _, notify := range onControl {
+			if notify != nil {
+				notify(available)
+			}
+		}
+	}
+	for {
+		runHeartbeat(jmsService, lionRuntime, setAvailable)
+		setAvailable(false)
+		time.Sleep(10 * time.Second)
+	}
 }
 
 func handleTerminalTask(jmsService *service.JMService, lionRuntime *lion.Runtime, tasks []model.TerminalTask) {
@@ -203,58 +214,62 @@ func KeepWsHeartbeat(jmsService *service.JMService, lionRuntimes ...*lion.Runtim
 	if len(lionRuntimes) > 0 {
 		lionRuntime = lionRuntimes[0]
 	}
+	keepHeartbeat(jmsService, lionRuntime)
+}
+
+func runHeartbeat(jmsService *service.JMService, lionRuntime *lion.Runtime, setAvailable func(bool)) {
 	ws, err := jmsService.GetWsClient()
 	if err != nil {
 		logger.Errorf("Start ws client failed: %s", err)
-		time.Sleep(10 * time.Second)
-		go KeepWsHeartbeat(jmsService, lionRuntime)
+		return
+	}
+	defer ws.Close()
+	writeStatus := func() error {
+		if err := ws.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+			return err
+		}
+		return ws.WriteJSON(GetStatusData(lionRuntime))
+	}
+	if err := writeStatus(); err != nil {
+		logger.Errorf("Ws client send heartbeat data failed: %s", err)
 		return
 	}
 	logger.Info("Start ws client success")
-	done := make(chan struct{}, 2)
+	setAvailable(true)
+	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		for {
-			msgType, message, err2 := ws.ReadMessage()
-			if err2 != nil {
-				logger.Errorf("Ws client read err: %s", err2)
+			msgType, message, err := ws.ReadMessage()
+			if err != nil {
+				logger.Errorf("Ws client read err: %s", err)
 				return
 			}
 			switch msgType {
-			case websocket.PingMessage,
-				websocket.PongMessage:
-				logger.Debug("Ws client ping/pong Message")
+			case websocket.PingMessage, websocket.PongMessage:
 				continue
 			case websocket.CloseMessage:
-				logger.Debug("Ws client close Message")
 				return
 			}
 			var tasks []model.TerminalTask
-			if err = json.Unmarshal(message, &tasks); err != nil {
+			if err := json.Unmarshal(message, &tasks); err != nil {
 				logger.Errorf("Ws client Unmarshal failed: %s", err)
 				continue
 			}
-			if len(tasks) != 0 {
-				handleTerminalTask(jmsService, lionRuntime, tasks)
-			}
+			handleTerminalTask(jmsService, lionRuntime, tasks)
 		}
 	}()
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	if err1 := ws.WriteJSON(GetStatusData(lionRuntime)); err1 != nil {
-		logger.Errorf("Ws client send heartbeat data failed: %s", err1)
-	}
 	for {
 		select {
 		case <-done:
 			logger.Info("Ws client closed")
-			time.Sleep(10 * time.Second)
-			go KeepWsHeartbeat(jmsService, lionRuntime)
 			return
 		case <-ticker.C:
-			if err1 := ws.WriteJSON(GetStatusData(lionRuntime)); err1 != nil {
-				logger.Errorf("Ws client write stat data failed: %s", err1)
-				continue
+			if err := writeStatus(); err != nil {
+				logger.Errorf("Ws client write stat data failed: %s", err)
+				return
 			}
 			logger.Debug("Ws client send heartbeat success")
 		}

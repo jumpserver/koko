@@ -36,33 +36,7 @@ func (c *Connection) openDatabase(ctx context.Context, token *model.ConnectToken
 	ctx, cancel := context.WithTimeout(ctx, c.opts.ConnectTimeout)
 	defer cancel()
 	asset := token.Asset
-	config := sessiontools.DatabaseConfig{
-		Protocol: token.Protocol, PlatformType: token.Platform.Type.Value,
-		Host: asset.Address, Port: asset.ProtocolPort(token.Protocol), ServerName: asset.Address,
-		Username: token.Account.Username, Password: token.Account.Secret, Database: asset.SpecInfo.DBName,
-		UseSSL: asset.SpecInfo.UseSSL, PGSSLMode: asset.SpecInfo.PgSSLMode,
-		CACert: asset.SecretInfo.CaCert, ClientCert: asset.SecretInfo.ClientCert, ClientKey: asset.SecretInfo.ClientKey,
-		AllowInvalidCert: asset.SpecInfo.AllowInvalidCert,
-		DataMaskingRules: token.DataMaskingRules,
-	}
-	if setting, ok := token.Platform.GetProtocolSetting(token.Protocol); ok {
-		options := setting.GetSetting()
-		config.Encrypt = options.Encrypt
-		config.DisableEncrypt = token.Protocol == srvconn.ProtocolSQLServer && !options.Encrypt
-		config.ClusterMode = options.EnableClusterMode
-		config.AuthSource, config.ConnectionOpts = options.AuthSource, options.ConnectionOpts
-		if config.PlatformType == "oceanbase" {
-			config.TenantMode, _ = setting.Setting["tenant_mode"].(string)
-		}
-		if token.Protocol == srvconn.ProtocolRedis {
-			if raw, exists := setting.Setting["enable_cluster_mode"]; exists {
-				config.ClusterMode, _ = strconv.ParseBool(fmt.Sprint(raw))
-			}
-			if token.Account.IsNull() || !options.AuthUsername {
-				config.Username = ""
-			}
-		}
-	}
+	config := sessiontools.DatabaseConfigFromToken(*token)
 	dialect, err := sessiontools.DatabaseDialect(config)
 	if err != nil {
 		return err

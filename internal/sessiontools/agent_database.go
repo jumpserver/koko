@@ -6,16 +6,15 @@ import (
 	"errors"
 	"io"
 	"net"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	mysql "github.com/go-sql-driver/mysql"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgproto3"
 
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/jumpserver/koko/internal/dbconn"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
@@ -115,25 +114,15 @@ func OpenAgentSQLConnection(ctx context.Context, config DatabaseConfig) (*sql.Co
 			}
 			break
 		}
-		driverConfig := mysql.NewConfig()
-		driverConfig.Net = "tcp"
-		driverConfig.Addr = net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
-		driverConfig.User = config.Username
-		driverConfig.Passwd = config.Password
-		driverConfig.DBName = config.Database
-		driverConfig.ParseTime = true
-		driverConfig.MultiStatements = false
-		driverConfig.MaxAllowedPacket = 16 << 20
-		driverConfig.Params = map[string]string{"autocommit": "true"}
-		driverConfig.DialFunc = guard.dial
+		options := dbconn.MySQLOptions{ParseTime: true, MaxAllowedPacket: 16 << 20, Autocommit: "true"}
 		if config.UseSSL {
-			tlsConfig, err := buildMySQLTLSConfig(config)
+			var err error
+			options.TLS, err = buildMySQLTLSConfig(config)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			driverConfig.TLS = tlsConfig
 		}
-		connector, err := mysql.NewConnector(driverConfig)
+		connector, err := dbconn.MySQLConnector(config.connectionConfig(), options)
 		if err != nil {
 			return nil, nil, nil, err
 		}

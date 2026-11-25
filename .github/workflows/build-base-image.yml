@@ -6,6 +6,8 @@ on:
       - 'pr*'
     paths:
       - 'go.mod'
+      - 'go.sum'
+      - 'pkg/chen/third_party/*/go.mod'
       - 'Dockerfile-base'
   workflow_dispatch:
     inputs:

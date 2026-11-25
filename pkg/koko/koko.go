@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jumpserver/koko/pkg/chen"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/httpd"
@@ -25,12 +26,14 @@ type Koko struct {
 	webSrv     *httpd.Server
 	sshSrv     *sshd.Server
 	lion       *lion.Runtime
+	chen       *chen.Runtime
 	webProxy   *webproxy.Server
 	appContext context.Context
 	cancel     context.CancelFunc
 }
 
 func (k *Koko) Start() {
+	k.chen.Start()
 	go k.webSrv.Start()
 	go k.sshSrv.Start()
 	if k.webProxy != nil {
@@ -40,6 +43,7 @@ func (k *Koko) Start() {
 }
 
 func (k *Koko) Stop() {
+	k.chen.Stop()
 	k.webSrv.Stop()
 	k.sshSrv.Stop()
 	if k.webProxy != nil {
@@ -61,7 +65,11 @@ func RunForever(confPath string) {
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	bootstrapWithJMService(jmsService)
 	lionRuntime := lion.NewRuntime(jmsService)
-	webSrv := httpd.NewServer(jmsService, lionRuntime)
+	chenRuntime, err := chen.NewRuntime(jmsService, config.GetConf())
+	if err != nil {
+		logger.Fatalf("Initialize Chen: %v", err)
+	}
+	webSrv := httpd.NewServer(jmsService, lionRuntime, chenRuntime)
 	sshSrv := sshd.NewSSHServer(jmsService)
 	var webProxySrv *webproxy.Server
 	if conf := config.GetConf(); conf.WebProxyEnabled {
@@ -86,12 +94,13 @@ func RunForever(confPath string) {
 		webSrv:     webSrv,
 		sshSrv:     sshSrv,
 		lion:       lionRuntime,
+		chen:       chenRuntime,
 		webProxy:   webProxySrv,
 		appContext: appContext,
 		cancel:     cancel,
 	}
 	app.Start()
-	runTasks(jmsService, lionRuntime)
+	runTasks(jmsService, lionRuntime, chenRuntime)
 	<-gracefulStop
 	app.Stop()
 }
@@ -124,14 +133,14 @@ func updateEncryptConfigValue(jmsService *service.JMService) {
 	}
 }
 
-func runTasks(jmsService *service.JMService, lionRuntime *lion.Runtime) {
+func runTasks(jmsService *service.JMService, lionRuntime *lion.Runtime, chenRuntime *chen.Runtime) {
 	if config.GetConf().UploadFailedReplay {
 		go uploadRemainReplay(jmsService)
 	}
 	if config.GetConf().UploadFailedFTPFile {
 		go uploadRemainFTPFile(jmsService)
 	}
-	go keepHeartbeat(jmsService, lionRuntime)
+	go keepHeartbeat(jmsService, lionRuntime, chenRuntime.SetControlAvailable)
 
 	go RunConnectTokensCheck(jmsService)
 }

@@ -4,19 +4,15 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"database/sql"
 	"errors"
 	"fmt"
-	"net"
-	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
-	mysqlDriver "github.com/go-sql-driver/mysql"
+	"github.com/jumpserver/koko/internal/dbconn"
 )
 
 const (
@@ -27,15 +23,12 @@ const (
 type MySQLConfig = DatabaseConfig
 
 type MySQLExecutor struct {
-	protocol      string
-	db            *sql.DB
-	sanitizer     *MySQLSanitizer
-	metadata      *sqlMetadataTool
-	tlsConfigName string
-	closeOnce     sync.Once
+	protocol  string
+	db        *sql.DB
+	sanitizer *MySQLSanitizer
+	metadata  *sqlMetadataTool
+	closeOnce sync.Once
 }
-
-var mysqlTLSSequence atomic.Uint64
 
 func NewMySQLExecutor(ctx context.Context, config MySQLConfig) (*MySQLExecutor, error) {
 	if err := ctx.Err(); err != nil {
@@ -44,32 +37,21 @@ func NewMySQLExecutor(ctx context.Context, config MySQLConfig) (*MySQLExecutor, 
 	if config.PlatformType == "oceanbase" {
 		return newOceanBaseExecutor(config)
 	}
-	driverConfig := mysqlDriver.NewConfig()
-	driverConfig.Net = "tcp"
-	driverConfig.Addr = net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
-	driverConfig.User = config.Username
-	driverConfig.Passwd = config.Password
-	driverConfig.DBName = config.Database
-	driverConfig.ParseTime = true
-	driverConfig.MultiStatements = false
-	driverConfig.Params = map[string]string{"autocommit": "true"}
-
 	protocol := config.Protocol
 	if protocol == "" {
 		protocol = "mysql"
 	}
 	executor := &MySQLExecutor{protocol: protocol, sanitizer: NewMySQLSanitizer(config.DataMaskingRules)}
+	options := dbconn.MySQLOptions{ParseTime: true, Autocommit: "true"}
 	if config.UseSSL {
-		tlsName, err := registerMySQLTLS(config)
+		var err error
+		options.TLS, err = buildMySQLTLSConfig(config)
 		if err != nil {
 			return nil, err
 		}
-		executor.tlsConfigName = tlsName
-		driverConfig.TLSConfig = tlsName
 	}
-	connector, err := mysqlDriver.NewConnector(driverConfig)
+	connector, err := dbconn.MySQLConnector(config.connectionConfig(), options)
 	if err != nil {
-		executor.deregisterTLS()
 		return nil, fmt.Errorf("create MySQL connector: %w", err)
 	}
 	executor.db = sql.OpenDB(connector)
@@ -101,44 +83,10 @@ func newOceanBaseExecutor(config MySQLConfig) (*MySQLExecutor, error) {
 	}, nil
 }
 
-func registerMySQLTLS(config MySQLConfig) (string, error) {
-	tlsConfig, err := buildMySQLTLSConfig(config)
-	if err != nil {
-		return "", err
-	}
-	name := fmt.Sprintf("koko-agent-tool-%d", mysqlTLSSequence.Add(1))
-	if err := mysqlDriver.RegisterTLSConfig(name, tlsConfig); err != nil {
-		return "", fmt.Errorf("register MySQL TLS config: %w", err)
-	}
-	return name, nil
-}
-
 func buildMySQLTLSConfig(config MySQLConfig) (*tls.Config, error) {
-	tlsConfig := &tls.Config{
-		MinVersion:         tls.VersionTLS12,
-		ServerName:         config.ServerName,
-		InsecureSkipVerify: config.AllowInvalidCert,
-	}
-	if config.CACert != "" {
-		pool, err := x509.SystemCertPool()
-		if err != nil || pool == nil {
-			pool = x509.NewCertPool()
-		}
-		if !pool.AppendCertsFromPEM([]byte(config.CACert)) {
-			return nil, fmt.Errorf("parse MySQL CA certificate")
-		}
-		tlsConfig.RootCAs = pool
-	}
-	if config.ClientCert != "" || config.ClientKey != "" {
-		certificate, err := tls.X509KeyPair(
-			[]byte(config.ClientCert), []byte(config.ClientKey),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("parse MySQL client certificate: %w", err)
-		}
-		tlsConfig.Certificates = []tls.Certificate{certificate}
-	}
-	return tlsConfig, nil
+	c := config.connectionConfig()
+	c.Dialect, c.TLS.Enabled = "mysql", true
+	return dbconn.MakeTLS(c, true)
 }
 
 func (e *MySQLExecutor) Execute(
@@ -276,16 +224,8 @@ func (e *MySQLExecutor) Close() error {
 		if e.db != nil {
 			err = e.db.Close()
 		}
-		e.deregisterTLS()
 	})
 	return err
-}
-
-func (e *MySQLExecutor) deregisterTLS() {
-	if e.tlsConfigName != "" {
-		mysqlDriver.DeregisterTLSConfig(e.tlsConfigName)
-		e.tlsConfigName = ""
-	}
 }
 
 type mysqlOutput struct {

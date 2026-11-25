@@ -3,6 +3,7 @@ package proxy
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/jumpserver/koko/pkg/session"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -51,7 +52,7 @@ func TestSubmitCommandReview(t *testing.T) {
 			if tt.status == 0 {
 				core.Close()
 			}
-			ticket, err := submitCommandReview(api, "session", "acl", "rm example", i18n.ZH)
+			ticket, err := session.SubmitCommandReview(api, "session", "acl", "rm example", i18n.ZH)
 			if tt.want == "" {
 				if err != nil || ticket.CheckReq.URL != "/status/" {
 					t.Fatalf("ticket = %+v, err = %v", ticket, err)

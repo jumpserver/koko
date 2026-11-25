@@ -16,6 +16,7 @@ import (
 	"github.com/jumpserver/koko/pkg/lion/guacd"
 	"github.com/jumpserver/koko/pkg/lion/session"
 	"github.com/jumpserver/koko/pkg/logger"
+	kokosession "github.com/jumpserver/koko/pkg/session"
 
 	"github.com/jumpserver-dev/sdk-go/common"
 	"github.com/jumpserver-dev/sdk-go/model"
@@ -76,9 +77,7 @@ type Connection struct {
 
 	currentOnlineUsers map[string]MetaShareUserMessage
 
-	invalidPerm     atomic.Bool
-	invalidPermData []byte
-	invalidPermTime time.Time
+	permission kokosession.PermissionGrace
 }
 
 func (t *Connection) SendWsMessage(msg guacd.Instruction) error {
@@ -441,14 +440,7 @@ func (t *Connection) String() string {
 }
 
 func (t *Connection) IsPermissionExpired(now time.Time) bool {
-	if t.Sess.ExpireInfo.IsExpired(now) {
-		return true
-	}
-	if t.invalidPerm.Load() {
-		maxInvalidTime := t.invalidPermTime.Add(10 * time.Minute)
-		return now.After(maxInvalidTime)
-	}
-	return false
+	return t.Sess.ExpireInfo.IsExpired(now) || t.permission.Expired(now)
 }
 
 func (t *Connection) CloneMonitorTunnel() (*guacd.Tunnel, error) {
@@ -590,25 +582,19 @@ func (t *Connection) notifySessionAction(action string, user string) {
 }
 
 func (t *Connection) PermBecomeExpired(code, detail string) {
-	if t.invalidPerm.Load() {
+	if !t.permission.Revoke(time.Now()) {
 		return
 	}
-	t.invalidPermTime = time.Now()
-	t.invalidPerm.Store(true)
 	p, _ := json.Marshal(map[string]string{"code": code, "detail": detail})
-	t.invalidPermData = p
 	t.Cache.BroadcastSessionEvent(t.Sess.ID,
 		&Event{Type: PermExpiredEvent, Data: p})
 }
 
 func (t *Connection) PermBecomeValid(code, detail string) {
-	if !t.invalidPerm.Load() {
+	if !t.permission.Restore() {
 		return
 	}
-	t.invalidPermTime = time.Now()
-	t.invalidPerm.Store(false)
 	p, _ := json.Marshal(map[string]string{"code": code, "detail": detail})
-	t.invalidPermData = p
 	t.Cache.BroadcastSessionEvent(t.Sess.ID,
 		&Event{Type: PermValidEvent, Data: p})
 }

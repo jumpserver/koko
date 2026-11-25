@@ -35,10 +35,6 @@ type SwitchSession struct {
 	notifyMsgChan chan *exchange.RoomMessage
 
 	MaxSessionTime time.Time
-
-	invalidPerm     atomic.Bool
-	invalidPermData []byte
-	invalidPermTime time.Time
 }
 
 func (s *SwitchSession) Terminate(username string) {
@@ -77,41 +73,25 @@ func (s *SwitchSession) ResumeOperation(username string) {
 }
 
 func (s *SwitchSession) PermBecomeExpired(code, detail string) {
-	if s.invalidPerm.Load() {
+	if !s.p.permission.Revoke(time.Now()) {
 		return
 	}
-	s.invalidPerm.Store(true)
-	s.p.permissionInvalid.Store(true)
 	p, _ := json.Marshal(map[string]string{"code": code, "detail": detail})
-	s.invalidPermData = p
-	s.invalidPermTime = time.Now()
 	s.notifyMsgChan <- &exchange.RoomMessage{
 		Event: exchange.PermExpiredEvent, Body: p}
 }
 
 func (s *SwitchSession) PermBecomeValid(code, detail string) {
-	if !s.invalidPerm.Load() {
+	if !s.p.permission.Restore() {
 		return
 	}
-	s.invalidPerm.Store(false)
-	s.p.permissionInvalid.Store(false)
-	s.invalidPermTime = s.MaxSessionTime
 	p, _ := json.Marshal(map[string]string{"code": code, "detail": detail})
-	s.invalidPermData = p
 	s.notifyMsgChan <- &exchange.RoomMessage{
 		Event: exchange.PermValidEvent, Body: p}
 }
 
 func (s *SwitchSession) CheckPermissionExpired(now time.Time) bool {
-	if s.p.CheckPermissionExpired(now) {
-		return true
-	}
-	if s.invalidPerm.Load() {
-		if now.After(s.invalidPermTime.Add(10 * time.Minute)) {
-			return true
-		}
-	}
-	return false
+	return s.p.CheckPermissionExpired(now) || s.p.permission.Expired(now)
 }
 
 func (s *SwitchSession) setOperator(username string) {

@@ -73,6 +73,14 @@ WEB_PROXY_FFMPEG_PATH: ffmpeg
 # REDIS_SENTINEL_PASSWORD:
 # REDIS_USE_SSL: false
 
+# 数据库工作台。查询超时、结果字节上限和事务空闲超时设为 0 表示禁用相应限制。
+# CHEN_STATE_DIR: data/chen
+# CHEN_ALLOWED_ORIGINS:
+# CHEN_QUERY_TIMEOUT: 0s
+# CHEN_TRANSACTION_IDLE_TIMEOUT: 5m
+# CHEN_MAX_ROWS: 10000
+# CHEN_MAX_RESULT_BYTES: 0
+
 # Lion / Guacamole 配置。Lion 路由默认启用；guacd 不可用不会影响 Koko 启动。
 # 多个 guacd 地址以逗号分隔；设置后优先于 GUA_HOST/GUA_PORT。
 # GUACD_ADDRS:

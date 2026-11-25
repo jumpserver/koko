@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -458,8 +457,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	}
 
 	// todo: 暂且不支持 acl 工单
-	acls := tokenInfo.CommandFilterACLs
-	sort.Sort(model.CommandACLs(acls))
+	acls := session.OrderedCommandACLs(tokenInfo.CommandFilterACLs)
 	for i := range acls {
 		acl := acls[i]
 		_, action, _ := acl.Match(rawStr)

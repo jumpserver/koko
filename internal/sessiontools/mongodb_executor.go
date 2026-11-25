@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -17,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jumpserver/koko/internal/dbconn"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -200,30 +200,9 @@ func mongoDBClientOptions(config DatabaseConfig) (*options.ClientOptions, error)
 }
 
 func databaseTLSConfig(config DatabaseConfig) (*tls.Config, error) {
-	result := &tls.Config{
-		MinVersion: tls.VersionTLS12, ServerName: config.ServerName,
-		InsecureSkipVerify: config.AllowInvalidCert,
-	}
-	if config.CACert != "" {
-		pool, err := x509.SystemCertPool()
-		if err != nil || pool == nil {
-			pool = x509.NewCertPool()
-		}
-		if !pool.AppendCertsFromPEM([]byte(config.CACert)) {
-			return nil, fmt.Errorf("parse CA certificate")
-		}
-		result.RootCAs = pool
-	}
-	if config.ClientCert != "" || config.ClientKey != "" {
-		certificate, err := tls.X509KeyPair(
-			[]byte(config.ClientCert), []byte(config.ClientKey),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("parse client certificate: %w", err)
-		}
-		result.Certificates = []tls.Certificate{certificate}
-	}
-	return result, nil
+	c := config.connectionConfig()
+	c.TLS.Enabled = true
+	return dbconn.MakeTLS(c, true)
 }
 
 func sanitizeMongoDBDocument(document bson.D, sanitizer ValueSanitizer) bson.D {

@@ -59,5 +59,8 @@ ENV PKG_CONFIG_PATH=/opt/libghostty-vt/share/pkgconfig
 ENV GO111MODULE=on
 
 COPY go.mod go.sum ./
+COPY pkg/chen/third_party/dm/go.mod ./pkg/chen/third_party/dm/
+COPY pkg/chen/third_party/go-db2/go.mod ./pkg/chen/third_party/go-db2/
+COPY pkg/chen/third_party/go-ora/go.mod ./pkg/chen/third_party/go-ora/
 
 RUN go mod download -x

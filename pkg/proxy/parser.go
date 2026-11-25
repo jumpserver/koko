@@ -3,8 +3,8 @@ package proxy
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
-
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +18,7 @@ import (
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/session"
 	"github.com/jumpserver/koko/pkg/utils"
 	"github.com/jumpserver/koko/pkg/zmodem"
 )
@@ -1135,7 +1136,7 @@ type CommandRule struct {
 func (p *Parser) waitCommandConfirm() {
 	cmd := p.confirmStatus.Cmd
 	rule := p.confirmStatus.Rule
-	resp, err := submitCommandReview(p.jmsService, p.id, rule.Acl.ID, p.confirmStatus.Cmd, i18n.NewLang(p.i18nLang))
+	resp, err := session.SubmitCommandReview(p.jmsService, p.id, rule.Acl.ID, p.confirmStatus.Cmd, i18n.NewLang(p.i18nLang))
 	if err != nil {
 		p.srvOutputChan <- []byte("\r\n" + utils.WrapperString(err.Error(), utils.Red))
 		// Submission failures cancel review; only an actual denial is ReviewReject.
@@ -1188,42 +1189,42 @@ func (p *Parser) waitCommandConfirm() {
 			}
 		}
 	}()
-	for {
+	status, err := session.PollCommandReview(func() (model.TicketState, error) {
 		select {
 		case <-p.closed:
-			if err = p.jmsService.CancelConfirmByRequestInfo(cancelReq); err != nil {
-				logger.Errorf("Session %s: Cancel command confirm err: %s", p.id, err)
-			}
-			logger.Infof("Session %s: Closed", p.id)
-			return
+			return model.TicketState{}, context.Canceled
 		case <-ctx.Done():
-			// 取消
-			if err = p.jmsService.CancelConfirmByRequestInfo(cancelReq); err != nil {
-				logger.Errorf("Session %s: Cancel command confirm err: %s", p.id, err)
-			}
-			logger.Infof("Session %s: Cancel confirm command", p.id)
-			return
+			return model.TicketState{}, ctx.Err()
 		case <-checkTimer.C:
 		}
-		statusResp, err := p.jmsService.CheckConfirmStatusByRequestInfo(checkReq)
-		if err != nil {
-			logger.Errorf("Session %s: check command confirm status err: %s", p.id, err)
-			continue
-		}
-		switch statusResp.State {
-		case model.TicketOpen:
-			continue
-		case model.TicketApproved:
-			p.confirmStatus.SetAction(model.ActionAccept)
-			p.confirmStatus.SetProcessor(statusResp.Processor)
-			return
-		case model.TicketRejected, model.TicketClosed:
-			p.confirmStatus.SetProcessor(statusResp.Processor)
-			p.confirmStatus.SetAction(model.ActionReject)
-			return
+		return p.jmsService.CheckConfirmStatusByRequestInfo(checkReq)
+	}, func(status model.TicketState, err error) bool {
+		select {
+		case <-p.closed:
+			return false
+		case <-ctx.Done():
+			return false
 		default:
-			logger.Errorf("Receive unknown command confirm status %s", statusResp.Status)
 		}
+		if errors.Is(err, session.ErrUnknownCommandReviewState) {
+			logger.Errorf("Receive unknown command confirm status %s", status.Status)
+		} else {
+			logger.Errorf("Session %s: check command confirm status err: %s", p.id, err)
+		}
+		return true
+	})
+	if err != nil {
+		if err := p.jmsService.CancelConfirmByRequestInfo(cancelReq); err != nil {
+			logger.Errorf("Session %s: Cancel command confirm err: %s", p.id, err)
+		}
+		logger.Infof("Session %s: Cancel confirm command", p.id)
+		return
+	}
+	p.confirmStatus.SetProcessor(status.Processor)
+	if status.State == model.TicketApproved {
+		p.confirmStatus.SetAction(model.ActionAccept)
+	} else {
+		p.confirmStatus.SetAction(model.ActionReject)
 	}
 }
 

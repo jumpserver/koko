@@ -22,7 +22,7 @@ func TestAgentDamengPreservesCredentials(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	connector, err := relay.connector("127.0.0.1", 1234)
+	connector, err := relay.(*agentSQLRelayConnector).connector("127.0.0.1", 1234)
 	if err != nil {
 		t.Fatal(err)
 	}

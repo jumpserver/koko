@@ -1,5 +1,12 @@
 #!/bin/sh
 #
+if [ "${1##*/}" = "koko" ]; then
+    for arg in "$@"; do
+        case "$arg" in
+            --selector|-selector|--selector=*|-selector=*) exec "$@" ;;
+        esac
+    done
+fi
 
 if [ -n "$CORE_HOST" ]; then
     until check ${CORE_HOST}/api/health/; do
