@@ -164,8 +164,8 @@ WHERE pg_catalog.current_database() = $1 AND c.relkind IN ('r', 'p', 'v', 'm', '
 AND ($2 = '' OR n.nspname = $2) AND n.nspname IN (SELECT schema_name FROM information_schema.schemata)
 AND ($3 = '' OR ($3 = 'table' AND c.relkind IN ('r', 'p', 'f')) OR ($3 = 'view' AND c.relkind IN ('v', 'm')))
 AND c.relname ILIKE $4 ESCAPE '!'
-AND (n.nspname COLLATE pg_catalog."C", c.relname COLLATE pg_catalog."C") > ($5 COLLATE pg_catalog."C", $6 COLLATE pg_catalog."C")
-ORDER BY n.nspname COLLATE pg_catalog."C", c.relname COLLATE pg_catalog."C" LIMIT $7`, req.Database, req.Schema, req.Kind, catalogSearch(req.Query), req.AfterSchema, req.AfterName, catalogLimit(req.Limit)+1)
+AND (n.nspname, c.relname) > ($5::pg_catalog.name, $6::pg_catalog.name)
+ORDER BY n.nspname, c.relname LIMIT $7`, req.Database, req.Schema, req.Kind, catalogSearch(req.Query), req.AfterSchema, req.AfterName, catalogLimit(req.Limit)+1)
 	}
 	if err != nil {
 		return items, fmt.Errorf("list catalog objects: %w", err)
