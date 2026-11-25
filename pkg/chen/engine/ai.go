@@ -14,6 +14,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/jumpserver/koko/pkg/chen/core"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlanalysis"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
@@ -40,24 +41,24 @@ type aiRPC struct {
 	} `json:"params"`
 }
 type aiEditorContext struct {
-	Dialect          string `json:"dialect"`
-	Database         string `json:"database"`
-	Schema           string `json:"schema"`
-	Table            string `json:"table,omitempty"`
-	NodeKey          string `json:"nodeKey"`
-	ConsoleID        string `json:"consoleId"`
-	PaneID           string `json:"paneId"`
-	TabID            string `json:"tabId"`
-	WorkspaceTabID   string `json:"workspaceTabId"`
-	WorkspaceTabKind string `json:"workspaceTabKind"`
-	CurrentContext   string `json:"currentContext"`
-	Revision         int    `json:"revision"`
-	SelectionFrom    int    `json:"selectionFrom"`
-	SelectionTo      int    `json:"selectionTo"`
-	SelectedSQL      string `json:"selectedSql"`
-	DocumentSQL      string `json:"documentSql"`
-	ProposalTarget   string `json:"proposalTarget"`
-	LastError        any    `json:"lastError,omitempty"`
+	Dialect          dialect.ID `json:"dialect"`
+	Database         string     `json:"database"`
+	Schema           string     `json:"schema"`
+	Table            string     `json:"table,omitempty"`
+	NodeKey          string     `json:"nodeKey"`
+	ConsoleID        string     `json:"consoleId"`
+	PaneID           string     `json:"paneId"`
+	TabID            string     `json:"tabId"`
+	WorkspaceTabID   string     `json:"workspaceTabId"`
+	WorkspaceTabKind string     `json:"workspaceTabKind"`
+	CurrentContext   string     `json:"currentContext"`
+	Revision         int        `json:"revision"`
+	SelectionFrom    int        `json:"selectionFrom"`
+	SelectionTo      int        `json:"selectionTo"`
+	SelectedSQL      string     `json:"selectedSql"`
+	DocumentSQL      string     `json:"documentSql"`
+	ProposalTarget   string     `json:"proposalTarget"`
+	LastError        any        `json:"lastError,omitempty"`
 }
 
 func aiRequestID(raw json.RawMessage) (string, error) {
@@ -236,7 +237,7 @@ func (v *Server) resolveAIEditor(s *session, raw json.RawMessage) (aiEditorConte
 	default:
 		return e, errors.New("Invalid database workspace context")
 	}
-	if e.NodeKey == "" || e.Dialect != s.grant.Config.Dialect {
+	if e.NodeKey == "" || e.Dialect != s.grant.Dialect() {
 		return e, errors.New("Invalid database resource context")
 	}
 	if e.WorkspaceTabKind != "data-view" {
@@ -389,9 +390,9 @@ func (v *Server) executeAITool(ctx context.Context, r *http.Request, s *session,
 		}
 		if e.Table != "" {
 			// A selected object from the browser is not verified until the account can see it.
-			err = sqlservice.CatalogObjectAccess(req.ctx, req.conn, sqlservice.Dialect(e.Dialect), e.Schema, e.Table)
+			err = sqlservice.CatalogObjectAccess(req.ctx, req.conn, e.Dialect, e.Schema, e.Table)
 		} else {
-			_, err = sqlservice.ObjectRows(req.ctx, req.conn, sqlservice.Dialect(e.Dialect), sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 1})
+			_, err = sqlservice.ObjectRows(req.ctx, req.conn, e.Dialect, sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 1})
 		}
 		req.done()
 		if err != nil {
@@ -427,7 +428,7 @@ func (v *Server) executeAITool(ctx context.Context, r *http.Request, s *session,
 		if strings.TrimSpace(args.SQL) == "" || aiTextLength(args.SQL) > aiMaxSQL || aiTextLength(args.Explanation) > 4096 {
 			return nil, errors.New("Invalid SQL draft")
 		}
-		analysis, err := sqlservice.Analyze(sqlservice.Dialect(e.Dialect), args.SQL)
+		analysis, err := sqlservice.Analyze(e.Dialect, args.SQL)
 		if err == nil && len(analysis.Statements) == 0 {
 			err = errors.New("Invalid statement count")
 		}
@@ -549,7 +550,7 @@ func (v *Server) executeAITool(ctx context.Context, r *http.Request, s *session,
 			if name == "inspect_schema" && args.Query != "*" {
 				lookup.Query = args.Query
 			}
-			objects, err = sqlservice.ObjectRows(req.ctx, req.conn, sqlservice.Dialect(e.Dialect), lookup)
+			objects, err = sqlservice.ObjectRows(req.ctx, req.conn, e.Dialect, lookup)
 			if err != nil {
 				return nil, errors.New("Unable to inspect authorized schema")
 			}
@@ -559,7 +560,7 @@ func (v *Server) executeAITool(ctx context.Context, r *http.Request, s *session,
 				// ObjectRows returns one extra row only when another page exists.
 				last := objects[len(objects)-2]
 				objects = objects[:len(objects)-1]
-				page, pageErr := sqlservice.ObjectRows(req.ctx, req.conn, sqlservice.Dialect(e.Dialect), sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 100, AfterSchema: last.Schema, AfterName: last.Name})
+				page, pageErr := sqlservice.ObjectRows(req.ctx, req.conn, e.Dialect, sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 100, AfterSchema: last.Schema, AfterName: last.Name})
 				if pageErr != nil {
 					return nil, errors.New("Unable to search authorized schema")
 				}

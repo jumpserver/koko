@@ -19,6 +19,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/jumpserver/koko/pkg/chen/core"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
@@ -174,7 +175,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	if editor != nil && editor.ConsoleID == "" {
 		scope.database = editor.Database
 	}
-	if (operation == "columns" || operation == "inspect" || operation == "ddl") && s.grant.Config.Dialect == "postgresql" && scope.schema == "" {
+	if (operation == "columns" || operation == "inspect" || operation == "ddl") && s.grant.Dialect() == dialect.PostgreSQL && scope.schema == "" {
 		fail(w, 400, "invalid_catalog_request", "PostgreSQL columns require an explicit schema")
 		return nil
 	}
@@ -192,7 +193,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 			return nil
 		}
 		db.SetMaxIdleConns(1)
-		if separateCatalogDatabase(s.grant.Config.Dialect) {
+		if separateCatalogDatabase(s.grant.Dialect()) {
 			// Cross-database reads own a short-lived pool. Do not retain an
 			// additional default connection outside the two catalog slots.
 			db.SetMaxIdleConns(0)
@@ -230,7 +231,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	var conn *sql.Conn
 	var current sqlservice.Context
 	consoleBound := editor != nil && editor.ConsoleID != ""
-	targeted := !consoleBound && scope.database != "" && separateCatalogDatabase(s.grant.Config.Dialect)
+	targeted := !consoleBound && scope.database != "" && separateCatalogDatabase(s.grant.Dialect())
 	if consoleBound {
 		lookup := r.Clone(ctx)
 		lookup.SetPathValue("cid", editor.ConsoleID)
@@ -252,7 +253,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		}
 		consoleFinish := finish
 		var stopConsole context.CancelFunc
-		if pinnedMySQLCatalog(s.grant.Config.Dialect) {
+		if pinnedMySQLCatalog(s.grant.Dialect()) {
 			ctx = sqlservice.WithConsoleCatalogLifetime(ctx, c.ctx)
 			stopConsole = interruptCatalogOnCancel(ctx, s, c)
 		} else {
@@ -265,7 +266,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 			return nil
 		}
 		conn = c.conn
-		current, err = liveContext(sqlservice.CatalogQueryContext(ctx), c, s.grant.Config.Dialect)
+		current, err = liveContext(sqlservice.CatalogQueryContext(ctx), c, s.grant.Dialect())
 	} else {
 		db := resource.db
 		if targeted {
@@ -284,10 +285,10 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		if err == nil {
 			connFinish := finish
 			finish = func() { _ = conn.Close(); connFinish() }
-			if s.grant.Config.Dialect == "postgresql" && operation != "databases" {
+			if s.grant.Dialect() == dialect.PostgreSQL && operation != "databases" {
 				err = conn.QueryRowContext(ctx, "SELECT pg_catalog.current_database()").Scan(&current.Database)
 			} else {
-				current, err = connectionContext(ctx, conn, s.grant.Config.Dialect, sqlservice.Context{Database: s.grant.Config.Database, Schema: s.grant.Config.Schema})
+				current, err = connectionContext(ctx, conn, s.grant.Dialect(), sqlservice.Context{Database: s.grant.Config.Database, Schema: s.grant.Config.Schema})
 			}
 		}
 	}
@@ -298,15 +299,15 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		return nil
 	}
 	if operation == "databases" && s.grant.Config.Schema != "" {
-		switch s.grant.Config.Dialect {
-		case "postgresql", "oracle", "dameng", "oceanbase-oracle", "db2":
+		switch s.grant.Dialect() {
+		case dialect.PostgreSQL, dialect.Oracle, dialect.Dameng, dialect.OceanBaseOracle, dialect.DB2:
 			current.Schema = s.grant.Config.Schema
 		}
 	}
 	// MySQL's configured database is an initial selection, not an authorization
 	// boundary. Catalog SQL checks the connected account's visibility of the
 	// requested database without issuing USE on the independent catalog pool.
-	mysqlTree := !consoleBound && core.IsMySQLDialect(s.grant.Config.Dialect)
+	mysqlTree := !consoleBound && s.grant.Dialect().UsesMySQLSyntax()
 	if mysqlTree && operation != "schemas" && operation != "databases" {
 		if scope.database != "" {
 			database = scope.database
@@ -373,8 +374,8 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	return request
 }
 
-func separateCatalogDatabase(dialect string) bool {
-	return dialect == "postgresql" || dialect == "sqlserver" || dialect == "clickhouse"
+func separateCatalogDatabase(d dialect.ID) bool {
+	return d == dialect.PostgreSQL || d == dialect.SQLServer || d == dialect.ClickHouse
 }
 
 func (v *Server) catalogAudit(req *catalogRequest, outcome string, count int) error {
@@ -455,7 +456,7 @@ func (v *Server) catalogDatabases(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer req.done()
-	items, err := sqlservice.DatabaseRows(req.ctx, req.conn, sqlservice.Dialect(req.session.grant.Config.Dialect), req.database, req.after.AfterName, req.scope.limit)
+	items, err := sqlservice.DatabaseRows(req.ctx, req.conn, req.session.grant.Dialect(), req.database, req.after.AfterName, req.scope.limit)
 	type databaseItem struct {
 		Name string `json:"name"`
 	}
@@ -485,7 +486,7 @@ func (v *Server) catalogSchemas(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer req.done()
-	items, err := sqlservice.SchemaRows(req.ctx, req.conn, sqlservice.Dialect(req.session.grant.Config.Dialect), req.database, req.after.AfterName, req.scope.limit)
+	items, err := sqlservice.SchemaRows(req.ctx, req.conn, req.session.grant.Dialect(), req.database, req.after.AfterName, req.scope.limit)
 	type schemaItem struct {
 		Name string `json:"name"`
 	}
@@ -513,7 +514,7 @@ func (v *Server) catalogObjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer req.done()
-	items, err := sqlservice.ObjectRows(req.ctx, req.conn, sqlservice.Dialect(req.session.grant.Config.Dialect), sqlservice.CatalogObjectRequest{Database: req.database, Schema: req.scope.schema, Kind: req.scope.kind, Query: req.scope.query, AfterSchema: req.after.AfterSchema, AfterName: req.after.AfterName, Limit: req.scope.limit})
+	items, err := sqlservice.ObjectRows(req.ctx, req.conn, req.session.grant.Dialect(), sqlservice.CatalogObjectRequest{Database: req.database, Schema: req.scope.schema, Kind: req.scope.kind, Query: req.scope.query, AfterSchema: req.after.AfterSchema, AfterName: req.after.AfterName, Limit: req.scope.limit})
 	if items == nil {
 		items = []sqlservice.CatalogObject{}
 	}
@@ -534,7 +535,7 @@ func (v *Server) catalogColumns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer req.done()
-	items, err := sqlservice.ColumnRows(req.ctx, req.conn, sqlservice.Dialect(req.session.grant.Config.Dialect), sqlservice.CatalogColumnRequest{Database: req.database, Schema: req.scope.schema, Table: req.scope.table, AfterOrdinal: req.after.AfterOrdinal, Limit: req.scope.limit})
+	items, err := sqlservice.ColumnRows(req.ctx, req.conn, req.session.grant.Dialect(), sqlservice.CatalogColumnRequest{Database: req.database, Schema: req.scope.schema, Table: req.scope.table, AfterOrdinal: req.after.AfterOrdinal, Limit: req.scope.limit})
 	result := catalogPage[sqlservice.Column]{Items: []sqlservice.Column{}}
 	if len(items) > req.scope.limit {
 		result.HasMore = true

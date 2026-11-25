@@ -3,20 +3,22 @@ package sqlservice
 import (
 	"fmt"
 	"strings"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 // Interactive vendor SQL is classified for Query/Exec dispatch, not rewritten.
 // This bounded scanner supports ordinary DML/DDL and transaction
 // commands, not procedural bodies or client batch directives. Those require a
 // vendor grammar that can prove each statement boundary before policy checks.
-func analyzeCommandDocument(d Dialect, document string, options AnalyzeOptions) (Analysis, error) {
+func analyzeCommandDocument(d dialect.ID, document string, options AnalyzeOptions) (Analysis, error) {
 	return scanCommandDocument(d, document, options, func(ts []token) (string, bool, bool, error) {
 		kind, at, err := commandHead(ts)
 		if err != nil {
 			return "", false, false, err
 		}
 		// OceanBase Oracle uses this session statement to switch the console schema.
-		if d == OceanBaseOracle && len(ts) == 6 && commandIs(ts[0], "ALTER") && commandIs(ts[1], "SESSION") &&
+		if d == dialect.OceanBaseOracle && len(ts) == 6 && commandIs(ts[0], "ALTER") && commandIs(ts[1], "SESSION") &&
 			commandIs(ts[2], "SET") && commandIs(ts[3], "CURRENT_SCHEMA") && ts[4].kind == '=' && ts[5].ident() {
 			return "session", false, false, nil
 		}
@@ -34,7 +36,7 @@ func analyzeCommandDocument(d Dialect, document string, options AnalyzeOptions) 
 		case "COMMIT", "ROLLBACK", "SAVEPOINT", "RELEASE", "SET", "USE", "SAVE":
 			write = false
 		case "BEGIN":
-			if d != SQLServer || len(ts) < 2 || !commandIs(ts[1], "TRAN", "TRANSACTION", "DISTRIBUTED") {
+			if d != dialect.SQLServer || len(ts) < 2 || !commandIs(ts[1], "TRAN", "TRANSACTION", "DISTRIBUTED") {
 				return "", false, false, fmt.Errorf("procedural BEGIN blocks require vendor grammar support; use a transaction command supported by this database")
 			}
 			write = false
@@ -46,7 +48,7 @@ func analyzeCommandDocument(d Dialect, document string, options AnalyzeOptions) 
 		case "CALL", "EXEC", "EXECUTE":
 			rows = true
 		case "KILL":
-			rows = d == ClickHouse
+			rows = d == dialect.ClickHouse
 		case "EXPLAIN":
 			rows = true // Arbitrary EXPLAIN may execute a write; the estimated-plan endpoint validates separately.
 		default:
@@ -54,7 +56,7 @@ func analyzeCommandDocument(d Dialect, document string, options AnalyzeOptions) 
 		}
 		// SQL Server OUTPUT is a result set unless routed INTO another table.
 		// Oracle RETURNING INTO binds output parameters and is not a result set.
-		if d == SQLServer && commandIs(ts[at], "INSERT", "UPDATE", "DELETE", "MERGE") {
+		if d == dialect.SQLServer && commandIs(ts[at], "INSERT", "UPDATE", "DELETE", "MERGE") {
 			depth, output := 0, false
 			for _, t := range ts[at+1:] {
 				switch t.kind {
@@ -75,7 +77,7 @@ func analyzeCommandDocument(d Dialect, document string, options AnalyzeOptions) 
 				}
 			}
 		}
-		if d == MariaDB && commandIs(ts[at], "INSERT", "DELETE", "REPLACE") {
+		if d == dialect.MariaDB && commandIs(ts[at], "INSERT", "DELETE", "REPLACE") {
 			for _, t := range ts[at+1:] {
 				if t.is("RETURNING") {
 					rows = true
@@ -105,7 +107,7 @@ func analyzeCommandDocument(d Dialect, document string, options AnalyzeOptions) 
 
 // ChangesConsoleContext restricts readback to namespace commands. In particular,
 // a probe after BEGIN or SET TRANSACTION could establish a premature PG snapshot.
-func ChangesConsoleContext(d Dialect, stmt Statement) bool {
+func ChangesConsoleContext(d dialect.ID, stmt Statement) bool {
 	if stmt.Kind == "use" {
 		return true
 	}
@@ -132,7 +134,7 @@ func ChangesConsoleContext(d Dialect, stmt Statement) bool {
 	case commandIs(head[0], "SET"):
 		return commandIs(head[1], "SCHEMA", "SEARCH_PATH", "ROLE") ||
 			commandIs(head[1], "CURRENT", "LOCAL", "SESSION") && commandIs(head[2], "SCHEMA", "SEARCH_PATH", "ROLE", "AUTHORIZATION")
-	case d == PostgreSQL:
+	case d == dialect.PostgreSQL:
 		return commandIs(head[0], "COMMIT", "END", "ROLLBACK", "ABORT", "DISCARD", "RESET")
 	}
 	return false
@@ -163,8 +165,8 @@ func unsupportedCommandWord(t token) bool {
 
 // SYSTEM is also the ordinary ClickHouse system database name. Followed by a
 // dot and an identifier it cannot begin a SYSTEM administration command.
-func clickHouseSystemQualifier(d Dialect, ts []token, i int) bool {
-	return d == ClickHouse && ts[i].is("SYSTEM") && i+2 < len(ts) && ts[i+1].kind == '.' && ts[i+2].ident()
+func clickHouseSystemQualifier(d dialect.ID, ts []token, i int) bool {
+	return d == dialect.ClickHouse && ts[i].is("SYSTEM") && i+2 < len(ts) && ts[i+1].kind == '.' && ts[i+2].ident()
 }
 
 func commandHead(ts []token) (string, int, error) {
@@ -190,7 +192,7 @@ func commandHead(ts []token) (string, int, error) {
 	return "", 0, fmt.Errorf("WITH requires a complete query or data command")
 }
 
-func validateCommandBoundaries(d Dialect, document string, ts []token, kind string, at int) error {
+func validateCommandBoundaries(d dialect.ID, document string, ts []token, kind string, at int) error {
 	boundary := func(t token) error {
 		return fmt.Errorf("unsupported or ambiguous command boundary near %s at byte %d; use supported ordinary SQL and separate statements with semicolons", t.value, t.start)
 	}
@@ -281,24 +283,24 @@ func validateCommandBoundaries(d Dialect, document string, ts []token, kind stri
 			}
 		case t.is("UPDATE"):
 			allowed = kind == "SELECT" && prev.is("FOR") || kind == "MERGE" && prev.is("THEN") ||
-				kind == "ALTER" && d == ClickHouse && ddlObject == "TABLE" && !alterMutation ||
+				kind == "ALTER" && d == dialect.ClickHouse && ddlObject == "TABLE" && !alterMutation ||
 				(kind == "CREATE" || kind == "ALTER") && prev.is("ON") && commandIs(next, "CASCADE", "SET", "NO", "RESTRICT") ||
-				(kind == "INSERT" || kind == "REPLACE") && IsMySQLDialect(d) && i >= 3 && prev.is("KEY") && ts[i-2].is("DUPLICATE") && ts[i-3].is("ON")
+				(kind == "INSERT" || kind == "REPLACE") && d.UsesMySQLSyntax() && i >= 3 && prev.is("KEY") && ts[i-2].is("DUPLICATE") && ts[i-3].is("ON")
 			if kind == "MERGE" && allowed {
 				mergeAction = "UPDATE"
 				sawSet = false
 			}
-			if kind == "ALTER" && d == ClickHouse && allowed {
+			if kind == "ALTER" && d == dialect.ClickHouse && allowed {
 				alterMutation = true
 			}
 		case t.is("DELETE"), t.is("INSERT"):
-			allowed = kind == "MERGE" && prev.is("THEN") || kind == "ALTER" && d == ClickHouse && ddlObject == "TABLE" && !alterMutation ||
+			allowed = kind == "MERGE" && prev.is("THEN") || kind == "ALTER" && d == dialect.ClickHouse && ddlObject == "TABLE" && !alterMutation ||
 				(kind == "CREATE" || kind == "ALTER") && prev.is("ON") && commandIs(next, "CASCADE", "SET", "NO", "RESTRICT")
 			if kind == "MERGE" && allowed {
 				mergeAction = strings.ToUpper(t.value)
 				sawSet = false
 			}
-			if kind == "ALTER" && d == ClickHouse && allowed {
+			if kind == "ALTER" && d == dialect.ClickHouse && allowed {
 				alterMutation = true
 			}
 		case t.is("SET"):

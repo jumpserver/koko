@@ -9,6 +9,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	pg "github.com/pganalyze/pg_query_go/v6"
 	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/mysql"
@@ -34,8 +35,8 @@ var mysqlReserved = func() map[string]bool {
 	return m
 }()
 
-func Completion(ctx context.Context, conn *sql.Conn, dialect Dialect, req CompletionRequest) (CompletionResponse, error) {
-	return CompletionWithCatalog(ctx, dialect, req, connectionCatalog{conn: conn, dialect: dialect})
+func Completion(ctx context.Context, conn *sql.Conn, d dialect.ID, req CompletionRequest) (CompletionResponse, error) {
+	return CompletionWithCatalog(ctx, d, req, connectionCatalog{conn: conn, dialect: d})
 }
 
 // CompletionWithCatalog shares the exact implementation with the live endpoint
@@ -43,9 +44,9 @@ func Completion(ctx context.Context, conn *sql.Conn, dialect Dialect, req Comple
 // SELECT, JOIN aliases, CTE names/projections, derived tables and correlated
 // subqueries. It intentionally omits inferred expression types, dynamic SQL,
 // stored-program locals and table-valued function output types.
-func CompletionWithCatalog(ctx context.Context, dialect Dialect, req CompletionRequest, catalog Catalog) (CompletionResponse, error) {
+func CompletionWithCatalog(ctx context.Context, d dialect.ID, req CompletionRequest, catalog Catalog) (CompletionResponse, error) {
 	out := CompletionResponse{Version: req.Version, From: req.UTF16Offset, To: req.UTF16Offset, Items: []CompletionItem{}}
-	if !supported(dialect) {
+	if !d.Supported() {
 		return out, ErrUnsupportedDialect
 	}
 	if DocumentExceedsLimit(req.Document) {
@@ -64,7 +65,7 @@ func CompletionWithCatalog(ctx context.Context, dialect Dialect, req CompletionR
 	if err != nil {
 		return out, fmt.Errorf("invalid MySQL SQL mode: %w", err)
 	}
-	all := lexMode(req.Document, dialect, mode.HasANSIQuotesMode(), mode.HasNoBackslashEscapesMode())
+	all := lexMode(req.Document, d, mode.HasANSIQuotesMode(), mode.HasNoBackslashEscapesMode())
 	prefix := ""
 	quote := byte(0)
 	from, to := position, position
@@ -135,7 +136,7 @@ func CompletionWithCatalog(ctx context.Context, dialect Dialect, req CompletionR
 			before = append(before, t)
 		}
 	}
-	parser, root := parseScopes(tokens, dialect, 0, len(req.Document))
+	parser, root := parseScopes(tokens, d, 0, len(req.Document))
 	scope := parser.at(position, root)
 	path := []token{}
 	j := len(before) - 1
@@ -168,7 +169,7 @@ func CompletionWithCatalog(ctx context.Context, dialect Dialect, req CompletionR
 	add := func(name, kind, detail, doc string) {
 		insert := name
 		if kind != "keyword" && kind != "function" {
-			insert = quoteIdentifier(name, dialect, quote)
+			insert = quoteIdentifier(name, d, quote)
 		}
 		addItem(name, insert, name, kind, detail, doc)
 	}
@@ -184,9 +185,9 @@ func CompletionWithCatalog(ctx context.Context, dialect Dialect, req CompletionR
 		bindings = bindingsBefore(bindings, from)
 	}
 	if len(path) > 0 && !context.relation {
-		key := path[len(path)-1].key(dialect)
+		key := path[len(path)-1].key(d)
 		for _, b := range bindings {
-			if b.key != key || len(path) > 1 && (len(path) != 2 || b.schema != path[0].name(dialect) || b.name != b.table) {
+			if b.key != key || len(path) > 1 && (len(path) != 2 || b.schema != path[0].name(d) || b.name != b.table) {
 				continue
 			}
 			columns, err := memo.bindingColumns(ctx, b, req.Context, 0, map[*binding]bool{})
@@ -200,7 +201,7 @@ func CompletionWithCatalog(ctx context.Context, dialect Dialect, req CompletionR
 		}
 		// Fully qualified relation access (schema.table.column) is unambiguous.
 		if len(path) == 2 {
-			columns, err := memo.load(ctx, ColumnRequest{Context: req.Context, Schema: path[0].name(dialect), Table: path[1].name(dialect)})
+			columns, err := memo.load(ctx, ColumnRequest{Context: req.Context, Schema: path[0].name(d), Table: path[1].name(d)})
 			if err != nil {
 				return out, err
 			}
@@ -254,7 +255,7 @@ func CompletionWithCatalog(ctx context.Context, dialect Dialect, req CompletionR
 				counts[col.Name]++
 			}
 		}
-		if scope != nil && (context.clause == "ORDER" || context.clause == "GROUP" || IsMySQLDialect(dialect) && context.clause == "HAVING") {
+		if scope != nil && (context.clause == "ORDER" || context.clause == "GROUP" || d.UsesMySQLSyntax() && context.clause == "HAVING") {
 			for _, field := range scope.projection {
 				if field.aliased {
 					add(field.name, "column", "result column alias", "")
@@ -264,7 +265,7 @@ func CompletionWithCatalog(ctx context.Context, dialect Dialect, req CompletionR
 		for _, source := range columns {
 			b, col := source.binding, source.column
 			if counts[col.Name] > 1 || context.clause == "ON" && len(bindings) > 1 {
-				insert := quoteIdentifier(b.name, dialect, 0) + "." + quoteIdentifier(col.Name, dialect, quote)
+				insert := quoteIdentifier(b.name, d, 0) + "." + quoteIdentifier(col.Name, d, quote)
 				addItem(b.name+"."+col.Name, insert, col.Name, "column", columnDetail(b, col), col.Comment)
 			} else {
 				add(col.Name, "column", columnDetail(b, col), col.Comment)
@@ -275,7 +276,7 @@ func CompletionWithCatalog(ctx context.Context, dialect Dialect, req CompletionR
 		}
 	}
 	if !context.relation && len(path) == 0 {
-		for _, word := range context.keywords(dialect) {
+		for _, word := range context.keywords(d) {
 			if signature, ok := functionSignatures[word]; ok {
 				add(word, "function", signature, "Built-in SQL function; database versions may provide additional overloads.")
 			} else {
@@ -285,11 +286,11 @@ func CompletionWithCatalog(ctx context.Context, dialect Dialect, req CompletionR
 	}
 	if context.relation && len(path) <= 1 {
 		catalogContext := req.Context
-		if dialect == PostgreSQL {
+		if d == dialect.PostgreSQL {
 			catalogContext.Schema = ""
 		} // unqualified names follow the full live search_path.
 		if len(path) == 1 {
-			catalogContext.Schema = path[0].name(dialect)
+			catalogContext.Schema = path[0].name(d)
 		}
 		if len(path) == 0 && scope != nil {
 			for _, b := range scope.ctes {
@@ -441,20 +442,20 @@ func (c *completionCatalog) bindingColumns(ctx context.Context, b *binding, curr
 	return out, nil
 }
 
-func quoteIdentifier(name string, d Dialect, quote byte) string {
+func quoteIdentifier(name string, d dialect.ID, quote byte) string {
 	if quote == 0 {
 		needs := name == ""
 		for i, r := range name {
 			if !(unicode.IsLetter(r) || r == '_' || i > 0 && (unicode.IsDigit(r) || r == '$')) {
 				needs = true
 			}
-			if d == PostgreSQL && unicode.IsUpper(r) || upperCaseIdentifiers(d) && unicode.IsLower(r) {
+			if d == dialect.PostgreSQL && unicode.IsUpper(r) || upperCaseIdentifiers(d) && unicode.IsLower(r) {
 				needs = true
 			}
 		}
-		if IsMySQLDialect(d) || d == ClickHouse {
+		if d.UsesMySQLSyntax() || d == dialect.ClickHouse {
 			needs = needs || mysqlReserved[strings.ToUpper(name)]
-		} else if d != PostgreSQL {
+		} else if d != dialect.PostgreSQL {
 			needs = needs || commonReserved[strings.ToUpper(name)]
 		} else if !needs {
 			scan, err := pg.Scan(name)
@@ -468,10 +469,10 @@ func quoteIdentifier(name string, d Dialect, quote byte) string {
 			return name
 		}
 		quote = '"'
-		if IsMySQLDialect(d) || d == ClickHouse {
+		if d.UsesMySQLSyntax() || d == dialect.ClickHouse {
 			quote = '`'
 		}
-		if d == SQLServer {
+		if d == dialect.SQLServer {
 			quote = '['
 		}
 	}

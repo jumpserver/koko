@@ -4,14 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 // Copying cached values does not require transactional grid-write support.
 // ClickHouse sorting keys are not unique row identities, so they are never
 // exposed as UPDATE predicates. Its INSERT copier still excludes generated
 // columns and respects omitted database defaults.
-func LoadCopyTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context, schema, table string) (EditTable, error) {
-	if d != ClickHouse {
+func LoadCopyTable(ctx context.Context, conn *sql.Conn, d dialect.ID, scope Context, schema, table string) (EditTable, error) {
+	if d != dialect.ClickHouse {
 		return LoadEditTable(ctx, conn, d, scope, schema, table)
 	}
 	out, err := LoadBrowseTable(ctx, conn, d, scope, schema, table)

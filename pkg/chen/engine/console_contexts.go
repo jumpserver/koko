@@ -38,15 +38,15 @@ func (v *Server) consoleContexts(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "audit_persistence_failed", "Context access could not be audited")
 		return
 	}
-	dialect := s.grant.Config.Dialect
-	scope, err := liveContext(ctx, c, dialect)
+	d := s.grant.Dialect()
+	scope, err := liveContext(ctx, c, d)
 	if err != nil {
 		catalogError(w, r, s, err)
 		return
 	}
 	c.publishContext(s, scope)
 	const limit = 100
-	names, err := sqlservice.ConsoleContextNames(ctx, c.conn, sqlservice.Dialect(dialect), scope.Database, after, limit)
+	names, err := sqlservice.ConsoleContextNames(ctx, c.conn, d, scope.Database, after, limit)
 	if err != nil {
 		catalogError(w, r, s, err)
 		return

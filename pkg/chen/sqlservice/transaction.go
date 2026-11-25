@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
 	"github.com/pingcap/tidb/pkg/parser/mysql"
@@ -14,7 +15,7 @@ import (
 // ManualTransactionRisk is evaluated after native parsing, using the same live
 // SQL options at admission and execution. Unknown/procedural commands fail closed:
 // a routine can contain transaction boundaries invisible to its CALL statement.
-func ManualTransactionRisk(d Dialect, s Statement) (implicit, control bool) {
+func ManualTransactionRisk(d dialect.ID, s Statement) (implicit, control bool) {
 	switch s.Kind {
 	case "transaction", "begin", "commit", "rollback", "savepoint", "release", "start", "save", "set", "variableset", "session", "use", "settransaction":
 		return false, true
@@ -23,7 +24,7 @@ func ManualTransactionRisk(d Dialect, s Statement) (implicit, control bool) {
 	}
 	// PostgreSQL and SQL Server reject transaction-breaking DDL in an explicit
 	// transaction. Keep their DDL inside it; never pre-commit transactional DDL.
-	if d == PostgreSQL || d == SQLServer {
+	if d == dialect.PostgreSQL || d == dialect.SQLServer {
 		if s.Kind == "ddl" || strings.HasPrefix(s.Kind, "create") || strings.HasPrefix(s.Kind, "alter") || strings.HasPrefix(s.Kind, "drop") || s.Kind == "truncate" || s.Kind == "index" || s.Kind == "view" || s.Kind == "grant" || s.Kind == "comment" {
 			return false, false
 		}
@@ -46,8 +47,8 @@ func (v *transactionTables) Leave(n ast.Node) (ast.Node, bool) { return n, true 
 // Resolve each table on the actual console connection. information_schema cannot
 // distinguish a temporary table shadowing a permanent table of the same name,
 // and USE may have changed its default database before manual mode was enabled.
-func CheckTransactionTables(ctx context.Context, conn *sql.Conn, d Dialect, s Statement, opts AnalyzeOptions) error {
-	if !IsMySQLDialect(d) || !s.MayWrite {
+func CheckTransactionTables(ctx context.Context, conn *sql.Conn, d dialect.ID, s Statement, opts AnalyzeOptions) error {
+	if !d.UsesMySQLSyntax() || !s.MayWrite {
 		return nil
 	}
 	input, err := mysqlParserInput(s.SQL, opts)
@@ -68,7 +69,7 @@ func CheckTransactionTables(ctx context.Context, conn *sql.Conn, d Dialect, s St
 	for _, node := range nodes {
 		node.Accept(visitor)
 	}
-	if d == OceanBaseMySQL && len(visitor.tables) != 0 {
+	if d == dialect.OceanBaseMySQL && len(visitor.tables) != 0 {
 		var tenantMode string
 		if err := conn.QueryRowContext(ctx, "SELECT @@ob_compatibility_mode").Scan(&tenantMode); err != nil {
 			return err
@@ -91,7 +92,7 @@ func CheckTransactionTables(ctx context.Context, conn *sql.Conn, d Dialect, s St
 		if err := conn.QueryRowContext(ctx, "SHOW CREATE TABLE "+key).Scan(&name, &definition); err != nil {
 			return err
 		}
-		if d == OceanBaseMySQL {
+		if d == dialect.OceanBaseMySQL {
 			// OceanBase base tables use its transactional storage engine. Its
 			// server-generated DDL includes native options in place of ENGINE.
 			words := strings.Fields(definition)

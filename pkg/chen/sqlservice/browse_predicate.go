@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 // This is a complete, closed expression grammar, not a statement classifier.
@@ -15,11 +17,11 @@ var browseNumber = regexp.MustCompile(`^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:
 type browsePredicateParser struct {
 	tokens     []token
 	pos, depth int
-	d          Dialect
+	d          dialect.ID
 	known      func(string) bool
 }
 
-func validatePortableBrowseWhere(d Dialect, where string, known func(string) bool) bool {
+func validatePortableBrowseWhere(d dialect.ID, where string, known func(string) bool) bool {
 	if !utf8.ValidString(where) {
 		return false
 	}
@@ -142,7 +144,7 @@ func (p *browsePredicateParser) operand(literalOnly bool) bool {
 		p.pos++
 		return t.closed
 	}
-	if !t.quoted && strings.EqualFold(t.text, "N") && p.pos+1 < len(p.tokens) && p.tokens[p.pos+1].kind == 's' && t.end == p.tokens[p.pos+1].start && (p.d == SQLServer || IsOracleDialect(p.d)) {
+	if !t.quoted && strings.EqualFold(t.text, "N") && p.pos+1 < len(p.tokens) && p.tokens[p.pos+1].kind == 's' && t.end == p.tokens[p.pos+1].start && (p.d == dialect.SQLServer || p.d.UsesOracleSyntax()) {
 		p.pos += 2
 		return true
 	}

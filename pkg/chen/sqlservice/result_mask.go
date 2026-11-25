@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/pingcap/tidb/pkg/parser/mysql"
 )
 
@@ -15,7 +16,7 @@ var maskNumber = regexp.MustCompile(`^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[e
 // expressions and set results, JDBC exposes the output name/label instead of
 // expression lineage; keep that legacy policy rather than masking every field
 // when the paging or editability analyzer cannot prove its source.
-func ResultMaskColumns(d Dialect, document string, options AnalyzeOptions, labels []string) []string {
+func ResultMaskColumns(d dialect.ID, document string, options AnalyzeOptions, labels []string) []string {
 	out := append([]string(nil), labels...)
 	mode, err := mysql.GetSQLMode(options.MySQLSQLMode)
 	if err != nil {
@@ -68,13 +69,13 @@ func ResultMaskColumns(d Dialect, document string, options AnalyzeOptions, label
 	start := 1
 	for start < len(tokens) {
 		t := tokens[start]
-		if t.is("DISTINCT") || t.is("ALL") || IsMySQLDialect(d) && (t.is("DISTINCTROW") || t.is("HIGH_PRIORITY") || t.is("STRAIGHT_JOIN") || t.is("SQL_SMALL_RESULT") || t.is("SQL_BIG_RESULT") || t.is("SQL_BUFFER_RESULT") || t.is("SQL_NO_CACHE") || t.is("SQL_CALC_FOUND_ROWS")) {
+		if t.is("DISTINCT") || t.is("ALL") || d.UsesMySQLSyntax() && (t.is("DISTINCTROW") || t.is("HIGH_PRIORITY") || t.is("STRAIGHT_JOIN") || t.is("SQL_SMALL_RESULT") || t.is("SQL_BIG_RESULT") || t.is("SQL_BUFFER_RESULT") || t.is("SQL_NO_CACHE") || t.is("SQL_CALC_FOUND_ROWS")) {
 			start++
 			continue
 		}
 		break
 	}
-	if d == SQLServer && start < len(tokens) && tokens[start].is("TOP") {
+	if d == dialect.SQLServer && start < len(tokens) && tokens[start].is("TOP") {
 		start++
 		if start < len(tokens) && tokens[start].text == "(" {
 			start++
@@ -141,7 +142,7 @@ func ResultMaskColumns(d Dialect, document string, options AnalyzeOptions, label
 			continue
 		}
 		constant := len(p) == 1 && (p[0].kind == 's' || p[0].is("NULL") || p[0].is("TRUE") || p[0].is("FALSE"))
-		constant = constant || len(p) == 2 && (p[0].is("N") || d == PostgreSQL && p[0].is("E")) && p[1].kind == 's'
+		constant = constant || len(p) == 2 && (p[0].is("N") || d == dialect.PostgreSQL && p[0].is("E")) && p[1].kind == 's'
 		constant = constant || maskNumber.MatchString(strings.TrimSpace(document[p[0].start:p[len(p)-1].end]))
 		count := len(p) == 4 && p[0].is("COUNT") && p[1].text == "(" && p[2].text == "*" && p[3].text == ")"
 		if constant || count {

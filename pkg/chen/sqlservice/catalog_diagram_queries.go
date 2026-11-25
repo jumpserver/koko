@@ -2,15 +2,17 @@ package sqlservice
 
 import (
 	"fmt"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
-// The extra dialects use the same authorized directory as object navigation.
+// Diagram nodes use the same authorized object source as directory navigation.
 // Constraints are paged before column pairs, so a composite FK cannot straddle
 // pages. Target identities are NULL when the target is outside that directory.
-func diagramExtraSQL(d Dialect, r DiagramRequest) (catalogQuery, error) {
+func diagramCatalogQuery(d dialect.ID, r DiagramRequest) (catalogQuery, error) {
 	b := &catalogBinder{dialect: d}
 	if r.Section == "nodes" {
-		source, err := extraObjectSource(d, b, r.Database)
+		source, err := b.objectSource(r.Database, false)
 		if err != nil {
 			return catalogQuery{}, err
 		}
@@ -22,15 +24,15 @@ func diagramExtraSQL(d Dialect, r DiagramRequest) (catalogQuery, error) {
 				q += " AND schemaname=" + b.bind(r.Schema)
 			}
 			if r.AfterSchema != "" || r.AfterName != "" {
-				q += " AND (" + extraOrder(d, "schemaname") + ">" + extraOrder(d, b.bind(r.AfterSchema)) + " OR (schemaname=" + b.bind(r.AfterSchema) + " AND " + extraOrder(d, "objectname") + ">" + extraOrder(d, b.bind(r.AfterName)) + "))"
+				q += " AND (" + catalogNameOrder(d, "schemaname") + ">" + catalogNameOrder(d, b.bind(r.AfterSchema)) + " OR (schemaname=" + b.bind(r.AfterSchema) + " AND " + catalogNameOrder(d, "objectname") + ">" + catalogNameOrder(d, b.bind(r.AfterName)) + "))"
 			}
 		}
-		q += " ORDER BY " + extraOrder(d, "schemaname") + "," + extraOrder(d, "objectname")
+		q += " ORDER BY " + catalogNameOrder(d, "schemaname") + "," + catalogNameOrder(d, "objectname")
 		return b.orderedPage(q, r.Limit+1), nil
 	}
 	var source string
 	switch {
-	case d == SQLServer:
+	case d == dialect.SQLServer:
 		source = `SELECT s.name AS source_schema,t.name AS source_table,f.name AS constraint_name,rs.name AS target_schema,rt.name AS target_table,
  CASE WHEN rt.object_id IS NOT NULL THEN 1 ELSE 0 END AS target_visible,k.constraint_column_id AS pair_ordinal,
  (SELECT COUNT(*) FROM sys.foreign_key_columns z WHERE z.constraint_object_id=f.object_id) AS pair_count,sc.name AS source_column,rc.name AS target_column
@@ -39,7 +41,7 @@ func diagramExtraSQL(d Dialect, r DiagramRequest) (catalogQuery, error) {
  LEFT JOIN sys.columns sc ON sc.object_id=t.object_id AND sc.column_id=k.parent_column_id
  LEFT JOIN sys.tables rt ON rt.object_id=f.referenced_object_id LEFT JOIN sys.schemas rs ON rs.schema_id=rt.schema_id
  LEFT JOIN sys.columns rc ON rc.object_id=rt.object_id AND rc.column_id=k.referenced_column_id`
-	case IsOracleDialect(d):
+	case d.UsesOracleSyntax():
 		source = `SELECT f.OWNER AS source_schema,f.TABLE_NAME AS source_table,f.CONSTRAINT_NAME AS constraint_name,
  rt.OWNER AS target_schema,rt.TABLE_NAME AS target_table,CASE WHEN rt.OWNER IS NOT NULL THEN 1 ELSE 0 END AS target_visible,
  k.POSITION AS pair_ordinal,(SELECT COUNT(*) FROM ALL_CONS_COLUMNS z WHERE z.OWNER=f.OWNER AND z.TABLE_NAME=f.TABLE_NAME AND z.CONSTRAINT_NAME=f.CONSTRAINT_NAME) AS pair_count,
@@ -50,7 +52,7 @@ func diagramExtraSQL(d Dialect, r DiagramRequest) (catalogQuery, error) {
  LEFT JOIN ALL_TABLES rt ON rt.OWNER=rf.OWNER AND rt.TABLE_NAME=rf.TABLE_NAME
  LEFT JOIN ALL_CONS_COLUMNS rk ON rk.OWNER=rf.OWNER AND rk.TABLE_NAME=rf.TABLE_NAME AND rk.CONSTRAINT_NAME=rf.CONSTRAINT_NAME AND rk.POSITION=k.POSITION
  WHERE f.CONSTRAINT_TYPE='R'`
-	case d == DB2:
+	case d == dialect.DB2:
 		targetVisible := "rt.TABNAME IS NOT NULL"
 		source = `SELECT RTRIM(f.TABSCHEMA) AS source_schema,RTRIM(f.TABNAME) AS source_table,RTRIM(f.CONSTNAME) AS constraint_name,
  CASE WHEN ` + targetVisible + ` THEN RTRIM(rt.TABSCHEMA) END AS target_schema,CASE WHEN ` + targetVisible + ` THEN RTRIM(rt.TABNAME) END AS target_table,
@@ -71,9 +73,9 @@ func diagramExtraSQL(d Dialect, r DiagramRequest) (catalogQuery, error) {
 	}
 	// Empty strings are NULL in Oracle, so omit a nonexistent initial key.
 	if r.AfterSchema != "" || r.AfterTable != "" || r.AfterName != "" {
-		where += " AND (" + extraOrder(d, "source_schema") + ">" + extraOrder(d, b.bind(r.AfterSchema)) + " OR (source_schema=" + b.bind(r.AfterSchema) + " AND (" + extraOrder(d, "source_table") + ">" + extraOrder(d, b.bind(r.AfterTable)) + " OR (source_table=" + b.bind(r.AfterTable) + " AND " + extraOrder(d, "constraint_name") + ">" + extraOrder(d, b.bind(r.AfterName)) + "))))"
+		where += " AND (" + catalogNameOrder(d, "source_schema") + ">" + catalogNameOrder(d, b.bind(r.AfterSchema)) + " OR (source_schema=" + b.bind(r.AfterSchema) + " AND (" + catalogNameOrder(d, "source_table") + ">" + catalogNameOrder(d, b.bind(r.AfterTable)) + " OR (source_table=" + b.bind(r.AfterTable) + " AND " + catalogNameOrder(d, "constraint_name") + ">" + catalogNameOrder(d, b.bind(r.AfterName)) + "))))"
 	}
-	order := extraOrder(d, "source_schema") + "," + extraOrder(d, "source_table") + "," + extraOrder(d, "constraint_name")
+	order := catalogNameOrder(d, "source_schema") + "," + catalogNameOrder(d, "source_table") + "," + catalogNameOrder(d, "constraint_name")
 	q := `SELECT source_schema,source_table,constraint_name,target_schema,target_table,target_visible,pair_ordinal,pair_count,source_column,target_column FROM (SELECT k.*,DENSE_RANK() OVER (ORDER BY ` + order + `) AS page_ordinal FROM (` + source + `) k WHERE ` + where + `) page WHERE page_ordinal<=` + fmt.Sprint(r.Limit+1) + ` AND (pair_ordinal<=64 OR pair_ordinal IS NULL) ORDER BY ` + order + `,pair_ordinal`
 	return catalogQuery{q, b.args}, nil
 }

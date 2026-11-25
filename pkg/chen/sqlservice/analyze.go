@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlanalysis"
 	mssqlanalysis "github.com/jumpserver/koko/pkg/chen/sqlanalysis/mssql"
 	oracleanalysis "github.com/jumpserver/koko/pkg/chen/sqlanalysis/oracle"
@@ -19,8 +20,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func Analyze(dialect Dialect, document string) (Analysis, error) {
-	return AnalyzeWithOptions(dialect, document, AnalyzeOptions{})
+func Analyze(d dialect.ID, document string) (Analysis, error) {
+	return AnalyzeWithOptions(d, document, AnalyzeOptions{})
 }
 
 // AnalyzeWithOptions uses native syntax parsers for Oracle/SQL Server/PostgreSQL/MySQL. Other
@@ -30,20 +31,20 @@ func Analyze(dialect Dialect, document string) (Analysis, error) {
 // used for execution. MySQL DELIMITER is a client directive and is rejected.
 // PostgreSQL SQL/plpgsql function bodies require server semantic validation in
 // addition to this syntactic analysis (extensions may install other languages).
-func AnalyzeWithOptions(dialect Dialect, document string, options AnalyzeOptions) (Analysis, error) {
+func AnalyzeWithOptions(d dialect.ID, document string, options AnalyzeOptions) (Analysis, error) {
 	result := Analysis{Statements: []Statement{}, Syntax: sqlanalysis.Unknown, Compatibility: sqlanalysis.Unknown}
-	if !supported(dialect) {
+	if !d.Supported() {
 		return result, ErrUnsupportedDialect
 	}
 	if DocumentExceedsLimit(document) {
 		return result, ErrDocumentTooLarge
 	}
-	if dialect == Oracle {
-		facts, err := (oracleanalysis.Analyzer{}).Analyze(sqlanalysis.Input{SQL: document, Profile: sqlanalysis.Profile{Dialect: sqlanalysis.Oracle}})
+	if d == dialect.Oracle {
+		facts, err := (oracleanalysis.Analyzer{}).Analyze(sqlanalysis.Input{SQL: document, Profile: sqlanalysis.Profile{Dialect: dialect.Oracle}})
 		return analysisFromFacts(document, facts, err)
 	}
-	if dialect == SQLServer {
-		facts, err := (mssqlanalysis.Analyzer{}).Analyze(sqlanalysis.Input{SQL: document, Profile: sqlanalysis.Profile{Dialect: sqlanalysis.SQLServer}})
+	if d == dialect.SQLServer {
+		facts, err := (mssqlanalysis.Analyzer{}).Analyze(sqlanalysis.Input{SQL: document, Profile: sqlanalysis.Profile{Dialect: dialect.SQLServer}})
 		return analysisFromFacts(document, facts, err)
 	}
 	if !utf8.ValidString(document) {
@@ -52,29 +53,29 @@ func AnalyzeWithOptions(dialect Dialect, document string, options AnalyzeOptions
 	if strings.IndexByte(document, 0) >= 0 {
 		return result, fmt.Errorf("SQL document contains NUL")
 	}
-	if (dialect == Dameng || dialect == OceanBaseOracle) && oracleUnitDocument(dialect, document) {
+	if (d == dialect.Dameng || d == dialect.OceanBaseOracle) && oracleUnitDocument(d, document) {
 		// Oracle-compatible procedural units need the grammar's complete
 		// source boundaries, not the ordinary scanner's semicolon splitting.
 		// The actual product still validates its own SQL at execution.
-		facts, err := (oracleanalysis.Analyzer{}).Analyze(sqlanalysis.Input{SQL: document, Profile: sqlanalysis.Profile{Dialect: sqlanalysis.Oracle}})
+		facts, err := (oracleanalysis.Analyzer{}).Analyze(sqlanalysis.Input{SQL: document, Profile: sqlanalysis.Profile{Dialect: dialect.Oracle}})
 		return analysisFromFacts(document, facts, err)
 	}
-	if dialect == ClickHouse && strings.HasPrefix(document, "EXPLAIN PLAN ") {
+	if d == dialect.ClickHouse && strings.HasPrefix(document, "EXPLAIN PLAN ") {
 		body := strings.TrimPrefix(document, "EXPLAIN PLAN ")
 		if strings.HasPrefix(document, ClickHouseJSONPlanPrefix) {
 			body = strings.TrimPrefix(document, ClickHouseJSONPlanPrefix)
 		}
-		inner, err := planReadDocument(dialect, body, options)
+		inner, err := planReadDocument(d, body, options)
 		if err != nil || len(inner.Statements) != 1 {
 			return result, fmt.Errorf("ClickHouse estimated plans require one read query")
 		}
 		inner.Statements = []Statement{{SQL: document, Start: 0, End: len(document), Kind: "explain", ReturnsRows: true}}
 		return inner, nil
 	}
-	if dialect != PostgreSQL && !IsMySQLDialect(dialect) {
-		return analyzeCommandDocument(dialect, document, options)
+	if d != dialect.PostgreSQL && !d.UsesMySQLSyntax() {
+		return analyzeCommandDocument(d, document, options)
 	}
-	if dialect == PostgreSQL {
+	if d == dialect.PostgreSQL {
 		tree, err := pg.Parse(document)
 		if err != nil {
 			return result, fmt.Errorf("PostgreSQL syntax: %w", err)
@@ -128,8 +129,8 @@ func AnalyzeWithOptions(dialect Dialect, document string, options AnalyzeOptions
 		}
 		// MariaDB and OceanBase extend the MySQL grammar. The bounded scanner
 		// preserves per-statement policy checks for their ordinary DML/DDL.
-		if dialect == MariaDB || dialect == OceanBaseMySQL {
-			return analyzeCommandDocument(dialect, document, options)
+		if d == dialect.MariaDB || d == dialect.OceanBaseMySQL {
+			return analyzeCommandDocument(d, document, options)
 		}
 		return result, fmt.Errorf("MySQL syntax: %w", err)
 	}
@@ -154,7 +155,7 @@ func AnalyzeWithOptions(dialect Dialect, document string, options AnalyzeOptions
 	return result, nil
 }
 
-func oracleUnitDocument(d Dialect, document string) bool {
+func oracleUnitDocument(d dialect.ID, document string) bool {
 	var ts []token
 	for _, t := range lex(document, d) {
 		if t.kind != 'c' {
@@ -294,7 +295,7 @@ func mysqlParserInput(document string, options AnalyzeOptions) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid MySQL SQL mode: %w", err)
 	}
-	for _, t := range lexMode(document, MySQL, mode.HasANSIQuotesMode(), mode.HasNoBackslashEscapesMode()) {
+	for _, t := range lexMode(document, dialect.MySQL, mode.HasANSIQuotesMode(), mode.HasNoBackslashEscapesMode()) {
 		if t.kind != 'c' || !strings.HasPrefix(t.text, "/*!") {
 			continue
 		}

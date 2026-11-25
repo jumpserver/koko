@@ -14,7 +14,7 @@ import (
 	"unicode"
 
 	"github.com/jumpserver/koko/internal/dbconn"
-	"github.com/jumpserver/koko/pkg/chen/core"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -143,16 +143,16 @@ func selectBackends(cfg configFile, selectors []string) (*Config, error) {
 		if len(item.Name) > 256 || strings.ContainsFunc(item.Name, unicode.IsControl) {
 			return invalid("name", "must be a short display name without control characters")
 		}
-		dialect, err := core.CanonicalDialect(item.Protocol, item.TenantMode)
+		d, err := dialect.Parse(item.Protocol, item.TenantMode)
 		if err != nil {
 			return invalid("protocol", err.Error())
 		}
-		item.Protocol = dialect
-		if item.UseSYSDBA && dialect != "oracle" {
+		item.Protocol = string(d)
+		if item.UseSYSDBA && d != dialect.Oracle {
 			return invalid("use_sysdba", "is supported only for oracle")
 		}
 		item.Transport = strings.ToLower(strings.TrimSpace(item.Transport))
-		if item.Transport != "" && (dialect != "clickhouse" || item.Transport != "http" && item.Transport != "native") {
+		if item.Transport != "" && (d != dialect.ClickHouse || item.Transport != "http" && item.Transport != "native") {
 			return invalid("transport", "must be http or native and is supported only for clickhouse")
 		}
 		if strings.TrimSpace(item.Host) != item.Host || item.Host == "" || strings.ContainsAny(item.Host, "/\\\x00") || strings.ContainsFunc(item.Host, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) }) {
@@ -183,7 +183,7 @@ func selectBackends(cfg configFile, selectors []string) (*Config, error) {
 		if !item.UseSSL && (item.CACert != "" || item.ClientCert != "" || item.ClientKey != "" || item.ServerName != "" || item.AllowInvalidCert || item.SSLMode != "") {
 			return invalid("use_ssl", "TLS settings require use_ssl: true")
 		}
-		if item.Protocol != "postgresql" && item.SSLMode != "" {
+		if d != dialect.PostgreSQL && item.SSLMode != "" {
 			return invalid("ssl_mode", "is supported only for postgresql")
 		}
 		switch item.SSLMode {

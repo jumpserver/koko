@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 // repeatableQueryParser is a complete closed grammar for the portable SQL
@@ -23,10 +25,10 @@ type repeatableQueryParser struct {
 	currentScope, lastQueryScope *QueryPageScope
 }
 
-func analyzeVendorQueryPage(d Dialect, document string, options AnalyzeOptions, replay ...bool) (*QueryPageSQL, error) {
+func analyzeVendorQueryPage(d dialect.ID, document string, options AnalyzeOptions, replay ...bool) (*QueryPageSQL, error) {
 	bad := errors.New("Database paging requires one repeatable SELECT with verified relations and built-ins; writes, locks, parameters, hints, sequence references and unverified vendor syntax keep cached results")
 	switch d {
-	case Oracle, SQLServer, Dameng, DB2, ClickHouse, OceanBaseOracle:
+	case dialect.Oracle, dialect.SQLServer, dialect.Dameng, dialect.DB2, dialect.ClickHouse, dialect.OceanBaseOracle:
 	default:
 		return nil, ErrUnsupportedDialect
 	}
@@ -66,7 +68,7 @@ func analyzeVendorQueryPage(d Dialect, document string, options AnalyzeOptions, 
 	} else {
 		q.Body = strings.TrimSpace(document[p.bodyStart():tokens[len(tokens)-1].end])
 	}
-	if d == Oracle || d == SQLServer {
+	if d == dialect.Oracle || d == dialect.SQLServer {
 		a, err := AnalyzeWithOptions(d, q.Original, options)
 		if err != nil || len(a.Statements) != 1 || !a.Statements[0].ReturnsRows {
 			return nil, bad
@@ -144,7 +146,7 @@ func (p *repeatableQueryParser) selectQuery(top bool) bool {
 		return false
 	}
 	if p.take("WITH") {
-		if p.take("RECURSIVE") && p.query.Dialect == SQLServer {
+		if p.take("RECURSIVE") && p.query.Dialect == dialect.SQLServer {
 			return false
 		}
 		for {
@@ -152,7 +154,7 @@ func (p *repeatableQueryParser) selectQuery(top bool) bool {
 			if !ok {
 				return false
 			}
-			if p.query.Dialect == SQLServer {
+			if p.query.Dialect == dialect.SQLServer {
 				name = strings.ToLower(name)
 			}
 			p.query.CTEs[name] = true
@@ -234,7 +236,7 @@ func (p *repeatableQueryParser) selectQuery(top bool) bool {
 		ordered = true
 	}
 	if p.take("LIMIT") {
-		if p.query.Dialect != ClickHouse && p.query.Dialect != Dameng {
+		if p.query.Dialect != dialect.ClickHouse && p.query.Dialect != dialect.Dameng {
 			return false
 		}
 		if !p.integer() {
@@ -285,12 +287,12 @@ func (p *repeatableQueryParser) selectBlock(top bool) bool {
 	p.currentScope = scope
 	p.query.Scopes = append(p.query.Scopes, scope)
 	distinct := p.take("DISTINCT")
-	direct := p.query.Dialect == Dameng && top && p.pos == 1 && !distinct
+	direct := p.query.Dialect == dialect.Dameng && top && p.pos == 1 && !distinct
 	if !distinct {
 		p.take("ALL")
 	}
 	if p.take("TOP") {
-		if p.query.Dialect != SQLServer {
+		if p.query.Dialect != dialect.SQLServer {
 			return false
 		}
 		paren := p.take("(")
@@ -460,7 +462,7 @@ func (p *repeatableQueryParser) table() bool {
 		alias = r.Name
 	}
 	cteName := r.Name
-	if p.query.Dialect == SQLServer {
+	if p.query.Dialect == dialect.SQLServer {
 		cteName = strings.ToLower(cteName)
 	}
 	if r.Schema == "" && p.cteNames[cteName] {
@@ -798,27 +800,27 @@ func (p *repeatableQueryParser) projection(start, end int) QueryPageProjection {
 
 // Product built-ins are admitted under the same relation/type and native
 // function-resolution guards as portable functions, never by name alone.
-func queryPageVendorFunction(d Dialect, name string) bool {
+func queryPageVendorFunction(d dialect.ID, name string) bool {
 	if queryPageFunction(name) {
 		return true
 	}
 	switch d {
-	case Oracle, Dameng, OceanBaseOracle:
+	case dialect.Oracle, dialect.Dameng, dialect.OceanBaseOracle:
 		switch strings.ToLower(name) {
 		case "nvl", "nvl2", "decode", "instr", "mod", "trunc", "to_char", "to_number", "to_date", "to_timestamp":
 			return true
 		}
-	case SQLServer:
+	case dialect.SQLServer:
 		switch strings.ToLower(name) {
 		case "count_big", "isnull", "len", "datalength", "charindex":
 			return true
 		}
-	case DB2:
+	case dialect.DB2:
 		switch strings.ToLower(name) {
 		case "count_big", "lcase", "ucase", "locate", "posstr":
 			return true
 		}
-	case ClickHouse:
+	case dialect.ClickHouse:
 		switch strings.ToLower(name) {
 		case "tostring", "toint32", "toint64", "touint32", "touint64", "ifnull":
 			return true

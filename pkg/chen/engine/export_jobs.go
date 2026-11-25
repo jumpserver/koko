@@ -85,10 +85,10 @@ func (v *Server) newExportLocked(s *session, format, mode string, e *execution) 
 	j.filename = exportFilename("query", format, j.createdAt)
 	if e != nil {
 		if e.browse != nil && e.browse.plan != nil {
-			j.namePrefix = exportSourcePrefix(s.grant.Config.Dialect, e.browse, nil, nil)
+			j.namePrefix = exportSourcePrefix(s.grant.Dialect(), e.browse, nil, nil)
 		} else if e.queryPage != nil {
 			if result := s.results[e.queryPage.sourceResultID]; result != nil {
-				j.namePrefix = resultExportPrefix(s.grant.Config.Dialect, result)
+				j.namePrefix = resultExportPrefix(s.grant.Dialect(), result)
 			}
 		}
 		if j.namePrefix != "" {
@@ -360,7 +360,7 @@ func (v *Server) collectExport(s *session, c *console, e *execution, rows *sql.R
 		columns[i] = Column{t.Name(), t.DatabaseTypeName()}
 		labels[i] = t.Name()
 	}
-	sources := e.resultMaskColumns(s.grant.Config.Dialect, labels)
+	sources := e.resultMaskColumns(s.grant.Dialect(), labels)
 	err = j.produce(e.ctx, columns, func() ([]any, bool, error) {
 		if !rows.Next() {
 			if err := rows.Err(); err != nil {
@@ -387,7 +387,7 @@ func (v *Server) collectExport(s *session, c *console, e *execution, rows *sql.R
 			return nil, false, err
 		}
 		for i := range raw {
-			value, err := materializeValue(raw[i], types[i].DatabaseTypeName(), int(^uint(0)>>1), s.grant.Config.Dialect)
+			value, err := materializeValue(raw[i], types[i].DatabaseTypeName(), int(^uint(0)>>1), s.grant.Dialect())
 			if err != nil {
 				return nil, false, err
 			}
@@ -463,7 +463,7 @@ func (v *Server) createCachedExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	j.resultID = result.ID
-	j.filename = exportFilename(resultExportPrefix(s.grant.Config.Dialect, result), j.format, j.createdAt)
+	j.filename = exportFilename(resultExportPrefix(s.grant.Dialect(), result), j.format, j.createdAt)
 	j.cachedRows = request.Rows
 	j.truncated = result.Truncated
 	s.exportRequests[request.RequestID] = j

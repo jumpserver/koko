@@ -2,6 +2,8 @@
 // proof of authorization, server compatibility, or row editability.
 package sqlanalysis
 
+import "github.com/jumpserver/koko/pkg/chen/dialect"
+
 // Span is a half-open UTF-8 byte range in Input.SQL. Known distinguishes an
 // unknown location from a real location at byte zero. Never slice unknown spans.
 type Span struct {
@@ -14,21 +16,12 @@ func (s Span) ValidFor(sql string) bool {
 	return s.Known && s.Start >= 0 && s.End >= s.Start && s.End <= len(sql)
 }
 
-type Dialect string
-
-const (
-	Oracle          Dialect = "oracle"
-	SQLServer       Dialect = "sqlserver"
-	Dameng          Dialect = "dameng"
-	OceanBaseOracle Dialect = "oceanbase-oracle"
-)
-
 // Profile records the actual product; Oracle-compatible products are not Oracle.
 // Version and Mode are evidence supplied by the caller, not inferred by a parser.
 type Profile struct {
-	Dialect Dialect `json:"dialect"`
-	Version string  `json:"version,omitempty"`
-	Mode    string  `json:"mode,omitempty"`
+	Dialect dialect.ID `json:"dialect"`
+	Version string     `json:"version,omitempty"`
+	Mode    string     `json:"mode,omitempty"`
 }
 type Input struct {
 	SQL     string

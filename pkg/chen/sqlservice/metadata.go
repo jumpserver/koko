@@ -3,17 +3,20 @@ package sqlservice
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 const catalogTimeout = 3 * time.Second
 
 type connectionCatalog struct {
 	conn    *sql.Conn
-	dialect Dialect
+	dialect dialect.ID
 }
 
 func (c connectionCatalog) Relations(ctx context.Context, r MetadataRequest) ([]Relation, error) {
@@ -23,9 +26,9 @@ func (c connectionCatalog) Columns(ctx context.Context, r ColumnRequest) ([]Colu
 	return Columns(ctx, c.conn, c.dialect, r)
 }
 
-func Metadata(ctx context.Context, conn *sql.Conn, dialect Dialect, req MetadataRequest) ([]Relation, error) {
+func Metadata(ctx context.Context, conn *sql.Conn, d dialect.ID, req MetadataRequest) ([]Relation, error) {
 	items := []Relation{}
-	if !supported(dialect) {
+	if !d.Supported() {
 		return items, ErrUnsupportedDialect
 	}
 	if conn == nil {
@@ -37,14 +40,14 @@ func Metadata(ctx context.Context, conn *sql.Conn, dialect Dialect, req Metadata
 	if !utf8.ValidString(req.Prefix) || utf8.RuneCountInString(req.Prefix) > 256 || strings.ContainsRune(req.Prefix, 0) {
 		return items, fmt.Errorf("metadata prefix must be valid text of at most 256 characters")
 	}
-	if extraCatalogDialect(dialect) {
-		return extraMetadata(ctx, conn, dialect, req)
+	if usesCatalogObjectSource(d) {
+		return relationsFromCatalog(ctx, conn, d, req)
 	}
 	ctx, cancel := context.WithTimeout(ctx, catalogTimeout)
 	defer cancel()
 	var rows *sql.Rows
 	var err error
-	if IsMySQLDialect(dialect) {
+	if d.UsesMySQLSyntax() {
 		database := req.Context.Schema
 		if database == "" {
 			database = req.Context.Database
@@ -77,9 +80,54 @@ ORDER BY n.nspname, c.relname LIMIT $4`, req.Context.Schema, req.Context.Databas
 	return items, rows.Err()
 }
 
-func Columns(ctx context.Context, conn *sql.Conn, dialect Dialect, req ColumnRequest) ([]Column, error) {
+func relationsFromCatalog(ctx context.Context, conn *sql.Conn, d dialect.ID, req MetadataRequest) ([]Relation, error) {
+	items := []Relation{}
+	if err := validateCatalogInput(conn, d, req.Context.Database, req.Context.Schema, req.Prefix); err != nil {
+		return items, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, catalogTimeout)
+	defer cancel()
+	schema, err := resolveMetadataSchema(ctx, conn, d, req.Context, "")
+	if err != nil {
+		return items, err
+	}
+	var clickHouse *clickHouseCapabilities
+	if d == dialect.ClickHouse {
+		clickHouse, err = probeClickHouseCapabilities(ctx, conn, "objects")
+		if err != nil {
+			return items, err
+		}
+	}
+	query, err := catalogObjectQuery(d, CatalogObjectRequest{Database: req.Context.Database, Schema: schema, Query: req.Prefix}, true, req.Limit, clickHouse)
+	if err != nil {
+		return items, err
+	}
+	rows, err := queryCatalogRows(ctx, conn, d, query.SQL, query.Args...)
+	if err != nil {
+		return items, fmt.Errorf("list relations: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var item Relation
+		var objectType string
+		var comment sql.NullString
+		if err := rows.Scan(&item.Database, &item.Schema, &item.Name, &item.Kind, &objectType, &comment); err != nil {
+			return nil, err
+		}
+		item.Comment = comment.String
+		if item.Kind == "view" {
+			item.Kind = "VIEW"
+		} else {
+			item.Kind = "BASE TABLE"
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func Columns(ctx context.Context, conn *sql.Conn, d dialect.ID, req ColumnRequest) ([]Column, error) {
 	items := []Column{}
-	if !supported(dialect) {
+	if !d.Supported() {
 		return items, ErrUnsupportedDialect
 	}
 	if conn == nil {
@@ -93,14 +141,14 @@ func Columns(ctx context.Context, conn *sql.Conn, dialect Dialect, req ColumnReq
 			return items, fmt.Errorf("identifier must be valid text of at most 256 characters")
 		}
 	}
-	if extraCatalogDialect(dialect) {
-		return extraColumns(ctx, conn, dialect, req)
+	if usesCatalogObjectSource(d) {
+		return columnsFromCatalog(ctx, conn, d, req)
 	}
 	ctx, cancel := context.WithTimeout(ctx, catalogTimeout)
 	defer cancel()
 	var rows *sql.Rows
 	var err error
-	if IsMySQLDialect(dialect) {
+	if d.UsesMySQLSyntax() {
 		database := req.Schema
 		if database == "" {
 			database = req.Context.Schema
@@ -144,6 +192,74 @@ ORDER BY a.attnum LIMIT 2000`, schema, req.Table, req.Context.Database)
 		items = append(items, c)
 	}
 	return items, rows.Err()
+}
+
+func columnsFromCatalog(ctx context.Context, conn *sql.Conn, d dialect.ID, req ColumnRequest) ([]Column, error) {
+	items := []Column{}
+	if err := validateCatalogInput(conn, d, req.Context.Database, req.Schema, req.Table, req.Context.Schema); err != nil {
+		return items, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, catalogTimeout)
+	defer cancel()
+	schema, err := resolveMetadataSchema(ctx, conn, d, req.Context, req.Schema)
+	if err != nil {
+		return items, err
+	}
+	if err := CatalogObjectAccess(ctx, conn, d, schema, req.Table); err != nil {
+		// SQL Server resolves unqualified tables in the default schema, then
+		// dbo. Explicit schema qualifiers must never take this fallback.
+		if d != dialect.SQLServer || req.Schema != "" || schema == "dbo" || !errors.Is(err, ErrCatalogNotFound) {
+			return items, err
+		}
+		schema = "dbo"
+		if err := CatalogObjectAccess(ctx, conn, d, schema, req.Table); err != nil {
+			return items, err
+		}
+	}
+	query, err := catalogColumnQuery(d, CatalogColumnRequest{Database: req.Context.Database, Schema: schema, Table: req.Table}, 2000, catalogBasicColumns)
+	if err != nil {
+		return items, err
+	}
+	rows, err := queryCatalogRows(ctx, conn, d, query.SQL, query.Args...)
+	if err != nil {
+		return items, fmt.Errorf("list columns: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var item Column
+		var database, owner, table string
+		var ordinal int
+		var comment sql.NullString
+		if err := rows.Scan(&database, &owner, &table, &item.Name, &item.DataType, &item.Nullable, &comment, &ordinal); err != nil {
+			return nil, err
+		}
+		item.Comment = comment.String
+		item.DataType = strings.TrimSpace(item.DataType)
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+// Resolve the namespace on the authorized database connection, including
+// when the request supplies an explicit schema.
+func resolveMetadataSchema(ctx context.Context, conn *sql.Conn, d dialect.ID, scope Context, schema string) (string, error) {
+	if err := catalogDatabaseAccess(ctx, conn, d, scope.Database); err != nil {
+		return "", err
+	}
+	if schema == "" {
+		schema = scope.Schema
+	}
+	if schema == "" {
+		var err error
+		schema, err = readCatalogDefaultSchema(ctx, conn, d, scope.Database)
+		if err != nil {
+			return "", err
+		}
+	}
+	if d == dialect.ClickHouse && schema != scope.Database {
+		return "", ErrCatalogForbidden
+	}
+	return schema, nil
 }
 
 func likePrefix(s string) string {

@@ -10,6 +10,7 @@ import (
 	"unicode/utf16"
 	"unicode/utf8"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 	goora "github.com/sijms/go-ora/v2"
 )
@@ -22,16 +23,16 @@ func editBaseType(t string) string {
 	return strings.ToUpper(sqlservice.EditTypeName(t))
 }
 
-func editOracleTimezone(dialect string, field sqlservice.EditColumn) bool {
-	return (dialect == "oracle" || dialect == "oceanbase-oracle") && editBaseType(field.DataType) == "TIMESTAMP WITH TIME ZONE"
+func editOracleTimezone(d dialect.ID, field sqlservice.EditColumn) bool {
+	return (d == dialect.Oracle || d == dialect.OceanBaseOracle) && editBaseType(field.DataType) == "TIMESTAMP WITH TIME ZONE"
 }
 
-func editOracleJSON(dialect string, field sqlservice.EditColumn) bool {
-	return (dialect == "oracle" || dialect == "oceanbase-oracle") && editBaseType(field.DataType) == "JSON"
+func editOracleJSON(d dialect.ID, field sqlservice.EditColumn) bool {
+	return (d == dialect.Oracle || d == dialect.OceanBaseOracle) && editBaseType(field.DataType) == "JSON"
 }
 
-func editDriverBindValue(dialect string, field sqlservice.EditColumn, value any) any {
-	if dialect == "oracle" && editOracleJSON(dialect, field) && value != nil {
+func editDriverBindValue(d dialect.ID, field sqlservice.EditColumn, value any) any {
+	if d == dialect.Oracle && editOracleJSON(d, field) && value != nil {
 		// JSON accepts a UTF-8 BLOB independently of the database/client
 		// VARCHAR2 character set. A Go string bind uses that character set.
 		return goora.Blob{Data: []byte(value.(string)), Valid: true}
@@ -39,11 +40,11 @@ func editDriverBindValue(dialect string, field sqlservice.EditColumn, value any)
 	return value
 }
 
-func editTypedLiteral(dialect string, field sqlservice.EditColumn, value any, masked bool) string {
-	if dialect == "oracle" && editOracleJSON(dialect, field) && value != nil && !masked {
+func editTypedLiteral(d dialect.ID, field sqlservice.EditColumn, value any, masked bool) string {
+	if d == dialect.Oracle && editOracleJSON(d, field) && value != nil && !masked {
 		value = editASCIIJSON(value.(string))
 	}
-	return editTypedExpression(dialect, field, editMaskSQL(dialect, value, masked))
+	return editTypedExpression(d, field, editMaskSQL(d, value, masked))
 }
 
 // Preserve JSON spelling/number precision while making SQL preview literals
@@ -73,7 +74,7 @@ func editASCIIJSON(text string) string {
 
 // Bind timezone values with an explicit, numeric-offset format. In particular,
 // never reinterpret a cached value using the console's current NLS settings.
-func normalizeTypedEditValue(dialect string, field sqlservice.EditColumn, value any) (any, error) {
+func normalizeTypedEditValue(d dialect.ID, field sqlservice.EditColumn, value any) (any, error) {
 	if value == nil {
 		return nil, nil
 	}
@@ -96,7 +97,7 @@ func normalizeTypedEditValue(dialect string, field sqlservice.EditColumn, value 
 			integer, err := exactEditInteger(text)
 			var signed int64
 			if err == nil {
-				if strings.HasSuffix(editBaseType(field.DataType), " UNSIGNED") || dialect == "sqlserver" && typeName == "TINYINT" {
+				if strings.HasSuffix(editBaseType(field.DataType), " UNSIGNED") || d == dialect.SQLServer && typeName == "TINYINT" {
 					_, err = strconv.ParseUint(integer, 10, bits)
 				} else {
 					signed, err = strconv.ParseInt(integer, 10, bits)
@@ -105,19 +106,19 @@ func normalizeTypedEditValue(dialect string, field sqlservice.EditColumn, value 
 			if err != nil {
 				return nil, errors.New("Enter a whole number within the column's range")
 			}
-			if dialect == "db2" {
+			if d == dialect.DB2 {
 				return signed, nil
 			}
 			return integer, nil
 		}
-		if dialect == "db2" {
+		if d == dialect.DB2 {
 			return db2EditTextValue(field.DataType, typeName, text)
 		}
 	}
-	if editOracleTimezone(dialect, field) {
+	if editOracleTimezone(d, field) {
 		return editTimestampTZValue(value)
 	}
-	if sqlservice.IsOracleDialect(sqlservice.Dialect(dialect)) && (editBaseType(field.DataType) == "DATE" || editBaseType(field.DataType) == "TIMESTAMP") {
+	if d.UsesOracleSyntax() && (editBaseType(field.DataType) == "DATE" || editBaseType(field.DataType) == "TIMESTAMP") {
 		var calendar time.Time
 		valid := false
 		switch v := value.(type) {
@@ -152,7 +153,7 @@ func normalizeTypedEditValue(dialect string, field sqlservice.EditColumn, value 
 		}
 		return calendar.Format("2006-01-02 15:04:05.000000000"), nil
 	}
-	if editOracleJSON(dialect, field) {
+	if editOracleJSON(d, field) {
 		text, ok := value.(string)
 		if !ok || !utf8.ValidString(text) || !json.Valid([]byte(text)) {
 			return nil, errors.New("JSON must be complete UTF-8 text")
@@ -200,19 +201,19 @@ func editTimestampTZValue(value any) (string, error) {
 	return instant.Format("2006-01-02T15:04:05.000000000-07:00"), nil
 }
 
-func editTypedExpression(dialect string, field sqlservice.EditColumn, expression string) string {
-	if dialect == "db2" && expression == "?" && db2EditTemporalType(editBaseType(field.DataType)) {
+func editTypedExpression(d dialect.ID, field sqlservice.EditColumn, expression string) string {
+	if d == dialect.DB2 && expression == "?" && db2EditTemporalType(editBaseType(field.DataType)) {
 		// Db2 uses the target column's temporal precision for a string in an
 		// assignment or comparison. Its native Go timestamp bind only sends microseconds.
 		return "CAST(? AS VARCHAR(" + strconv.Itoa(db2TemporalBindSize) + "))"
 	}
-	if dialect == "oracle" && editOracleJSON(dialect, field) {
+	if d == dialect.Oracle && editOracleJSON(d, field) {
 		return "JSON(" + expression + ")"
 	}
-	if editOracleTimezone(dialect, field) {
+	if editOracleTimezone(d, field) {
 		return "TO_TIMESTAMP_TZ(" + expression + ", " + editTimestampTZFormat + ")"
 	}
-	if sqlservice.IsOracleDialect(sqlservice.Dialect(dialect)) {
+	if d.UsesOracleSyntax() {
 		switch editBaseType(field.DataType) {
 		case "DATE":
 			return "TO_DATE(" + expression + ", 'YYYY-MM-DD HH24:MI:SS')"
@@ -223,9 +224,9 @@ func editTypedExpression(dialect string, field sqlservice.EditColumn, expression
 	return expression
 }
 
-func editTypedEquality(dialect string, field sqlservice.EditColumn, column, expression string) string {
-	if editOracleJSON(dialect, field) {
-		return "JSON_EQUAL(" + column + ", " + editTypedExpression(dialect, field, expression) + " ERROR ON ERROR)"
+func editTypedEquality(d dialect.ID, field sqlservice.EditColumn, column, expression string) string {
+	if editOracleJSON(d, field) {
+		return "JSON_EQUAL(" + column + ", " + editTypedExpression(d, field, expression) + " ERROR ON ERROR)"
 	}
-	return column + " = " + editTypedExpression(dialect, field, expression)
+	return column + " = " + editTypedExpression(d, field, expression)
 }

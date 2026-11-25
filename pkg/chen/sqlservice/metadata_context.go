@@ -1,6 +1,10 @@
 package sqlservice
 
-import "context"
+import (
+	"context"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
+)
 
 type consoleCatalogLifetime struct{}
 type catalogRequestLifetime struct{}
@@ -38,8 +42,8 @@ func catalogReadContext(ctx context.Context) (context.Context, context.CancelFun
 // Table metadata requires several network round trips; expiring a separate
 // three-second budget can otherwise destroy a console after a successful read.
 // Callers without an operation deadline retain the standard catalog bound.
-func MetadataContext(ctx context.Context, dialect Dialect) (context.Context, context.CancelFunc) {
-	if dialect == Dameng || dialect == DB2 {
+func MetadataContext(ctx context.Context, d dialect.ID) (context.Context, context.CancelFunc) {
+	if d == dialect.Dameng || d == dialect.DB2 {
 		if _, bounded := ctx.Deadline(); bounded {
 			return context.WithCancel(ctx)
 		}

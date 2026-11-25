@@ -5,13 +5,15 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 // AnalyzeConsole preserves Java's ConsoleStatementBoundaryScanner contract:
 // source boundaries are scanned without requiring the product grammar to know
 // every database command. Native analysis only supplies execution capabilities;
 // an unrecognized command is never classified as a safe read.
-func AnalyzeConsole(d Dialect, document string, options AnalyzeOptions) (Analysis, error) {
+func AnalyzeConsole(d dialect.ID, document string, options AnalyzeOptions) (Analysis, error) {
 	out := Analysis{}
 	if DocumentExceedsLimit(document) || !utf8.ValidString(document) || strings.ContainsRune(document, 0) {
 		return out, errors.New("Console command is too large or contains invalid text")

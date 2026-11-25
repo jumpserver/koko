@@ -1,5 +1,7 @@
 package sqlservice
 
+import "github.com/jumpserver/koko/pkg/chen/dialect"
+
 // completionContext describes the position being edited, not a verdict about
 // executable SQL. Only tokens at this SELECT's top level establish its clause;
 // commas inside function calls and subqueries cannot start a FROM relation.
@@ -104,23 +106,23 @@ func (c completionContext) genericKeywords() []string {
 	return keywords
 }
 
-func (c completionContext) keywords(d Dialect) []string {
+func (c completionContext) keywords(d dialect.ID) []string {
 	words := c.genericKeywords()
 	out := make([]string, 0, len(words)+4)
 	for _, word := range words {
-		if (d == SQLServer || d == Oracle || d == OceanBaseOracle || d == DB2) && (word == "LIMIT" || word == "USING" && d == SQLServer) {
+		if (d == dialect.SQLServer || d == dialect.Oracle || d == dialect.OceanBaseOracle || d == dialect.DB2) && (word == "LIMIT" || word == "USING" && d == dialect.SQLServer) {
 			continue
 		}
-		if (d == Oracle || d == OceanBaseOracle || d == SQLServer) && word == "RECURSIVE" {
+		if (d == dialect.Oracle || d == dialect.OceanBaseOracle || d == dialect.SQLServer) && word == "RECURSIVE" {
 			continue
 		}
 		out = append(out, word)
 	}
-	if c.clause == "SELECT" && d == SQLServer {
+	if c.clause == "SELECT" && d == dialect.SQLServer {
 		out = append(out, "TOP")
 	}
 	if c.clause == "FROM" || c.clause == "ORDER" || c.clause == "LIMIT" {
-		if d == SQLServer || d == Oracle || d == OceanBaseOracle || d == DB2 {
+		if d == dialect.SQLServer || d == dialect.Oracle || d == dialect.OceanBaseOracle || d == dialect.DB2 {
 			out = append(out, "FETCH FIRST", "OFFSET")
 		}
 	}

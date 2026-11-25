@@ -6,13 +6,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	mysql "github.com/go-sql-driver/mysql"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	ob "github.com/oceanbase/go-oceanbase-driver"
 )
 
@@ -22,40 +21,32 @@ var ErrOverviewContractChanged = errors.New("overview product, version or catalo
 // catalog connection used for its data. Failure stops the request, without
 // trying a query containing unverified columns or claiming an empty catalog.
 type overviewMyCapabilities struct {
-	dialect           Dialect
-	version, contract string
-	versionQuery      string
-	columns           map[string]bool
-	storage           bool
+	dialect  dialect.ID
+	version  MySQLServerVersion
+	contract string
+	columns  map[string]bool
+	storage  bool
 }
 
-func probeOverviewMyCapabilities(ctx context.Context, conn *sql.Conn, d Dialect, section string) (*overviewMyCapabilities, error) {
-	c := &overviewMyCapabilities{dialect: d, versionQuery: "SELECT VERSION()", columns: map[string]bool{}, storage: true}
-	var err error
-	if d == OceanBaseMySQL {
-		c.version, c.versionQuery, err = OceanBaseMySQLVersion(ctx, conn)
-	} else {
-		err = conn.QueryRowContext(ctx, c.versionQuery).Scan(&c.version)
-	}
+func probeOverviewMyCapabilities(ctx context.Context, conn *sql.Conn, d dialect.ID, section string) (*overviewMyCapabilities, error) {
+	version, err := ReadMySQLServerVersion(ctx, conn, d)
 	if err != nil {
 		return nil, err
 	}
-	if len(c.version) > 256 || !validOverviewText(c.version) {
+	c := &overviewMyCapabilities{dialect: d, version: version, columns: map[string]bool{}, storage: true}
+	if len(version.Product) > 256 || !validOverviewText(version.Product) {
 		return nil, errors.New("invalid overview server version")
 	}
-	lower := strings.ToLower(c.version)
-	oceanBase := strings.Contains(lower, "oceanbase")
-	mariaDB := strings.Contains(lower, "mariadb")
 	switch {
-	case d == MySQL && oceanBase:
+	case d == dialect.MySQL && version.ReportsOceanBase():
 		// A MySQL-protocol asset may use OceanBase. Its server version identifies
 		// which storage and index capabilities apply to the shared catalog SQL.
-		c.dialect = OceanBaseMySQL
-	case d == MariaDB && !mariaDB, d == OceanBaseMySQL && !oceanBase, d == MySQL && mariaDB:
+		c.dialect = dialect.OceanBaseMySQL
+	case d == dialect.MariaDB && !version.ReportsMariaDB(), d == dialect.OceanBaseMySQL && !version.ReportsOceanBase(), d == dialect.MySQL && version.ReportsMariaDB():
 		return nil, ErrOverviewContractChanged
 	}
-	if c.dialect == OceanBaseMySQL {
-		c.storage = overviewOBStorageVersion(c.version)
+	if c.dialect == dialect.OceanBaseMySQL {
+		c.storage = overviewOBStorageVersion(version.Product)
 	}
 	table := "TABLES"
 	required := []string{"TABLE_SCHEMA", "TABLE_NAME", "TABLE_TYPE"}
@@ -94,23 +85,15 @@ func probeOverviewMyCapabilities(ctx context.Context, conn *sql.Conn, d Dialect,
 		}
 	}
 	sort.Strings(names)
-	c.contract = fmt.Sprintf("%x", sha256.Sum256([]byte(string(c.dialect)+"\x00"+c.version+"\x00"+table+"\x00"+strings.Join(names, ","))))
+	c.contract = fmt.Sprintf("%x", sha256.Sum256([]byte(string(c.dialect)+"\x00"+version.Product+"\x00"+table+"\x00"+strings.Join(names, ","))))
 	return c, nil
 }
 
-var overviewOBVersion = regexp.MustCompile(`(?i)OceanBase[^\s]*(?:-v|\s+v?)(\d+)\.(\d+)\.(\d+)`)
-
 func overviewOBStorageVersion(version string) bool {
-	m := overviewOBVersion.FindStringSubmatch(version)
-	if len(m) != 4 {
-		return false
-	}
-	major, _ := strconv.Atoi(m[1])
-	minor, _ := strconv.Atoi(m[2])
-	patch, _ := strconv.Atoi(m[3])
+	v, ok := dialect.ParseOceanBaseVersion(version)
 	// Official TABLES contract: 4.2.4+ and 4.3.5+ expose macroblock
 	// storage sizes; older compatibility placeholders are not measured zeroes.
-	return major == 4 && (minor == 2 && patch >= 4 || minor == 3 && patch >= 5 || minor >= 4)
+	return ok && v.Major == 4 && (v.Minor == 2 && v.Patch >= 4 || v.Minor == 3 && v.Patch >= 5 || v.Minor >= 4)
 }
 
 func (c *overviewMyCapabilities) state(key string) string {
@@ -131,7 +114,7 @@ func (c *overviewMyCapabilities) state(key string) string {
 	if key == "collation" && c.columns["SCHEMA_NAME"] {
 		column = "DEFAULT_COLLATION_NAME"
 	}
-	if key == "expression" && c.dialect != MySQL {
+	if key == "expression" && c.dialect != dialect.MySQL {
 		return "unsupported"
 	}
 	if key == "total_bytes" {
@@ -170,7 +153,7 @@ func (c *overviewMyCapabilities) adaptQuery(query catalogQuery, section string) 
 		}
 	}
 	for _, name := range []string{"NON_UNIQUE", "INDEX_TYPE", "COLUMN_NAME", "EXPRESSION", "COLLATION", "SUB_PART"} {
-		if !c.columns[name] || name == "EXPRESSION" && c.dialect != MySQL {
+		if !c.columns[name] || name == "EXPRESSION" && c.dialect != dialect.MySQL {
 			pairs = append(pairs, "s."+name, "NULL")
 		}
 	}
@@ -180,7 +163,7 @@ func (c *overviewMyCapabilities) adaptQuery(query catalogQuery, section string) 
 		}
 	}
 	query.SQL = strings.NewReplacer(pairs...).Replace(query.SQL)
-	if c.dialect == MariaDB {
+	if c.dialect == dialect.MariaDB {
 		query.SQL = strings.ReplaceAll(query.SQL, "t.TABLE_TYPE IN ('BASE TABLE','VIEW')", "t.TABLE_TYPE IN ('BASE TABLE','SYSTEM VERSIONED','VIEW')")
 		query.SQL = strings.ReplaceAll(query.SQL, "t.TABLE_TYPE='BASE TABLE'", "t.TABLE_TYPE IN ('BASE TABLE','SYSTEM VERSIONED')")
 		query.SQL = strings.ReplaceAll(query.SQL, "t.TABLE_TYPE=?", "(t.TABLE_TYPE=? OR (?='BASE TABLE' AND t.TABLE_TYPE='SYSTEM VERSIONED'))")
@@ -192,7 +175,7 @@ func (c *overviewMyCapabilities) adaptQuery(query catalogQuery, section string) 
 	return query
 }
 
-func overviewDatabaseDDL(ctx context.Context, conn *sql.Conn, d Dialect, database string) (OverviewValue, error) {
+func overviewDatabaseDDL(ctx context.Context, conn *sql.Conn, d dialect.ID, database string) (OverviewValue, error) {
 	source := string(d) + "; SHOW CREATE DATABASE; database options only, excludes table definitions and data"
 	// database is the already-authorized fixed scope. Backtick escaping remains
 	// valid under ANSI_QUOTES and NO_BACKSLASH_ESCAPES; it is not a SQL literal.

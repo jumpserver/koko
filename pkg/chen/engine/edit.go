@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
@@ -156,7 +157,7 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 	if r.editSourceBound && r.editSourceError != "" {
 		return x, errors.New(r.editSourceError)
 	}
-	d := sqlservice.Dialect(s.grant.Config.Dialect)
+	d := s.grant.Dialect()
 	source, err := resultSource(ctx, c, d, r)
 	if err != nil {
 		return x, err
@@ -164,8 +165,8 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 	// A qualified MySQL table names its own database even after USE. Its
 	// live privileges and column/key definition are still checked below.
 	scope := sqlservice.Context{Database: source.Schema}
-	if !sqlservice.IsMySQLDialect(d) || scope.Database == "" {
-		scope, err = liveContext(ctx, c, s.grant.Config.Dialect)
+	if !d.UsesMySQLSyntax() || scope.Database == "" {
+		scope, err = liveContext(ctx, c, s.grant.Dialect())
 		if err != nil {
 			return x, errors.New("Database context is unavailable")
 		}
@@ -208,7 +209,7 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 					break
 				}
 			}
-			if field == nil && (d == sqlservice.SQLServer || sqlservice.IsMySQLDialect(d)) {
+			if field == nil && (d == dialect.SQLServer || d.UsesMySQLSyntax()) {
 				for k := range table.Columns {
 					if strings.EqualFold(table.Columns[k].Name, name) {
 						if field != nil {
@@ -230,7 +231,7 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 			label = source.Columns[i].Label
 		}
 		labelMatches := r.Columns[i].Name == label
-		if !labelMatches && (d == sqlservice.SQLServer || sqlservice.IsMySQLDialect(d)) {
+		if !labelMatches && (d == dialect.SQLServer || d.UsesMySQLSyntax()) {
 			labelMatches = strings.EqualFold(r.Columns[i].Name, label)
 		}
 		if !labelMatches {
@@ -271,7 +272,7 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 	return x, nil
 }
 
-func resultSource(ctx context.Context, c *console, d sqlservice.Dialect, r *Result) (sqlservice.EditableSource, error) {
+func resultSource(ctx context.Context, c *console, d dialect.ID, r *Result) (sqlservice.EditableSource, error) {
 	switch {
 	case r.editSource != nil:
 		return *r.editSource, nil
@@ -282,7 +283,7 @@ func resultSource(ctx context.Context, c *console, d sqlservice.Dialect, r *Resu
 	case r.querySource != nil:
 		return sqlservice.AnalyzeEditableQuery(d, r.sourceSQL, r.querySource.options)
 	default:
-		opts, err := liveOptions(ctx, c, string(d))
+		opts, err := liveOptions(ctx, c, d)
 		if err != nil {
 			return sqlservice.EditableSource{}, errors.New("Database settings are unavailable")
 		}
@@ -294,17 +295,17 @@ func resultSource(ctx context.Context, c *console, d sqlservice.Dialect, r *Resu
 // SQL Server catalogs are database-local, so inspect the source database under
 // the console lock and restore the user's context before returning.
 func loadResultSourceTable(ctx context.Context, s *session, c *console, r *Result, scope sqlservice.Context, source sqlservice.EditableSource) (sqlservice.EditTable, error) {
-	d := sqlservice.Dialect(s.grant.Config.Dialect)
+	d := s.grant.Dialect()
 	database := source.Database
 	if r.editSourceBound {
 		database = r.editDatabase
 	}
-	if d != sqlservice.SQLServer || database == "" || database == scope.Database {
+	if d != dialect.SQLServer || database == "" || database == scope.Database {
 		return sqlservice.LoadCopyTable(ctx, c.conn, d, scope, source.Schema, source.Table)
 	}
 	current := scope.Database
 	var table sqlservice.EditTable
-	_, err := c.conn.ExecContext(ctx, "USE "+quoteDatabaseIdentifier(database, string(d)))
+	_, err := c.conn.ExecContext(ctx, "USE "+quoteDatabaseIdentifier(database, d))
 	if err == nil {
 		scope.Database = database
 		table, err = sqlservice.LoadCopyTable(ctx, c.conn, d, scope, source.Schema, source.Table)
@@ -313,7 +314,7 @@ func loadResultSourceTable(ctx context.Context, s *session, c *console, r *Resul
 	// lost response. Restore after every attempt, or discard the connection.
 	restore, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if _, restoreErr := c.conn.ExecContext(restore, "USE "+quoteDatabaseIdentifier(current, string(d))); restoreErr != nil {
+	if _, restoreErr := c.conn.ExecContext(restore, "USE "+quoteDatabaseIdentifier(current, d)); restoreErr != nil {
 		invalidateEditConnection(s, c)
 		return sqlservice.EditTable{}, errors.New("Database context could not be restored; reconnect before editing")
 	}
@@ -404,7 +405,7 @@ func (v *Server) previewEdits(w http.ResponseWriter, r *http.Request) {
 		editFail(w, err)
 		return
 	}
-	p, err := buildEditPlan(s.grant.Config.Dialect, c.id, result, x, req)
+	p, err := buildEditPlan(s.grant.Dialect(), c.id, result, x, req)
 	if err != nil {
 		fail(w, 400, "invalid_changes", err.Error())
 		return
@@ -506,34 +507,34 @@ func (v *Server) applyEdits(w http.ResponseWriter, r *http.Request) {
 	s.emit("execution.updated", e.snapshot())
 	writeJSON(w, 202, e.snapshot())
 }
-func editQualified(schema, table, dialect string) string {
+func editQualified(schema, table string, d dialect.ID) string {
 	if schema == "" {
-		return quoteDatabaseIdentifier(table, dialect)
+		return quoteDatabaseIdentifier(table, d)
 	}
-	return quoteDatabaseIdentifier(schema, dialect) + "." + quoteDatabaseIdentifier(table, dialect)
+	return quoteDatabaseIdentifier(schema, d) + "." + quoteDatabaseIdentifier(table, d)
 }
-func editQualifiedTable(table sqlservice.EditTable, dialect string) string {
-	target := editQualified(table.Schema, table.Table, dialect)
-	if dialect == "sqlserver" && table.Database != "" {
-		return quoteDatabaseIdentifier(table.Database, dialect) + "." + target
+func editQualifiedTable(table sqlservice.EditTable, d dialect.ID) string {
+	target := editQualified(table.Schema, table.Table, d)
+	if d == dialect.SQLServer && table.Database != "" {
+		return quoteDatabaseIdentifier(table.Database, d) + "." + target
 	}
 	return target
 }
 
-func editPlaceholder(d string, n int) string {
+func editPlaceholder(d dialect.ID, n int) string {
 	switch d {
-	case "postgresql":
+	case dialect.PostgreSQL:
 		return fmt.Sprintf("$%d", n)
-	case "sqlserver":
+	case dialect.SQLServer:
 		return fmt.Sprintf("@p%d", n)
-	case "oracle", "dameng":
+	case dialect.Oracle, dialect.Dameng:
 		return fmt.Sprintf(":%d", n)
 	default:
 		return "?"
 	}
 }
 func editError(code, message string) *APIError { return &APIError{Code: code, Message: message} }
-func editMaskSQL(d string, value any, masked bool) string {
+func editMaskSQL(d dialect.ID, value any, masked bool) string {
 	if masked {
 		return "'[MASKED]'"
 	}
@@ -541,11 +542,11 @@ func editMaskSQL(d string, value any, masked bool) string {
 		return "NULL"
 	}
 	text := fmt.Sprint(value)
-	if d == "mysql" || d == "mariadb" || d == "oceanbase-mysql" {
+	if d.UsesMySQLSyntax() {
 		text = strings.ReplaceAll(text, "\\", "\\\\")
 	}
 	prefix := ""
-	if d == "sqlserver" {
+	if d == dialect.SQLServer {
 		prefix = "N"
 	}
 	return prefix + "'" + strings.ReplaceAll(text, "'", "''") + "'"
@@ -571,7 +572,7 @@ func (v *Server) bindResultEditSource(s *session, e *execution, results []*Resul
 			result.editSourceError = "Multiple-result statements cannot be edited"
 			continue
 		}
-		d := sqlservice.Dialect(s.grant.Config.Dialect)
+		d := s.grant.Dialect()
 		if bindStarSource(d, result, starSource) {
 			result.editSourceBound = true
 			continue
@@ -592,7 +593,7 @@ func (v *Server) bindResultEditSource(s *session, e *execution, results []*Resul
 // A single base table's SELECT * already carries the physical column
 // names used for masking. Freeze its namespace under the execution lock and
 // read the live write/copy metadata only when the caller asks for it.
-func bindStarSource(d sqlservice.Dialect, r *Result, star *resultStarSource) bool {
+func bindStarSource(d dialect.ID, r *Result, star *resultStarSource) bool {
 	if len(r.Columns) == 0 {
 		return false
 	}
@@ -601,7 +602,7 @@ func bindStarSource(d sqlservice.Dialect, r *Result, star *resultStarSource) boo
 		p := r.browse.plan
 		// Older paging wrappers project a saved list of named columns. Only
 		// a fresh star expansion can attest to the current physical order.
-		if p == nil || p.table.View || p.view.Supported && browsePageProjectsColumns(string(d)) {
+		if p == nil || p.table.View || p.view.Supported && browsePageProjectsColumns(d) {
 			return false
 		}
 		if !slices.EqualFunc(r.Columns, p.table.Columns, func(col Column, field sqlservice.EditColumn) bool {

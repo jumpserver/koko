@@ -1,6 +1,10 @@
 package sqlservice
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
+)
 
 // These scopes are a deliberately small tolerant SELECT grammar for unfinished
 // editor text. They consume lexical tokens and balanced subqueries, not regular
@@ -25,14 +29,14 @@ type projection struct {
 	aliased         bool
 }
 type scopeParser struct {
-	dialect Dialect
+	dialect dialect.ID
 	tokens  []token
 	pairs   map[int]int
 	parsed  map[int]*queryScope
 	scopes  []*queryScope
 }
 
-func parseScopes(tokens []token, d Dialect, start, end int) (*scopeParser, *queryScope) {
+func parseScopes(tokens []token, d dialect.ID, start, end int) (*scopeParser, *queryScope) {
 	p := &scopeParser{dialect: d, tokens: tokens, pairs: map[int]int{}, parsed: map[int]*queryScope{}}
 	stack := []int{}
 	for i, t := range tokens {
@@ -133,7 +137,7 @@ func (p *scopeParser) parse(lo, hi int, parent *queryScope, inherited map[string
 			}
 			continue
 		}
-		if t[j].is("UNION") || t[j].is("INTERSECT") || t[j].is("EXCEPT") || IsOracleDialect(p.dialect) && t[j].is("MINUS") {
+		if t[j].is("UNION") || t[j].is("INTERSECT") || t[j].is("EXCEPT") || p.dialect.UsesOracleSyntax() && t[j].is("MINUS") {
 			sets = append(sets, j)
 		}
 	}
@@ -188,7 +192,7 @@ func (p *scopeParser) parse(lo, hi int, parent *queryScope, inherited map[string
 			if t[j].is("WHERE") || t[j].is("GROUP") || t[j].is("ORDER") || t[j].is("HAVING") || t[j].is("LIMIT") || t[j].is("FETCH") || t[j].is("OFFSET") || t[j].is("QUALIFY") || t[j].is("CONNECT") || t[j].is("START") || t[j].is("UNION") || t[j].is("EXCEPT") || t[j].is("INTERSECT") || t[j].is("RETURNING") {
 				break
 			}
-			if t[j].is("JOIN") || p.dialect == SQLServer && t[j].is("APPLY") || t[j].kind == ',' {
+			if t[j].is("JOIN") || p.dialect == dialect.SQLServer && t[j].is("APPLY") || t[j].kind == ',' {
 				expect = true
 				lateral = t[j].is("APPLY")
 				j++
@@ -311,7 +315,7 @@ func (p *scopeParser) project(lo, hi int) []projection {
 	if start < hi && (t[start].is("DISTINCT") || t[start].is("ALL")) {
 		start++
 	}
-	if p.dialect == SQLServer && start < hi && t[start].is("TOP") {
+	if p.dialect == dialect.SQLServer && start < hi && t[start].is("TOP") {
 		start++
 		if start < hi && t[start].kind == '(' {
 			if close, ok := p.pairs[start]; ok && close < hi {

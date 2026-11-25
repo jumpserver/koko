@@ -6,6 +6,8 @@ import (
 	"errors"
 	"slices"
 	"time"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 // sourceReadContext temporarily selects the namespace captured by a result.
@@ -13,14 +15,14 @@ import (
 // The caller holds the console lock until restore has been verified.
 type sourceReadContext struct {
 	console                *console
-	dialect                string
+	dialect                dialect.ID
 	before, source         []string
 	beforeJSON, sourceJSON string
 	attempted, restored    bool
 	restoreErr             error
 }
 
-func prepareSourceReadContext(ctx context.Context, c *console, d, source string) (*sourceReadContext, error) {
+func prepareSourceReadContext(ctx context.Context, c *console, d dialect.ID, source string) (*sourceReadContext, error) {
 	current, err := queryPageContext(ctx, c, d)
 	if err != nil {
 		return nil, err
@@ -35,17 +37,17 @@ func prepareSourceReadContext(ctx context.Context, c *console, d, source string)
 	var scope []int
 	minimum := 0
 	switch d {
-	case "mysql", "mariadb", "oceanbase-mysql":
+	case dialect.MySQL, dialect.MariaDB, dialect.OceanBaseMySQL:
 		scope, minimum = []int{0}, 6
-	case "postgresql":
+	case dialect.PostgreSQL:
 		scope, minimum = []int{1, 2}, 7
-	case "sqlserver":
+	case dialect.SQLServer:
 		scope, minimum = []int{0, 1}, 7
-	case "oracle", "dameng", "oceanbase-oracle":
+	case dialect.Oracle, dialect.Dameng, dialect.OceanBaseOracle:
 		scope, minimum = []int{1}, 6
-	case "db2":
+	case dialect.DB2:
 		scope, minimum = []int{1}, 6
-	case "clickhouse":
+	case dialect.ClickHouse:
 		scope, minimum = []int{0}, 3
 	default:
 		return nil, sourceContextChanged()
@@ -53,7 +55,7 @@ func prepareSourceReadContext(ctx context.Context, c *console, d, source string)
 	if len(g.before) < minimum {
 		return nil, sourceContextChanged()
 	}
-	if d == "sqlserver" && g.before[0] != g.source[0] {
+	if d == dialect.SQLServer && g.before[0] != g.source[0] {
 		// USER_NAME, unlike SUSER_SNAME, is the database's mapping of the
 		// login. Verify that mapping after USE, not in the other database.
 		scope = append(scope, 3)
@@ -65,13 +67,13 @@ func prepareSourceReadContext(ctx context.Context, c *console, d, source string)
 	}
 	// USE cannot return a MySQL connection to having no default database.
 	// Never reset or reconnect here: that would discard a transaction.
-	if d != "postgresql" {
+	if d != dialect.PostgreSQL {
 		index := scope[0]
 		if g.before[index] == "" || g.source[index] == "" {
 			return nil, &APIError{"query_context_not_restorable", "The result's original database context cannot be restored on this connection; run the query in a console with a selected database"}
 		}
 	}
-	if d == "dameng" || d == "oceanbase-oracle" || d == "oceanbase-mysql" {
+	if d == dialect.Dameng || d == dialect.OceanBaseOracle || d == dialect.OceanBaseMySQL {
 		state, err := editTransactionState(ctx, c, d)
 		if err != nil || c.manual || state != editTxIdle {
 			return nil, &APIError{"query_context_transaction_unsupported", "Restoring this result's original schema has unverified transaction behavior on this database while a transaction may be active; use a console already in that schema"}
@@ -94,7 +96,7 @@ func sourceContextError(err error) *APIError {
 
 func (g *sourceReadContext) selectScope(ctx context.Context, values []string) error {
 	c, d := g.console, g.dialect
-	if d == "dameng" || d == "oceanbase-oracle" || d == "oceanbase-mysql" {
+	if d == dialect.Dameng || d == dialect.OceanBaseOracle || d == dialect.OceanBaseMySQL {
 		// A SELECT or an explicitly confirmed function can start a transaction
 		// after admission. Check again before the restoration setter as well.
 		state, err := editTransactionState(ctx, c, d)
@@ -104,9 +106,9 @@ func (g *sourceReadContext) selectScope(ctx context.Context, values []string) er
 	}
 	var sql string
 	switch d {
-	case "mysql", "mariadb", "oceanbase-mysql", "sqlserver", "clickhouse":
+	case dialect.MySQL, dialect.MariaDB, dialect.OceanBaseMySQL, dialect.SQLServer, dialect.ClickHouse:
 		sql = "USE " + quoteDatabaseIdentifier(values[0], d)
-	case "postgresql":
+	case dialect.PostgreSQL:
 		// The complete search_path can contain quoted commas, $user and more
 		// than one schema. A bound configuration value preserves it exactly.
 		state, err := editTransactionState(ctx, c, d)
@@ -115,16 +117,16 @@ func (g *sourceReadContext) selectScope(ctx context.Context, values []string) er
 		}
 		var actual string
 		return c.conn.QueryRowContext(ctx, "SELECT pg_catalog.set_config('search_path', $1, $2)", values[2], state == editTxActive).Scan(&actual)
-	case "oracle", "oceanbase-oracle":
+	case dialect.Oracle, dialect.OceanBaseOracle:
 		sql = "ALTER SESSION SET CURRENT_SCHEMA = " + quoteDatabaseIdentifier(values[1], d)
-	case "dameng":
+	case dialect.Dameng:
 		sql = "SET SCHEMA " + quoteDatabaseIdentifier(values[1], d)
-	case "db2":
+	case dialect.DB2:
 		sql = "SET CURRENT SCHEMA " + quoteDatabaseIdentifier(values[1], d)
 	default:
 		return sourceContextChanged()
 	}
-	if d == "oracle" {
+	if d == dialect.Oracle {
 		// The server's ALTER SESSION does not commit. Suppress the driver's
 		// separate commit-on-execute flag as well, including raw BEGIN flows.
 		boundary := &editBoundary{conn: c.conn, dialect: d}

@@ -5,11 +5,12 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
 func aiSchemaResult(req *catalogRequest, e aiEditorContext, tool, query string, tables []string, limit int, objects []sqlservice.CatalogObject) (any, error) {
-	d := sqlservice.Dialect(e.Dialect)
+	d := e.Dialect
 	if tool == "search_schema" {
 		if limit == 0 {
 			limit = 8
@@ -253,29 +254,29 @@ func validateAISchemaScope(e aiEditorContext) error {
 		return strings.ToLower(value)
 	}
 	database, schema := normalize(e.Database), normalize(e.Schema)
-	d := sqlservice.Dialect(e.Dialect)
-	if schema == "" && !sqlservice.IsMySQLDialect(d) {
+	d := e.Dialect
+	if schema == "" && !d.UsesMySQLSyntax() {
 		return errors.New("Schema inspection requires an active schema")
 	}
-	if database == "" && (sqlservice.IsMySQLDialect(d) || d == sqlservice.SQLServer || d == sqlservice.ClickHouse) {
+	if database == "" && (d.UsesMySQLSyntax() || d == dialect.SQLServer || d == dialect.ClickHouse) {
 		return errors.New("Schema inspection requires an active database")
 	}
 	blocked := database == "information_schema" || schema == "information_schema"
 	contains := func(values string, value string) bool { return strings.Contains("|"+values+"|", "|"+value+"|") }
 	switch {
-	case sqlservice.IsMySQLDialect(d):
+	case d.UsesMySQLSyntax():
 		blocked = blocked || contains("mysql|performance_schema|sys", database)
-	case d == sqlservice.PostgreSQL:
+	case d == dialect.PostgreSQL:
 		blocked = blocked || contains("pg_catalog|pg_toast", schema) || strings.HasPrefix(schema, "pg_temp_") || strings.HasPrefix(schema, "pg_toast_temp_")
-	case d == sqlservice.SQLServer:
+	case d == dialect.SQLServer:
 		blocked = blocked || contains("master|model|msdb|tempdb", database) || schema == "sys"
-	case d == sqlservice.Dameng:
+	case d == dialect.Dameng:
 		blocked = blocked || contains("sys|system|sysauditor", schema)
-	case sqlservice.IsOracleDialect(d):
+	case d.UsesOracleSyntax():
 		blocked = blocked || contains("sys|system|xdb|mdsys|ctxsys|audsys", schema)
-	case d == sqlservice.DB2:
+	case d == dialect.DB2:
 		blocked = blocked || contains("sysibm|syscat|sysstat|sysfun|sysproc|systools", schema)
-	case d == sqlservice.ClickHouse:
+	case d == dialect.ClickHouse:
 		blocked = blocked || database == "system" || schema == "system"
 	}
 	if blocked {

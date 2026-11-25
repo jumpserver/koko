@@ -3,6 +3,8 @@ package sqlservice
 import (
 	"strings"
 	"unicode/utf8"
+
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
 
 // ClickHouseUseDatabase recognizes a complete USE statement for synchronizing
@@ -13,7 +15,7 @@ func ClickHouseUseDatabase(query string) (string, bool) {
 		return "", false
 	}
 	statement := []token{}
-	for _, t := range lex(query, ClickHouse) {
+	for _, t := range lex(query, dialect.ClickHouse) {
 		if t.kind == 'c' {
 			if strings.HasPrefix(t.text, "/*") && !t.closed {
 				return "", false
@@ -31,7 +33,7 @@ func ClickHouseUseDatabase(query string) (string, bool) {
 	if len(statement) != 2 || !statement[0].is("USE") || !statement[1].ident() {
 		return "", false
 	}
-	database := statement[1].name(ClickHouse)
+	database := statement[1].name(dialect.ClickHouse)
 	if database == "" || !utf8.ValidString(database) || strings.ContainsRune(database, 0) {
 		return "", false
 	}

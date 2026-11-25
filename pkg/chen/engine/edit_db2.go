@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	db2 "github.com/go-db2/go-db2"
+	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
@@ -68,9 +69,9 @@ func db2EditColumnDetail(token string, nullAssignment bool, table *sqlservice.Ed
 	}
 	if table != nil {
 		for _, column := range table.Columns {
-			name := quoteDatabaseIdentifier(column.Name, "db2")
+			name := quoteDatabaseIdentifier(column.Name, dialect.DB2)
 			if token == column.Name || token == name || token == table.Schema+"."+table.Table+"."+column.Name ||
-				token == editQualified(table.Schema, table.Table, "db2")+"."+name {
+				token == editQualified(table.Schema, table.Table, dialect.DB2)+"."+name {
 				return fmt.Sprintf(", column %q", column.Name)
 			}
 		}
