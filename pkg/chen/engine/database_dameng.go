@@ -20,14 +20,14 @@ const damengDialName = "chen-bounded-dameng"
 const damengCatalogDialName = "chen-catalog-dameng"
 
 func init() {
-	dm.RegisterDialContext(damengDialName, damengDial(120*time.Second, 15*time.Second))
-	dm.RegisterDialContext(damengCatalogDialName, damengDial(catalogSocketReadTimeout, 15*time.Second))
+	dm.RegisterDialContext(damengDialName, damengDial(0, databaseWriteTimeout))
+	dm.RegisterDialContext(damengCatalogDialName, damengDial(catalogSocketReadTimeout, databaseWriteTimeout))
 }
 
 func damengDial(readTimeout, writeTimeout time.Duration) func(context.Context, string) (net.Conn, error) {
 	return func(ctx context.Context, addr string) (net.Conn, error) {
-		dialer := net.Dialer{Timeout: 10 * time.Second, KeepAlive: 2 * time.Second}
-		conn, err := dialCatalogTransport(ctx, "tcp", addr, dialer.DialContext)
+		dialer := net.Dialer{Timeout: databaseDialTimeout, KeepAlive: 2 * time.Second}
+		conn, err := dialDatabaseTransport(ctx, "tcp", addr, dialer.DialContext, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -43,9 +43,11 @@ type damengSocket struct {
 }
 
 func (c *damengSocket) Read(p []byte) (int, error) {
-	if err := c.Conn.SetReadDeadline(time.Now().Add(c.readTimeout)); err != nil {
-		_ = c.Conn.Close()
-		return 0, err
+	if c.readTimeout > 0 {
+		if err := c.Conn.SetReadDeadline(time.Now().Add(c.readTimeout)); err != nil {
+			_ = c.Conn.Close()
+			return 0, err
+		}
 	}
 	n, err := c.Conn.Read(p)
 	if err != nil {
@@ -89,18 +91,17 @@ func (pool databasePool) openDameng(dsn string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := damengDriver{raw.Driver().(driver.DriverContext), pool}
+	d := damengDriver{raw.Driver().(driver.DriverContext)}
 	_ = raw.Close()
 	c, err := d.OpenConnector(dsn)
 	if err != nil {
 		return nil, err
 	}
-	return pool.openConnector(c, 2*time.Minute), nil
+	return openConnector(c), nil
 }
 
 type damengDriver struct {
 	driver.DriverContext
-	pool databasePool
 }
 
 func (d damengDriver) Open(dsn string) (driver.Conn, error) {
@@ -108,7 +109,7 @@ func (d damengDriver) Open(dsn string) (driver.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.Connect(context.Background())
+	return databaseConnector{c}.Connect(context.Background())
 }
 
 func (d damengDriver) OpenConnector(dsn string) (driver.Connector, error) {
@@ -117,10 +118,8 @@ func (d damengDriver) OpenConnector(dsn string) (driver.Connector, error) {
 		return nil, err
 	}
 	connector := damengConnector{Connector: c, driver: d}
-	if d.pool == catalogPool {
-		c.(*dm.DmConnector).TransportCancelsLogin = true
-		connector.loginSlot = make(chan struct{}, 1)
-	}
+	c.(*dm.DmConnector).TransportCancelsLogin = true
+	connector.loginSlot = make(chan struct{}, 1)
 	return connector, nil
 }
 
@@ -135,19 +134,14 @@ func (c damengConnector) Connect(ctx context.Context) (driver.Conn, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	driverCtx := context.WithoutCancel(ctx)
-	if c.loginSlot != nil {
-		// The vendor connector serializes logins behind a mutex. Allow a
-		// second caller to cancel before the first handshake completes.
-		select {
-		case c.loginSlot <- struct{}{}:
-			defer func() { <-c.loginSlot }()
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-		driverCtx = ctx
+	// Allow cancellation while waiting for the vendor's serialized login.
+	select {
+	case c.loginSlot <- struct{}{}:
+		defer func() { <-c.loginSlot }()
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	raw, err := c.Connector.Connect(driverCtx)
+	raw, err := c.Connector.Connect(ctx)
 	if ctx.Err() != nil {
 		if err == nil {
 			_ = raw.Close()
@@ -281,9 +275,6 @@ func (c *damengConn) PrepareContext(ctx context.Context, query string) (driver.S
 		stmt, err = c.damengContextConn.PrepareContext(context.WithoutCancel(ctx), query)
 		return err
 	})
-	if ctx.Err() != nil && stmt != nil {
-		_ = stmt.Close()
-	}
 	if err = c.finish(ctx, err); err != nil {
 		return nil, err
 	}
@@ -304,6 +295,11 @@ type damengStmt struct {
 	conn *damengConn
 }
 
+func (s *damengStmt) Close() error {
+	ctx, cancel := context.WithTimeout(context.Background(), databaseCleanupTimeout)
+	defer cancel()
+	return s.conn.finish(ctx, s.conn.withTransportCancel(ctx, s.damengContextStmt.Close))
+}
 func (s *damengStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
 	if err := s.conn.check(ctx); err != nil {
 		return nil, err
@@ -355,16 +351,15 @@ func (c *damengConn) rows(ctx context.Context, rows driver.Rows, err error) (dri
 	if err != nil {
 		return nil, c.finish(ctx, err)
 	}
-	if ctx.Err() != nil && rows != nil {
-		_ = rows.Close()
-	}
 	if err = c.finish(ctx, err); err != nil {
 		return nil, err
 	}
 	return &damengRows{rows.(damengDriverRows), c, ctx}, nil
 }
 func (r *damengRows) Close() error {
-	return r.conn.finish(r.ctx, r.conn.withTransportCancel(r.ctx, func() error { return r.damengDriverRows.Close() }))
+	ctx, cancel := context.WithTimeout(r.ctx, databaseCleanupTimeout)
+	defer cancel()
+	return r.conn.finish(ctx, r.conn.withTransportCancel(ctx, r.damengDriverRows.Close))
 }
 func (r *damengRows) Next(dest []driver.Value) error {
 	if err := r.ctx.Err(); err != nil {

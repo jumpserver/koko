@@ -3,27 +3,32 @@ package engine
 import (
 	"context"
 	"database/sql/driver"
-	"time"
 
 	goora "github.com/sijms/go-ora/v2"
 )
 
-type catalogOracleConnector struct{ *goora.OracleConnector }
+type oracleConnector struct {
+	*goora.OracleConnector
+	pool databasePool
+}
 
-func (c catalogOracleConnector) Connect(ctx context.Context) (driver.Conn, error) {
+func (c oracleConnector) Connect(ctx context.Context) (driver.Conn, error) {
 	// The native handshake watcher races Session.Connect when it disconnects.
-	// The catalog dialer interrupts the socket for the entire login instead.
-	login := ctx.Value(catalogLoginKey{}).(*catalogLogin)
+	// The database dialer interrupts the socket for the entire login instead.
+	login := ctx.Value(databaseLoginKey{}).(*databaseLogin)
 	raw, err := c.OracleConnector.Connect(context.WithoutCancel(ctx))
 	if err != nil {
 		return nil, err
+	}
+	if c.pool != catalogPool {
+		return raw, nil
 	}
 	return &catalogOracleConn{raw.(*goora.Connection), login.sockets}, nil
 }
 
 type catalogOracleConn struct {
 	*goora.Connection
-	sockets *catalogSockets
+	sockets *databaseSockets
 }
 
 func (c *catalogOracleConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
@@ -39,28 +44,16 @@ func (c *catalogOracleConn) QueryContext(ctx context.Context, query string, args
 		}
 		return nil, err
 	}
-	return &catalogOracleRows{rows.(*goora.DataSet), stop}, nil
-}
-
-func (c *catalogOracleConn) IsValid() bool {
-	return c.sockets.valid()
-}
-
-func (c *catalogOracleConn) Close() error {
-	// Logoff reads a server reply even when the pool closes an idle connection.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	stop := c.sockets.watch(ctx)
-	defer stop()
-	return c.Connection.Close()
+	return &catalogOracleRows{rows.(*goora.DataSet), stop, c.sockets}, nil
 }
 
 type catalogOracleRows struct {
 	*goora.DataSet
-	stop func()
+	stop    func()
+	sockets *databaseSockets
 }
 
 func (r *catalogOracleRows) Close() error {
 	defer r.stop()
-	return r.DataSet.Close()
+	return r.sockets.runCleanup(r.DataSet.Close)
 }

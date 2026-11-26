@@ -38,7 +38,7 @@ func (o *StandaloneOptions) RegisterFlags(flags *flag.FlagSet) {
 	flags.StringVar(&o.backends, "backends", "standalone_backends.yml", "Private database configuration file")
 	flags.StringVar(&o.webDir, "web-dir", "", "Generated Luna static directory (optional for API-only use)")
 	flags.StringVar(&o.engine.StateDir, "state-dir", "data/chen-single", "Directory for local audit records and exports")
-	flags.DurationVar(&o.engine.QueryTimeout, "query-timeout", 2*time.Minute, "Maximum queued and running time per execution")
+	flags.DurationVar(&o.engine.QueryTimeout, "query-timeout", 0, "Maximum queued and running time per execution (0 for unlimited)")
 	flags.DurationVar(&o.engine.TransactionIdleTimeout, "transaction-idle-timeout", 5*time.Minute, "Maximum idle time for a manual transaction")
 	flags.IntVar(&o.engine.MaxSessions, "max-sessions", 16, "Maximum concurrent workspace sessions")
 	flags.IntVar(&o.engine.MaxConsoles, "max-consoles", 8, "Maximum consoles per session")

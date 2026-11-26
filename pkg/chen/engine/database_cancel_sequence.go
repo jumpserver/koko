@@ -7,7 +7,7 @@ func db2CancellationCheckpoint(c *console) uint64 {
 		return 0
 	}
 	_ = c.conn.Raw(func(raw any) error {
-		if probe, ok := raw.(interface{ ChenCancellationSequence() uint64 }); ok {
+		if probe, ok := rawDatabaseConn(raw).(interface{ ChenCancellationSequence() uint64 }); ok {
 			sequence = probe.ChenCancellationSequence()
 		}
 		return nil

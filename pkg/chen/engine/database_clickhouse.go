@@ -22,7 +22,10 @@ import (
 // JDBC driver updates that client-side selection after a successful USE;
 // clickhouse-go leaves it fixed at login. Keep the selection per physical
 // connection so consoles and the independent catalog cannot affect each other.
-type clickHouseHTTPConnector struct{ options clickhouse.Options }
+type clickHouseHTTPConnector struct {
+	options clickhouse.Options
+	pool    databasePool
+}
 
 // Managed custom ports have no transport encoded in the asset. Only the
 // server's explicit Native-port HTTP response can select Native, before any
@@ -39,7 +42,7 @@ func (c *clickHouseAutoConnector) Driver() driver.Driver {
 func (c *clickHouseAutoConnector) Connect(ctx context.Context) (driver.Conn, error) {
 	options := c.options
 	options.Protocol = clickhouse.HTTP
-	conn, err := (&clickHouseHTTPConnector{options: options}).Connect(ctx)
+	conn, err := (&clickHouseHTTPConnector{options: options, pool: c.pool}).Connect(ctx)
 	var httpError *clickhouse.HTTPError
 	if ctx.Err() != nil || !errors.As(err, &httpError) || httpError.StatusCode != http.StatusBadRequest ||
 		!strings.Contains(httpError.Error(), "is for clickhouse-client program") ||
@@ -47,23 +50,14 @@ func (c *clickHouseAutoConnector) Connect(ctx context.Context) (driver.Conn, err
 		return conn, err
 	}
 	options.Protocol = clickhouse.Native
-	if c.pool == catalogPool {
-		return catalogClickHouseNative(options).Connect(ctx)
-	}
-	return clickhouse.Connector(&options).Connect(ctx)
+	return c.pool.clickHouseNative(options).Connect(ctx)
 }
 
-func catalogClickHouseHTTPTransport(rt *http.Transport) (http.RoundTripper, error) {
-	rt.ResponseHeaderTimeout = 0
-	rt.DialContext = catalogDialer{dial: rt.DialContext, http: true, writeTimeout: 15 * time.Second}.DialContext
-	return rt, nil
-}
-
-func catalogClickHouseNative(options clickhouse.Options) driver.Connector {
-	// Native sets ReadTimeout once for the entire result. Let the socket
-	// enforce its renewable read limit while keeping explicit caller deadlines.
+func (p databasePool) clickHouseNative(options clickhouse.Options) driver.Connector {
+	// Native replaces zero with five minutes. Use its largest duration so only
+	// caller deadlines and the catalog socket idle limit constrain a query.
 	options.ReadTimeout = time.Duration(math.MaxInt64)
-	dialer := catalogDialer{dial: (&net.Dialer{Timeout: options.DialTimeout}).DialContext, writeTimeout: 15 * time.Second}
+	dialer := databaseDialer{readTimeout: p.readTimeout(), dial: (&net.Dialer{Timeout: options.DialTimeout}).DialContext, writeTimeout: databaseWriteTimeout}
 	options.DialContext = func(ctx context.Context, addr string) (net.Conn, error) {
 		conn, err := dialer.DialContext(ctx, "tcp", addr)
 		if err != nil || options.TLS == nil {
@@ -93,7 +87,12 @@ func (c *clickHouseHTTPConnector) Connect(ctx context.Context) (driver.Conn, err
 	var active http.RoundTripper
 	var baseTransport *http.Transport
 	legacy := false
+	sockets := ctx.Value(databaseLoginKey{}).(*databaseLogin).sockets
 	options.TransportFunc = func(base *http.Transport) (http.RoundTripper, error) {
+		// net/http can replace a TCP connection between requests. Track new
+		// sockets for cleanup even when the dialing context is no longer login.
+		base.ResponseHeaderTimeout = 0
+		base.DialContext = databaseDialer{dial: base.DialContext, readTimeout: c.pool.readTimeout(), writeTimeout: databaseWriteTimeout, httpSockets: sockets}.DialContext
 		baseTransport = base
 		var next http.RoundTripper = base
 		if transport != nil {
@@ -133,7 +132,7 @@ func (c *clickHouseHTTPConnector) Connect(ctx context.Context) (driver.Conn, err
 		_ = raw.Close()
 		return nil, errors.New("unsupported ClickHouse HTTP driver interfaces")
 	}
-	return &clickHouseHTTPConn{clickHouseHTTPDriver: conn, database: database, legacy: legacy}, nil
+	return &clickHouseHTTPConn{clickHouseHTTPDriver: conn, database: database, legacy: legacy, sockets: sockets}, nil
 }
 
 // Forward the pinned driver's optional interfaces, including named value and
@@ -154,9 +153,10 @@ type clickHouseHTTPConn struct {
 	clickHouseHTTPDriver
 	database *atomic.Value
 	legacy   bool
+	sockets  *databaseSockets
 }
 
-func (c *clickHouseHTTPConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+func (c *clickHouseHTTPConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (resultRows driver.Rows, err error) {
 	rows, err := c.clickHouseHTTPDriver.QueryContext(ctx, query, args)
 	if err != nil || !c.legacy || len(rows.Columns()) != 0 {
 		return rows, err
@@ -169,14 +169,21 @@ func (c *clickHouseHTTPConn) QueryContext(ctx context.Context, query string, arg
 	if analysisErr != nil || len(analysis.Statements) != 1 || analysis.Statements[0].Kind != "select" || analysis.Statements[0].MayWrite {
 		return rows, nil
 	}
-	if err := rows.Close(); err != nil {
+	if err := c.sockets.runCleanup(rows.Close); err != nil {
 		return nil, err
 	}
 	metadata, err := c.clickHouseHTTPDriver.QueryContext(ctx, "DESCRIBE TABLE (\n"+analysis.Statements[0].SQL+"\n)", args)
 	if err != nil {
 		return nil, err
 	}
-	defer metadata.Close()
+	// DESCRIBE runs inside this adapter before database/sql owns its rows.
+	// Bound early returns on malformed or oversized metadata, too.
+	defer func() {
+		if closeErr := c.sockets.runCleanup(metadata.Close); closeErr != nil {
+			resultRows = nil
+			err = errors.Join(err, closeErr)
+		}
+	}()
 	var result clickHouseEmptyRows
 	values := make([]driver.Value, len(metadata.Columns()))
 	if len(values) < 2 {
@@ -196,9 +203,6 @@ func (c *clickHouseHTTPConn) QueryContext(ctx context.Context, query string, arg
 		}
 		result.names = append(result.names, name)
 		result.types = append(result.types, typ)
-	}
-	if err := metadata.Close(); err != nil {
-		return nil, err
 	}
 	if len(result.names) == 0 {
 		return nil, errors.New("legacy ClickHouse SELECT schema is empty")
