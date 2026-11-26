@@ -58,8 +58,8 @@ cd koko
 
 2. Run the backend server
 
-`make run` requires Docker Compose to start guacd and stops it on exit.
-Use `make dev` to run Koko without starting or stopping guacd; Docker Compose is not required.
+`make run` and `make dev` both start KoKo and Kael locally by default. Set `KAEL_ENABLED=false` or `0` to disable Kael for either command.
+`make run` also starts guacd using Docker Compose and stops it on exit. With `make dev`, start guacd separately if needed.
 
 ```shell
 
@@ -71,6 +71,8 @@ BOOTSTRAP_TOKEN: PleaseChangeMe <change to the same as core>
 $ make run # 3. Run; prebuilt libghostty-vt and usql are downloaded on first use
 ```
 
+
+`make build` produces `build/koko` and `build/kael`. To run Kael locally, configure `cmd/kael/config.yml` from `cmd/kael/config_example.yml` and make the Codex CLI available on `PATH` or set `CODEX_BINARY`. Kael keeps its data in `cmd/kael/data/`. [Kael documentation](docs/kael/README.md)
 
 Before committing, install the golangci-lint version pinned in
 [the CI workflow](.github/workflows/golangci-lint.yml) and run `make lint`.

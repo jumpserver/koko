@@ -16,6 +16,9 @@ log/
 .idea/
 vendor/
 config.yml
+cmd/kael/config.yaml
+cmd/kael/.config.yml
+cmd/kael/.config.yaml
 host_key
 cmd/logs
 cmd/kokodir

@@ -1,0 +1,12 @@
+#!/command/with-contenv sh
+set -eu
+
+cd /opt/kael
+# Both applications read these keys. Let Kael use its own config or defaults.
+unset NAME BIND_HOST HTTPD_PORT
+if [ -n "${KAEL_NAME:-}" ]; then export NAME="$KAEL_NAME"; fi
+if [ -n "${KAEL_BIND_HOST:-}" ]; then export BIND_HOST="$KAEL_BIND_HOST"; fi
+if [ -n "${KAEL_HTTP_PORT:-}" ]; then export HTTPD_PORT="$KAEL_HTTP_PORT"; fi
+export HOME=/opt/kael/data
+export PATH="/opt/codex/bin:$PATH"
+exec /opt/kael/kael

@@ -2,6 +2,11 @@ vendor
 build/*
 logs/*
 data/*
+cmd/kael/data
+cmd/kael/config.yml
+cmd/kael/config.yaml
+cmd/kael/.config.yml
+cmd/kael/.config.yaml
 release/*
 ui/
 config.yml
