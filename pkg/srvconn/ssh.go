@@ -190,11 +190,23 @@ func NewSSHClientWithCfg(cfg *SSHClientOptions) (*SSHClient, error) {
 			_ = proxyClient.Close()
 			return nil, fmt.Errorf("%w: %s", ErrGatewayDial, err)
 		}
+		var waitConn *firstReadTimeoutConn
+		if cfg.Timeout > 0 {
+			// gosshCfg.Timeout only bounds net.Dial. Through a gateway the dial
+			// succeeds once anything listens on destAddr (e.g. a port-forwarding
+			// tunnel on the gateway host), even if nothing answers behind it.
+			waitConn = newFirstReadTimeoutConn(destConn, gosshCfg.Timeout,
+				func() { _ = proxyClient.Close() })
+			destConn = waitConn
+		}
 		proxyConn, chans, reqs, err := gossh.NewClientConn(destConn, destAddr, &gosshCfg)
 		if err != nil {
 			_ = proxyClient.Close()
 			_ = destConn.Close()
-			return nil, fmt.Errorf("%w: %s", ErrSSHClient, err)
+			if waitConn != nil && waitConn.timedOut.Load() {
+				err = fmt.Errorf("%w in %s", ErrSSHNoResponse, gosshCfg.Timeout)
+			}
+			return nil, fmt.Errorf("%w: %w", ErrSSHClient, err)
 		}
 		gosshClient := gossh.NewClient(proxyConn, chans, reqs)
 		return &SSHClient{Cfg: cfg, Client: gosshClient,
