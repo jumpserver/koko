@@ -525,7 +525,9 @@ func (v *Server) collectBrowseAppend(s *session, e *execution, rows *sql.Rows) e
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	rows.Close()
+	if err := rows.Close(); err != nil {
+		return err
+	}
 	if !slices.Equal(previous.Columns, batch.Columns) {
 		return errors.New("Table columns changed; refresh before continuing")
 	}

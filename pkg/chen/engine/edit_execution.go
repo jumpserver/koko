@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/chen/core"
@@ -15,33 +14,15 @@ import (
 // Never replay a save after an uncertain commit or a nontransactional failure.
 func (v *Server) runEdits(s *session, c *console, e *execution) {
 	c.mu.Lock()
-	var touched atomic.Bool
-	cancelDone := make(chan struct{})
-	stopCancel := context.AfterFunc(e.ctx, func() {
-		defer close(cancelDone)
-		if !s.grant.Dialect().UsesMySQLWire() || !touched.Load() || e.cancelRequested.Load() {
-			return
-		}
-		interruptExecutionBackend(s, c, e)
-	})
-	cancelJoined := false
-	joinCancel := func() {
-		if cancelJoined {
-			return
-		}
-		cancelJoined = true
-		if !stopCancel() {
-			<-cancelDone
-		}
-	}
+	var touched bool
 	defer func() {
-		joinCancel()
+		e.finishDatabaseWork()
 		e.stopDeadline()
 		e.cancel()
 		if e.cancelRequested.Load() {
 			<-e.cancelDone
 		}
-		if touched.Load() && c.manualTx != nil {
+		if touched && c.manualTx != nil {
 			c.transactionActivity = time.Now()
 		}
 		c.mu.Unlock()
@@ -57,6 +38,9 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 			outcome = view.Edit.Outcome
 		}
 		audit.Output = fmt.Sprintf("execution_id=%s edit_plan=%s state=%s outcome=%s", view.ID, e.edit.id, view.Status, outcome)
+		if view.CancelReason != "" {
+			audit.Output += " cancel_reason=" + view.CancelReason
+		}
 		if view.Transaction != nil {
 			audit.Output += fmt.Sprintf(" transaction_mode=%t transaction_state=%s transaction_outcome=%s", view.Transaction.Manual, view.Transaction.State, view.Transaction.Outcome)
 		}
@@ -87,8 +71,7 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 	}()
 	failEdit := func(err error) {
 		e.finishDatabaseWork()
-		if c.manual && touched.Load() && c.manualTx != nil {
-			joinCancel()
+		if c.manual && touched && c.manualTx != nil {
 			if cleanupErr := v.finishManualTransaction(s, c, e, false); cleanupErr != nil {
 				err = cleanupErr
 			}
@@ -101,6 +84,9 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 		if api.Code == "transaction_outcome_unknown" || api.Code == "edit_nontransactional_failed" {
 			status = "unknown"
 			v.update(s, e, func(x *ExecutionView) { x.Edit.Outcome = "unknown"; x.Edit.RefreshRequired = true })
+		}
+		if status == "canceled" && e.deadlineExpired.Load() {
+			api = safeDatabaseError(context.DeadlineExceeded)
 		}
 		v.update(s, e, func(x *ExecutionView) { x.Status = status; x.Error = api })
 	}
@@ -161,7 +147,7 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 	}
 	// Revalidate table metadata immediately before touching data. Existing
 	// previews cannot outlive changed PK/type/generated-column definitions.
-	if err := e.beginDatabaseWork(); err != nil {
+	if err := e.beginDatabaseWork(s, c); err != nil {
 		failEdit(err)
 		return
 	}
@@ -179,14 +165,14 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 		return
 	}
 	if c.manual {
-		touched.Store(true)
+		touched = true
 	}
 	boundary, err := beginEditBoundary(e.ctx, c, s.grant.Dialect())
 	if err != nil {
 		failEdit(err)
 		return
 	}
-	touched.Store(true)
+	touched = true
 	attempted := false
 	applied := 0
 	markNontransactionalFailure := func() {
@@ -204,7 +190,6 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 	}
 	rollback := func(cause error) {
 		e.finishDatabaseWork()
-		joinCancel()
 		// A successful ROLLBACK does not undo changes to a nontransactional
 		// table. Do not report those changes as rolled back.
 		nontransactional := attempted && !resolved.table.Transactional
@@ -286,6 +271,10 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 	}
 	// Once the save crosses its commit boundary, a late user cancel must
 	// not interrupt COMMIT or RELEASE SAVEPOINT on the pinned connection.
+	if err := e.beginTransactionBoundary(); err != nil {
+		rollback(err)
+		return
+	}
 	cleanup, done := context.WithTimeout(c.ctx, 5*time.Second)
 	err = boundary.finish(cleanup)
 	done()

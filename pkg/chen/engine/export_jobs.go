@@ -121,7 +121,7 @@ func (j *exportJob) snapshot() ExportView {
 		view.ExecutionID = ev.ID
 		view.ConsoleID = ev.ConsoleID
 		view.Status = ev.Status
-		if view.Error == nil {
+		if view.Error == nil || ev.CancelReason == "timeout" && ev.Error != nil {
 			view.Error = ev.Error
 		}
 	}
@@ -328,8 +328,7 @@ func (j *exportJob) produce(ctx context.Context, columns []Column, next func() (
 	j.mu.Unlock()
 	return nil
 }
-func (v *Server) collectExport(s *session, c *console, e *execution, rows *sql.Rows) (err error) {
-	defer rows.Close()
+func (v *Server) collectExport(s *session, e *execution, rows *sql.Rows) (err error) {
 	j := e.export
 	prefix := j.namePrefix
 	if prefix == "" {
@@ -340,14 +339,19 @@ func (v *Server) collectExport(s *session, c *console, e *execution, rows *sql.R
 	j.mu.Unlock()
 	defer func() {
 		if err != nil {
+			e.mu.RLock()
+			interrupt := e.interruptBackend
+			e.mu.RUnlock()
+			if interrupt != nil {
+				interrupt()
+			}
+		}
+		if closeErr := rows.Close(); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+		if err != nil {
 			j.fail(err)
 			j.cleanup(false)
-			if e.ctx.Err() == nil && !e.cancelRequested.Load() {
-				interruptExecutionBackend(s, c, e)
-				// Drain cancellation before ending the driver context, preserving
-				// the physical console after local export limits.
-				_ = rows.Close()
-			}
 		}
 	}()
 	types, err := rows.ColumnTypes()

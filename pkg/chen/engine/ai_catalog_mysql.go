@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
@@ -20,7 +19,7 @@ func interruptCatalogOnCancel(ctx context.Context, s *session, c *console) conte
 	done := make(chan struct{})
 	stop := context.AfterFunc(ctx, func() {
 		defer close(done)
-		interrupt, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		interrupt, cancel := context.WithTimeout(context.Background(), databaseCancelTimeout)
 		defer cancel()
 		if err := cancelBackend(interrupt, s, c, nil); err != nil {
 			slog.Warn("catalog_interrupt_failed", "dialect", s.grant.Dialect(), "error", err)

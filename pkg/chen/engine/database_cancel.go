@@ -7,10 +7,16 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/jumpserver/koko/pkg/chen/dialect"
+)
+
+const (
+	databaseCancelTimeout = 2 * time.Second
+	databaseCancelGrace   = time.Second
 )
 
 func supportsActiveCancellation(d dialect.ID) bool {
@@ -44,7 +50,55 @@ func supportsBackendInterrupt(d dialect.ID) bool {
 	return d.UsesMySQLWire() || d == dialect.PostgreSQL || d == dialect.ClickHouse
 }
 
-func (e *execution) beginDatabaseWork() error {
+type cancellationResult int
+
+const (
+	cancelAccepted cancellationResult = iota
+	cancelFinished
+	cancelUnsupported
+	cancelTransactionBoundary
+)
+
+// The first request owns both the reason and the single interrupt. Synchronize
+// with databaseDone so a late KILL cannot reach cleanup or the next statement.
+func (e *execution) requestCancellation(s *session, reason string) cancellationResult {
+	e.mu.Lock()
+	if terminal(e.view.Status) {
+		e.mu.Unlock()
+		return cancelFinished
+	}
+	if e.cancelRequested.Load() || e.ctx.Err() != nil || (reason == "timeout" && e.deadlineTimer == nil) {
+		e.mu.Unlock()
+		return cancelAccepted
+	}
+	active := e.view.Status != "queued" && e.view.Status != "waiting_review"
+	if reason == "user" && active {
+		if !supportsActiveCancellation(s.grant.Dialect()) {
+			e.mu.Unlock()
+			return cancelUnsupported
+		}
+		if e.transactionAction != "" || e.transactionBoundary {
+			e.mu.Unlock()
+			return cancelTransactionBoundary
+		}
+	}
+	e.cancelRequested.Store(true)
+	e.deadlineExpired.Store(reason == "timeout")
+	e.view.CancelReason = reason
+	e.view.Status = "cancel_requested"
+	e.view.Revision++
+	if e.interruptBackend != nil {
+		go interruptDatabaseWork(s, e, e.databaseDone, e.interruptBackend)
+	} else {
+		e.cancel()
+		close(e.cancelDone)
+	}
+	e.mu.Unlock()
+	s.emit("execution.updated", e.snapshot())
+	return cancelAccepted
+}
+
+func (e *execution) beginDatabaseWork(s *session, c *console) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.cancelRequested.Load() {
@@ -54,6 +108,10 @@ func (e *execution) beginDatabaseWork() error {
 		return err
 	}
 	e.databaseDone = make(chan struct{})
+	if s.db != nil && supportsBackendInterrupt(s.grant.Dialect()) {
+		e.interruptBackend = sync.OnceFunc(func() { interruptExecutionBackend(s, c, e) })
+	}
+	e.stopDatabaseWatch = e.watchDatabaseCancellation(s, c, e.databaseDone, e.interruptBackend)
 	return nil
 }
 
@@ -65,25 +123,60 @@ func (e *execution) finishDatabaseWork() {
 		close(e.databaseDone)
 		e.databaseDone = nil
 	}
+	stop := e.stopDatabaseWatch
+	e.stopDatabaseWatch = nil
+	e.interruptBackend = nil
 	pending := e.cancelRequested.Load()
 	e.mu.Unlock()
+	if stop != nil {
+		stop()
+	}
 	if pending {
 		<-e.cancelDone
 	}
 }
 
-func interruptDatabaseWork(s *session, c *console, e *execution, databaseDone <-chan struct{}) {
+// Session shutdown cancels the driver context immediately. MySQL and
+// ClickHouse can still need a separate server interrupt. In particular, a
+// driver draining rows can stop watching its context before its last read.
+func (e *execution) watchDatabaseCancellation(s *session, c *console, work <-chan struct{}, interruptBackend func()) func() {
+	interrupt := sync.OnceFunc(func() {
+		d := s.grant.Dialect()
+		if interruptBackend != nil && !e.cancelRequested.Load() && (d.UsesMySQLWire() || d == dialect.ClickHouse) {
+			interruptBackend()
+		}
+		if c.sockets == nil {
+			return
+		}
+		timer := time.NewTimer(databaseCleanupTimeout)
+		defer timer.Stop()
+		select {
+		case <-work:
+		case <-timer.C:
+			e.mu.Lock()
+			if e.databaseDone == work {
+				c.sockets.close()
+			}
+			e.mu.Unlock()
+		}
+	})
+	stop := context.AfterFunc(e.ctx, interrupt)
+	return func() {
+		// If the worker saw cancellation first, still issue and join the
+		// server interrupt before rollback, metadata or the next statement.
+		if !stop() || e.ctx.Err() != nil {
+			interrupt()
+		}
+	}
+}
+
+func interruptDatabaseWork(s *session, e *execution, databaseDone <-chan struct{}, interruptBackend func()) {
 	defer close(e.cancelDone)
 	start := time.Now()
-	ctx, stop := context.WithTimeout(context.Background(), 2*time.Second)
-	err := cancelBackend(ctx, s, c, e)
-	stop()
-	if err != nil {
-		slog.Warn("database_interrupt_failed", "dialect", s.grant.Dialect(), "execution", e.view.ID, "elapsed", time.Since(start), "error", err)
-	}
+	interruptBackend()
 	// A successful control command does not mean the original connection has
 	// finished reading its reply. Canceling its context early can close it.
-	timer := time.NewTimer(time.Second)
+	timer := time.NewTimer(databaseCancelGrace)
 	defer timer.Stop()
 	select {
 	case <-databaseDone:
@@ -98,26 +191,45 @@ func cancelBackend(ctx context.Context, s *session, c *console, e *execution) er
 	if s.db == nil {
 		return nil
 	}
+	// The control connection can itself stall. Close only its own sockets
+	// on expiry and join that watcher before returning it to the pool.
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	var stop func()
+	if err := conn.Raw(func(raw any) error {
+		if c, ok := raw.(interface{ managedConn() *databaseConn }); ok {
+			stop = c.managedConn().sockets.watch(ctx)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	if stop != nil {
+		defer stop()
+	}
 	d := s.grant.Dialect()
 	switch {
 	case d.UsesMySQLWire():
-		_, err := s.db.ExecContext(ctx, "KILL QUERY "+strconv.FormatInt(c.backendID, 10))
+		_, err := conn.ExecContext(ctx, "KILL QUERY "+strconv.FormatInt(c.backendID, 10))
 		return err
 	case d == dialect.PostgreSQL:
 		var sent bool
-		if err := s.db.QueryRowContext(ctx, "SELECT pg_cancel_backend($1)", c.backendID).Scan(&sent); err != nil {
+		if err := conn.QueryRowContext(ctx, "SELECT pg_cancel_backend($1)", c.backendID).Scan(&sent); err != nil {
 			return err
 		}
 		if !sent {
 			return errors.New("PostgreSQL did not signal the backend")
 		}
 	case d == dialect.ClickHouse:
-		return cancelClickHouseExecution(ctx, s.db, e.view.ID)
+		return cancelClickHouseExecution(ctx, conn, e.view.ID)
 	}
 	return nil
 }
 
-func cancelClickHouseExecution(ctx context.Context, db *sql.DB, id string) error {
+func cancelClickHouseExecution(ctx context.Context, db *sql.Conn, id string) error {
 	rows, err := db.QueryContext(ctx, "KILL QUERY WHERE query_id = ? AND user = currentUser() SYNC", id)
 	if err != nil {
 		return err

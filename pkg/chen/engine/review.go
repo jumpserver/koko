@@ -11,14 +11,14 @@ import (
 
 // The SQL deadline includes queueing and database work, but an operator waiting
 // for a reviewer gets the separate, bounded approval deadline from the provider.
-func (e *execution) startDeadline(d time.Duration) {
+func (e *execution) startDeadline(s *session, d time.Duration) {
 	if d <= 0 {
 		return
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.deadlineAt = time.Now().Add(d)
-	e.deadlineTimer = time.AfterFunc(d, e.expireDeadline)
+	e.deadlineTimer = time.AfterFunc(d, func() { e.requestCancellation(s, "timeout") })
 }
 
 func (e *execution) pauseDeadline() {
@@ -33,24 +33,40 @@ func (e *execution) pauseDeadline() {
 func (e *execution) resumeDeadline() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if e.deadlinePaused {
+	if e.deadlinePaused && e.deadlineTimer != nil {
 		e.deadlinePaused = false
 		e.deadlineAt = time.Now().Add(e.remaining)
-		e.deadlineTimer = time.AfterFunc(e.remaining, e.expireDeadline)
+		e.deadlineTimer.Reset(e.remaining)
 	}
-}
-
-func (e *execution) expireDeadline() {
-	e.deadlineExpired.Store(true)
-	e.cancel()
 }
 
 func (e *execution) stopDeadline() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	e.stopDeadlineLocked()
+}
+
+func (e *execution) stopDeadlineLocked() {
 	if e.deadlineTimer != nil {
 		e.deadlineTimer.Stop()
+		e.deadlineTimer = nil
 	}
+}
+
+// After this point the driver owns COMMIT or ROLLBACK. Its bounded reply
+// determines the reported outcome even when the query budget expires.
+func (e *execution) beginTransactionBoundary() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.cancelRequested.Load() {
+		return context.Canceled
+	}
+	if err := e.ctx.Err(); err != nil {
+		return err
+	}
+	e.stopDeadlineLocked()
+	e.transactionBoundary = true
+	return nil
 }
 
 func (v *Server) authorizeExecution(s *session, e *execution, commands []string, audit *core.AuditRecord) error {
