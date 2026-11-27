@@ -52,6 +52,11 @@ func (s *session) releaseClosedConsoleResults(c *console) {
 			delete(s.executions, id)
 		}
 	}
+	for id, plan := range s.objectPlans {
+		if plan.consoleID == c.id {
+			delete(s.objectPlans, id)
+		}
+	}
 }
 
 // A completed history entry must not consume the concurrency allowance. Keep

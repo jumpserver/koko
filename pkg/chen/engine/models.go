@@ -219,6 +219,7 @@ func terminal(s string) bool {
 }
 
 type console struct {
+	objectBindings      string           // fixed output variable namespace on this connection, protected by mu
 	sockets             *databaseSockets // physical transports captured at login; immutable after publication
 	manual              bool             // protected by mu
 	manualTx            driver.Tx        // worker-owned on the pinned physical connection

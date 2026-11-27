@@ -138,6 +138,7 @@ func (v *Server) cursorCommands(ctx context.Context, s *session, c *console, req
 		return out, err
 	}
 	statement := fmt.Sprintf("FETCH FORWARD %d FROM %s", cur.Limit, quoteDatabaseIdentifier(cell.name, dialect.PostgreSQL))
+	out.ExecutionUser = role
 	out.Steps = []sqlservice.ObjectStep{{SQL: statement, ResultRole: "cursor_rows"}}
 	out.Fingerprint = fmt.Sprintf("%x", sha256.Sum256([]byte(role+"\x00"+created.String()+"\x00"+statement)))
 	return out, nil

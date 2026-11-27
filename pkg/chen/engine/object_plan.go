@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ type objectPlan struct {
 	req                sqlservice.ObjectPlanRequest
 	commands           sqlservice.ObjectCommands
 	expires            time.Time
+	recoveryUntil      time.Time // session.mu; set after the worker releases its command data.
 	revision           uint64
 	requiresImplicit   bool
 	bytes              int
@@ -102,10 +104,21 @@ func (v *Server) previewObjectPlan(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	req.BindingID = newID("")[:24]
+	if req.Action == "invoke" && s.grant.Dialect().UsesMySQLSyntax() {
+		// MySQL retains user variable names until disconnect, even after SET NULL.
+		// Each serialized call initializes and clears the same bounded slots.
+		if c.objectBindings == "" {
+			c.objectBindings = newID("")[:24]
+		}
+		req.BindingID = c.objectBindings
+	}
 	commands, err := v.objectCommands(ctx, s, c, req)
 	if err != nil {
 		api := objectPlanAPIError(err)
+		if errors.Is(err, sqlservice.ErrObjectAlreadyExists) {
+			writeJSON(w, 409, map[string]any{"error": api, "conflict_ref": commands.Ref})
+			return
+		}
 		fail(w, 409, api.Code, api.Message)
 		return
 	}
@@ -154,20 +167,55 @@ func (v *Server) previewObjectPlan(w http.ResponseWriter, r *http.Request) {
 	if s.objectPlans == nil {
 		s.objectPlans = map[string]*objectPlan{}
 	}
-	usedBytes := 0
-	for id, item := range s.objectPlans {
-		if time.Now().After(item.expires) || item.used {
-			delete(s.objectPlans, id)
-		} else {
-			usedBytes += item.bytes
-		}
-	}
-	if len(s.objectPlans) >= 32 || usedBytes+p.bytes > 32<<20 {
+	if !s.reserveObjectPreviewLocked(p.bytes) {
 		fail(w, 429, "object_plan_limit", "Too many object previews in this session")
 		return
 	}
 	s.objectPlans[p.id] = p
-	writeJSON(w, 200, map[string]any{"plan_id": p.id, "recovery": commands.Recovery, "action": req.Action, "ref": commands.Ref, "steps": commands.Steps, "sql": p.sql, "expires_at": p.expires, "transaction_revision": tx.Revision, "manual": tx.Manual, "requires_implicit_commit": p.requiresImplicit})
+	writeJSON(w, 200, map[string]any{
+		"plan_id": p.id, "action": req.Action, "ref": commands.Ref, "execution_user": commands.ExecutionUser,
+		"steps": commands.Steps, "sql": p.sql, "recovery": commands.Recovery, "expires_at": p.expires,
+		"transaction_revision": tx.Revision, "manual": tx.Manual, "requires_implicit_commit": p.requiresImplicit,
+	})
+}
+
+// Active commands must survive until dispatch finishes. Completed recovery
+// records share a bounded cache and yield their space to new work. Execution
+// IDs and their immutable plan identities live in the existing request map.
+func (s *session) reserveObjectPreviewLocked(incoming int) bool {
+	now := time.Now()
+	var bytes, active int
+	var completed []*objectPlan
+	for id, p := range s.objectPlans {
+		if !p.used && now.After(p.expires) {
+			delete(s.objectPlans, id)
+			continue
+		}
+		if !p.recoveryUntil.IsZero() {
+			if now.After(p.recoveryUntil) {
+				p.commands.Recovery = nil
+				delete(s.objectPlans, id)
+				continue
+			}
+			completed = append(completed, p)
+		} else {
+			active++
+		}
+		bytes += p.bytes
+	}
+	if active >= 32 || incoming > 32<<20 {
+		return false
+	}
+	slices.SortFunc(completed, func(a, b *objectPlan) int { return a.recoveryUntil.Compare(b.recoveryUntil) })
+	for i, p := range completed {
+		if len(completed)-i <= 32 && bytes+incoming <= 32<<20 {
+			break
+		}
+		p.commands.Recovery = nil
+		delete(s.objectPlans, p.id)
+		bytes -= p.bytes
+	}
+	return bytes+incoming <= 32<<20
 }
 
 func (v *Server) applyObjectPlan(w http.ResponseWriter, r *http.Request) {
@@ -203,6 +251,10 @@ func (v *Server) applyObjectPlan(w http.ResponseWriter, r *http.Request) {
 		}
 		p = old.objectPlan
 	}
+	var commandSQL string
+	if p != nil {
+		commandSQL = p.sql
+	}
 	s.mu.Unlock()
 	if p == nil || p.consoleID != c.id {
 		fail(w, 404, "not_found", "Object preview not found")
@@ -222,7 +274,7 @@ func (v *Server) applyObjectPlan(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	v.submitExecution(w, r, executionIntent{objectPlan: p}, &executionRequest{RequestID: req.RequestID, SQL: p.sql, SubmitReview: req.SubmitReview, ConfirmWarnings: req.ConfirmWarnings, ConfirmImplicitCommit: req.ConfirmImplicitCommit, TransactionRevision: p.revision})
+	v.submitExecution(w, r, executionIntent{objectPlan: p}, &executionRequest{RequestID: req.RequestID, SQL: commandSQL, SubmitReview: req.SubmitReview, ConfirmWarnings: req.ConfirmWarnings, ConfirmImplicitCommit: req.ConfirmImplicitCommit, TransactionRevision: p.revision})
 }
 
 func (v *Server) recheckObject(ctx context.Context, s *session, c *console, p *objectPlan) error {

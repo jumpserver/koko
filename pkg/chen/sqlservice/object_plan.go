@@ -43,6 +43,7 @@ type ObjectPlanRequest struct {
 	NewName       string               `json:"new_name,omitempty"`
 	State         string               `json:"state,omitempty"`
 	Arguments     []ObjectArgument     `json:"arguments,omitempty"`
+	ConfirmTriggerAppend bool          `json:"confirm_trigger_append,omitempty"`
 }
 
 type ObjectStep struct {
@@ -59,13 +60,15 @@ type ObjectStep struct {
 }
 
 type ObjectCommands struct {
-	Recovery    *ObjectRecovery
-	Ref         ObjectRef
-	Steps       []ObjectStep
-	Fingerprint string
+	ExecutionUser string
+	Recovery      *ObjectRecovery
+	Ref           ObjectRef
+	Steps         []ObjectStep
+	Fingerprint   string
 }
 
 var ErrObjectChanged = errors.New("object or console context changed; reload the object and preview again")
+var ErrObjectAlreadyExists = fmt.Errorf("the selected object already exists: %w", ErrObjectChanged)
 
 // A rebuild on the pinned connection after approval verifies the same effective
 // identity, native object and exact commands before the worker may send them.
@@ -89,14 +92,14 @@ func BuildObjectCommands(ctx context.Context, conn *sql.Conn, d dialect.ID, req 
 	if version < 100000 || req.Ref.Kind == ProcedureKind && version < 110000 {
 		return ObjectCommands{}, ErrCatalogUnsupported
 	}
+	out := ObjectCommands{Ref: req.Ref}
 	var environment string
-	err = conn.QueryRowContext(ctx, `SELECT pg_catalog.json_build_array(current_user,session_user,pg_catalog.current_schemas(true),
-	 pg_catalog.current_setting('standard_conforming_strings'),pg_catalog.current_setting('TimeZone'),pg_catalog.current_setting('DateStyle'),pg_catalog.current_setting('server_version_num'))::text`).Scan(&environment)
+	err = conn.QueryRowContext(ctx, `SELECT current_user, pg_catalog.json_build_array(session_user,pg_catalog.current_schemas(true),
+	 pg_catalog.current_setting('standard_conforming_strings'),pg_catalog.current_setting('TimeZone'),pg_catalog.current_setting('DateStyle'),pg_catalog.current_setting('server_version_num'))::text`).Scan(&out.ExecutionUser, &environment)
 	if err != nil {
 		return ObjectCommands{}, err
 	}
 
-	out := ObjectCommands{Ref: req.Ref}
 	var detail ObjectDetail
 	var baseline, instance string
 	if req.Ref.Kind == TriggerKind {
@@ -192,7 +195,7 @@ func BuildObjectCommands(ctx context.Context, conn *sql.Conn, d dialect.ID, req 
 	if req.Action == "create" {
 		_, err := PostgreSQLObjectDetail(ctx, conn, out.Ref, 0)
 		if err == nil {
-			return out, ErrObjectChanged
+			return out, ErrObjectAlreadyExists
 		}
 		if !errors.Is(err, ErrCatalogNotFound) {
 			return out, err
@@ -207,7 +210,7 @@ func BuildObjectCommands(ctx context.Context, conn *sql.Conn, d dialect.ID, req 
 			return out, ErrDocumentTooLarge
 		}
 	}
-	evidence, err := json.Marshal([]any{environment, instance, detail, baseline, out.Ref, out.Steps, req})
+	evidence, err := json.Marshal([]any{out.ExecutionUser, environment, instance, detail, baseline, out.Ref, out.Steps, req})
 	if err != nil {
 		return out, err
 	}

@@ -163,12 +163,25 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			<-e.cancelDone
 		}
 		if p := e.objectPlan; p != nil {
-			// The request ID, masked SQL, fingerprint and outcomes survive for
-			// retries. Release bound values and drafts once the worker is done.
-			p.req.Definition = ""
-			p.req.Arguments = nil
+			s.mu.Lock()
+			// The immutable plan identity and execution outcome suffice for retries.
+			// The authorized recovery record is retained separately from dispatched SQL.
+			p.req = sqlservice.ObjectPlanRequest{}
+			p.sql, e.sql = "", ""
 			p.commands.Steps = nil
 			e.objectDecisions = nil
+			e.policyWarnings = nil
+			if r := p.commands.Recovery; r != nil {
+				p.recoveryUntil = time.Now().Add(15 * time.Minute)
+				p.bytes = len(r.Definition) + len(r.ShowSQL) + len(r.User) + len(r.Role) + len(r.Definer)
+				for k, v := range r.Environment {
+					p.bytes += len(k) + len(v)
+				}
+				s.reserveObjectPreviewLocked(0)
+			} else {
+				delete(s.objectPlans, p.id)
+			}
+			s.mu.Unlock()
 		}
 		if userSQLStarted && c.manualTx != nil {
 			c.transactionActivity = time.Now()

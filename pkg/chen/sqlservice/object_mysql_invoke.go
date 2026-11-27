@@ -83,7 +83,7 @@ func mysqlInvoke(req ObjectPlanRequest, detail ObjectDetail, profile MySQLObject
 			if len(vars) >= 100 || len(req.BindingID) < 16 {
 				return nil, errors.New("too many output parameters or missing console binding")
 			}
-			v := fmt.Sprintf("@chen_%s_%d", req.BindingID, par.Position)
+			v := fmt.Sprintf("@chen_%s_%d", req.BindingID, len(vars)+1)
 			vars = append(vars, v)
 			init = append(init, v+" = "+placeholder)
 			initDisplay = append(initDisplay, v+" = "+display)

@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
@@ -18,8 +19,17 @@ func (v *Server) objectRecovery(w http.ResponseWriter, r *http.Request) {
 	defer done()
 	s.mu.Lock()
 	e := s.executions[r.PathValue("eid")]
+	var record *sqlservice.ObjectRecovery
+	if e != nil && e.objectPlan != nil && e.objectPlan.consoleID == c.id {
+		p := e.objectPlan
+		if !p.recoveryUntil.IsZero() && time.Now().After(p.recoveryUntil) {
+			p.commands.Recovery = nil
+			delete(s.objectPlans, p.id)
+		}
+		record = p.commands.Recovery
+	}
 	s.mu.Unlock()
-	if e == nil || e.objectPlan == nil || e.objectPlan.consoleID != c.id || e.objectPlan.commands.Recovery == nil {
+	if record == nil {
 		fail(w, 404, "not_found", "No recovery record for this console and execution")
 		return
 	}
@@ -29,7 +39,6 @@ func (v *Server) objectRecovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := e.objectPlan
-	record := p.commands.Recovery
 	scope := &catalogRequest{session: s, conn: c.conn, ctx: ctx, database: p.commands.Ref.Database, scope: catalogScope{
 		operation: "object-recovery", ref: p.commands.Ref, kind: string(p.commands.Ref.Kind), schema: p.commands.Ref.Schema,
 	}}

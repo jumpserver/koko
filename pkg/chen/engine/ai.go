@@ -343,7 +343,7 @@ func (v *Server) resolveAIExecutionError(s *session, editor aiEditorContext) (*a
 	if editor.ProposalTarget == "selection" {
 		target = editor.SelectedSQL
 	}
-	if view.ConsoleID != editor.ConsoleID || view.Status != "failed" || view.Error == nil || execution.edit != nil || execution.export != nil || execution.browse != nil ||
+	if view.ConsoleID != editor.ConsoleID || view.Status != "failed" || view.Error == nil || execution.edit != nil || execution.objectPlan != nil || execution.export != nil || execution.browse != nil ||
 		execution.documentVersion != editor.Revision || strings.TrimSpace(execution.sql) == "" ||
 		(editor.ProposalTarget == "selection" && target != execution.sql) || !strings.Contains(target, execution.sql) {
 		return nil, errors.New("SQL execution error no longer matches this editor; refresh its execution context before requesting a repair")

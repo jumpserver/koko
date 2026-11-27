@@ -54,6 +54,7 @@ func buildMySQLCommands(ctx context.Context, conn *sql.Conn, d dialect.ID, req O
 	if env.Database != req.Ref.Database {
 		return out, errors.New("choose a console connected to the selected database")
 	}
+	out.ExecutionUser = env.User
 	hasRoles := p.supportsCurrentRole()
 	if hasRoles {
 		if err = conn.QueryRowContext(ctx, `SELECT COALESCE(CURRENT_ROLE(),'')`).Scan(&env.Role); err != nil {
@@ -65,7 +66,7 @@ func buildMySQLCommands(ctx context.Context, conn *sql.Conn, d dialect.ID, req O
 	var old ObjectDefinition
 	if req.Action == "create" {
 		if err == nil {
-			return out, ErrObjectChanged
+			return out, ErrObjectAlreadyExists
 		}
 		if !errors.Is(err, ErrCatalogNotFound) {
 			return out, err

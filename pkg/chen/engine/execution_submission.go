@@ -103,7 +103,7 @@ func (v *Server) admitExecution(w http.ResponseWriter, s *session, c *console, r
 		fail(w, 400, "invalid_transaction_action", "Transaction resolution requires a mode action")
 		return
 	}
-	if strings.TrimSpace(req.SQL) == "" || sqlservice.DocumentExceedsLimit(req.SQL) {
+	if intent.objectPlan == nil && strings.TrimSpace(req.SQL) == "" || sqlservice.DocumentExceedsLimit(req.SQL) {
 		fail(w, 400, "invalid_sql", "SQL is empty or too large")
 		return
 	}
@@ -119,7 +119,7 @@ func (v *Server) admitExecution(w http.ResponseWriter, s *session, c *console, r
 	}
 	if old := c.requests[req.RequestID]; old != nil {
 		s.mu.Unlock()
-		if old.objectPlan != intent.objectPlan || old.consoleMode != req.ConsoleMode || old.transactionAction != req.TransactionAction || old.transactionOnPending != req.TransactionOnPending || old.transactionRevision != req.TransactionRevision || old.confirmImplicitCommit != req.ConfirmImplicitCommit || (old.queryPage != nil) != (queryPage != nil) || (queryPage != nil && old.queryPage.fingerprint != queryPage.fingerprint) || old.planMode != req.PlanMode || old.sql != req.SQL || old.submitReview != req.SubmitReview || old.confirmWarnings != req.ConfirmWarnings || (old.export != nil) != isExport || (old.export != nil && old.export.format != req.Format) || (old.browse != nil) != (browse != nil) || old.edit != nil || (browse != nil && browse.plan != nil && (old.browse == nil || old.browse.plan == nil || old.browse.plan.fingerprint != browse.plan.fingerprint)) {
+		if old.objectPlan != intent.objectPlan || old.consoleMode != req.ConsoleMode || old.transactionAction != req.TransactionAction || old.transactionOnPending != req.TransactionOnPending || old.transactionRevision != req.TransactionRevision || old.confirmImplicitCommit != req.ConfirmImplicitCommit || (old.queryPage != nil) != (queryPage != nil) || (queryPage != nil && old.queryPage.fingerprint != queryPage.fingerprint) || old.planMode != req.PlanMode || old.objectPlan == nil && old.sql != req.SQL || old.submitReview != req.SubmitReview || old.confirmWarnings != req.ConfirmWarnings || (old.export != nil) != isExport || (old.export != nil && old.export.format != req.Format) || (old.browse != nil) != (browse != nil) || old.edit != nil || (browse != nil && browse.plan != nil && (old.browse == nil || old.browse.plan == nil || old.browse.plan.fingerprint != browse.plan.fingerprint)) {
 			fail(w, 409, "idempotency_conflict", "Request ID already belongs to different SQL")
 			return
 		}
