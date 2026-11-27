@@ -14,6 +14,7 @@ type ObjectKind string
 const (
 	FunctionKind  ObjectKind = "function"
 	ProcedureKind ObjectKind = "procedure"
+	TriggerKind   ObjectKind = "trigger"
 )
 
 func (k ObjectKind) IsRoutine() bool { return k == FunctionKind || k == ProcedureKind }
@@ -28,6 +29,7 @@ type ObjectRef struct {
 	Schema     string          `json:"schema"`
 	Name       string          `json:"name"`
 	Kind       ObjectKind      `json:"kind"`
+	Table      string          `json:"table,omitempty"`
 	InputTypes []ObjectTypeRef `json:"input_types,omitzero"`
 }
 
@@ -74,15 +76,7 @@ func PostgreSQLRoutineRows(ctx context.Context, conn *sql.Conn, req RoutineListR
 	if err := catalogScopeAccess(ctx, conn, dialect.PostgreSQL, req.Database, req.Schema); err != nil {
 		return nil, err
 	}
-	// PostgreSQL 10 uses proisagg and has no procedures. Each branch references
-	// only columns that exist on that version.
-	// FirstNormalObjectId (16384) separates user-defined window functions
-	// from the window functions assigned reserved OIDs by initdb.
-	procedure, filter := "false", "NOT p.proisagg AND (NOT p.proiswindow OR p.oid >= 16384)"
-	if req.ServerVersion >= 110000 {
-		procedure = "(p.prokind = 'p')"
-		filter = "(p.prokind IN ('f','p') OR (p.prokind = 'w' AND p.oid >= 16384))"
-	}
+	procedure, filter := postgresRoutineKinds(req.ServerVersion)
 	var filterProcedure any
 	if req.Kind != "" {
 		filterProcedure = req.Kind == ProcedureKind
@@ -93,8 +87,7 @@ func PostgreSQLRoutineRows(ctx context.Context, conn *sql.Conn, req RoutineListR
  FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
  WHERE ` + filter + ` AND ($1 = '' OR n.nspname = $1)
  AND ($2::boolean IS NULL OR ` + procedure + ` = $2)
- AND n.nspname IN (SELECT schema_name FROM information_schema.schemata)
- AND (pg_catalog.pg_has_role(p.proowner, 'USAGE') OR pg_catalog.has_function_privilege(p.oid, 'EXECUTE'))
+ AND ` + postgresRoutineVisible + `
  AND p.proname ILIKE $3 ESCAPE '!'
  AND (n.nspname, p.proname, ` + procedure + `, p.oid) > ($4::pg_catalog.name, $5::pg_catalog.name, $6::boolean, $7::pg_catalog.oid)
  ORDER BY n.nspname, p.proname, is_procedure, p.oid LIMIT $8
@@ -134,4 +127,15 @@ ORDER BY page.nspname, page.proname, page.is_procedure, page.oid`
 		items = append(items, item)
 	}
 	return items, rows.Err()
+}
+
+const postgresRoutineVisible = `n.nspname IN (SELECT schema_name FROM information_schema.schemata)
+ AND (pg_catalog.pg_has_role(p.proowner, 'USAGE') OR pg_catalog.has_function_privilege(p.oid, 'EXECUTE'))`
+
+func postgresRoutineKinds(version int) (procedure, filter string) {
+	// OIDs below FirstNormalObjectId belong to built-in window functions.
+	if version < 110000 {
+		return "false", "NOT p.proisagg AND (NOT p.proiswindow OR p.oid >= 16384)"
+	}
+	return "(p.prokind = 'p')", "(p.prokind IN ('f','p') OR (p.prokind = 'w' AND p.oid >= 16384))"
 }

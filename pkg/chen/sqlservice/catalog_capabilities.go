@@ -40,7 +40,8 @@ func ReadCatalogCapabilities(ctx context.Context, conn *sql.Conn, d dialect.ID, 
 			if version >= 110000 {
 				kinds = append(kinds, ProcedureKind)
 			}
-			result.Collections["routine"] = CatalogCollection{Kinds: kinds, Actions: []string{"list"}}
+			result.Collections["routine"] = CatalogCollection{Kinds: kinds, Actions: []string{"list", "inspect", "definition", "create", "edit", "rename", "drop", "invoke"}}
+			result.Collections["trigger"] = CatalogCollection{Kinds: []ObjectKind{TriggerKind}, Actions: []string{"list", "inspect", "definition", "create", "edit", "rename", "drop", "setState"}}
 		}
 	}
 	return result, nil
