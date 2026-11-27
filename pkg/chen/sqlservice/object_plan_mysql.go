@@ -88,6 +88,9 @@ func buildMySQLCommands(ctx context.Context, conn *sql.Conn, d dialect.ID, req O
 			if err != nil {
 				return out, err
 			}
+			if req.Action == "edit" && old.Status == "unsupported" {
+				return out, ErrCatalogUnsupported
+			}
 			if req.Baseline != "" && req.Baseline != old.Version {
 				return out, ErrObjectChanged
 			}
@@ -96,9 +99,12 @@ func buildMySQLCommands(ctx context.Context, conn *sql.Conn, d dialect.ID, req O
 			}
 		}
 	}
+	// OceanBase can reject explicit DEFINER even for an object's owner.
+	// An implicit definer is equivalent only for the identical native account.
+	obOwner := p.Product == dialect.OceanBaseMySQL && strings.Count(env.User, "@") == 1 && env.User == myString(detail.Properties, "definer")
 	switch req.Action {
 	case "create", "edit":
-		out.Steps, err = mysqlPlanDDL(req, p, opts, detail, old)
+		out.Steps, err = mysqlPlanDDL(req, p, opts, detail, old, obOwner)
 		if err == nil && req.Action == "edit" {
 			if err = checkMySQLDefinitionEnvironment(env, old, req, opts); err != nil {
 				return out, err
@@ -139,7 +145,7 @@ func buildMySQLCommands(ctx context.Context, conn *sql.Conn, d dialect.ID, req O
 			return out, errors.New("event state must be ENABLE or DISABLE")
 		}
 		var st ObjectStep
-		st, err = mysqlEventAlter(req.Ref, old, opts, suffix)
+		st, err = mysqlEventAlter(req.Ref, old, opts, suffix, obOwner)
 		out.Steps = []ObjectStep{st}
 	case "readDefinition":
 		out.Steps = []ObjectStep{{SQL: "SHOW CREATE " + strings.ToUpper(string(req.Ref.Kind)) + " " + mysqlQualified(req.Ref), ResultRole: "definition"}}

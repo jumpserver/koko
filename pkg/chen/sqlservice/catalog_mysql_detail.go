@@ -346,7 +346,13 @@ func MySQLObjectDefinitionPage(ctx context.Context, conn *sql.Conn, d dialect.ID
 	}
 	result.Environment = map[string]string{}
 	for _, k := range []string{"sql_mode", "character_set_client", "collation_connection", "database_collation", "time_zone"} {
-		if s, ok := row[k].(string); ok {
+		source := row
+		if profile.Product == dialect.OceanBaseMySQL && ref.Kind == TriggerKind && (k == "collation_connection" || k == "database_collation") {
+			// SHOW CREATE TRIGGER reports character set names in its collation
+			// fields. The trigger's checked dictionary row has the native collations.
+			source = after
+		}
+		if s, ok := source[k].(string); ok {
 			result.Environment[k] = s
 		}
 	}

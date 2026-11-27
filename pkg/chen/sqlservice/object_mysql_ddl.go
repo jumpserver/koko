@@ -17,6 +17,7 @@ type mysqlDDLHeader struct {
 	kind                 ObjectKind
 	replace              bool
 	definer              string
+	definerStart         int
 	verbToken, kindToken token
 	nameToken            token
 	next                 int
@@ -68,7 +69,7 @@ func mysqlObjectHeader(sql string, ref ObjectRef, opts AnalyzeOptions) (mysqlDDL
 		pos += 2
 	}
 	if pos < len(ts) && ts[pos].is("DEFINER") {
-		begin := ts[pos].start
+		h.definerStart = ts[pos].start
 		if pos+2 >= len(ts) || ts[pos+1].kind != '=' {
 			return h, errors.New("invalid DEFINER")
 		}
@@ -88,7 +89,7 @@ func mysqlObjectHeader(sql string, ref ObjectRef, opts AnalyzeOptions) (mysqlDDL
 				pos += 2
 			}
 		}
-		h.definer = sql[begin:ts[pos-1].end]
+		h.definer = sql[h.definerStart:ts[pos-1].end]
 	}
 	if pos >= len(ts) || !ts[pos].is(string(ref.Kind)) {
 		return h, errors.New("definition kind differs from the selected object")
@@ -205,7 +206,7 @@ func mysqlRestoreTriggerOrder(source string, h mysqlDDLHeader, detail ObjectDeta
 	return "", errors.New("trigger requires FOR EACH ROW")
 }
 
-func mysqlPlanDDL(req ObjectPlanRequest, profile MySQLObjectProfile, opts AnalyzeOptions, detail ObjectDetail, old ObjectDefinition) ([]ObjectStep, error) {
+func mysqlPlanDDL(req ObjectPlanRequest, profile MySQLObjectProfile, opts AnalyzeOptions, detail ObjectDetail, old ObjectDefinition, obOwner bool) ([]ObjectStep, error) {
 	source := req.Definition
 	header, err := mysqlObjectHeader(source, req.Ref, opts)
 	if err != nil {
@@ -233,7 +234,17 @@ func mysqlPlanDDL(req ObjectPlanRequest, profile MySQLObjectProfile, opts Analyz
 			return nil, err
 		}
 	}
-	if header.definer == "" && original.definer != "" {
+	if profile.Product == dialect.OceanBaseMySQL && req.Ref.Kind == TriggerKind {
+		if !obOwner || old.Environment["collation_connection"] == "" || old.Environment["database_collation"] == "" ||
+			(header.definer != "" && header.definer != original.definer) {
+			return nil, ErrCatalogUnsupported
+		}
+		// The native default preserves this owner's identity without requiring
+		// a global privilege for the explicit DEFINER emitted by SHOW CREATE.
+		if header.definer != "" {
+			source = source[:header.definerStart] + source[header.definerStart+len(header.definer):]
+		}
+	} else if header.definer == "" && original.definer != "" {
 		at := header.kindToken.start
 		source = source[:at] + original.definer + " " + source[at:]
 	}
@@ -265,7 +276,16 @@ func mysqlPlanDDL(req ObjectPlanRequest, profile MySQLObjectProfile, opts Analyz
 	return []ObjectStep{{SQL: "DROP " + strings.ToUpper(string(req.Ref.Kind)) + " " + mysqlQualified(req.Ref)}, {SQL: source}}, nil
 }
 
-func mysqlEventAlter(ref ObjectRef, def ObjectDefinition, opts AnalyzeOptions, suffix string) (ObjectStep, error) {
+func mysqlEventAlter(ref ObjectRef, def ObjectDefinition, opts AnalyzeOptions, suffix string, obOwner bool) (ObjectStep, error) {
+	if def.Status == "restricted" {
+		return ObjectStep{}, ErrCatalogForbidden
+	}
+	if def.Status == "unsupported" {
+		if !obOwner {
+			return ObjectStep{}, ErrCatalogUnsupported
+		}
+		return ObjectStep{SQL: "ALTER EVENT " + mysqlQualified(ref) + " " + suffix}, nil
+	}
 	h, err := mysqlObjectHeader(def.Text, ref, opts)
 	if err != nil || h.definer == "" {
 		return ObjectStep{}, errors.New("an original native event DEFINER is required")
