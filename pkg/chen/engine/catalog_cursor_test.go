@@ -60,3 +60,27 @@ func TestCatalogProjectionCursor(t *testing.T) {
 		}
 	}
 }
+
+func TestRoutineCursorIsolation(t *testing.T) {
+	req := &catalogRequest{session: &session{id: "s"}, resource: &catalogResource{}, database: "db"}
+	setScope := func(query string) {
+		t.Helper()
+		var err error
+		req.scope, err = parseCatalogScope(httptest.NewRequest("GET", "/?"+query, nil), "objects")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	setScope("collection=routine&limit=1")
+	pos := catalogPosition{AfterSchema: "app", AfterName: "total", AfterKind: "function", AfterOID: 23456, ServerVersion: 140021}
+	token := req.nextCursor(pos)
+	if got, err := req.decodeCursor(token); err != nil || got != pos {
+		t.Fatalf("routine position = %+v, %v", got, err)
+	}
+	for _, q := range []string{"limit=1", "collection=routine&limit=2", "collection=routine&limit=1&kind=procedure", "collection=routine&limit=1&q=x"} {
+		setScope(q)
+		if _, err := req.decodeCursor(token); err == nil {
+			t.Fatalf("accepted routine cursor for %q", q)
+		}
+	}
+}
