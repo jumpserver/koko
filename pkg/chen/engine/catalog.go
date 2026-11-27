@@ -280,7 +280,9 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 			}
 		}
 		if err == nil {
-			conn, err = db.Conn(ctx)
+			checkout, cancel := context.WithTimeout(ctx, databaseCheckoutTimeout)
+			conn, err = db.Conn(checkout)
+			cancel()
 		}
 		if err == nil {
 			connFinish := finish

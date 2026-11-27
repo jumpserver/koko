@@ -218,6 +218,9 @@ func (v *Server) transactionAction(s *session, c *console, e *execution, audit *
 			if e.transactionOnPending == "" {
 				return &APIError{"transaction_pending", "Commit or roll back the pending transaction before switching modes"}
 			}
+			if err := e.beginTransactionBoundary(); err != nil {
+				return err
+			}
 			commit := e.transactionOnPending == "commit"
 			if err := v.finishManualTransaction(s, c, e, commit); err != nil {
 				return err
@@ -231,6 +234,9 @@ func (v *Server) transactionAction(s *session, c *console, e *execution, audit *
 	case "commit", "rollback":
 		if !c.manual || c.manualTx == nil {
 			return &APIError{"transaction_idle", "There is no pending manual transaction"}
+		}
+		if err := e.beginTransactionBoundary(); err != nil {
+			return err
 		}
 		commit := e.transactionAction == "commit"
 		if err := v.finishManualTransaction(s, c, e, commit); err != nil {

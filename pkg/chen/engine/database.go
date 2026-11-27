@@ -40,14 +40,15 @@ func (pool databasePool) openDatabase(c core.ConnectionConfig, max int) (*sql.DB
 	var db *sql.DB
 	switch dialect.ID(strings.ToLower(c.Dialect)) {
 	case dialect.MySQL, dialect.MariaDB:
+		c.DialContext = databaseDialer{dial: c.DialContext}.DialContext
 		connector, e := dbconn.MySQLConnector(c, dbconn.MySQLOptions{
 			TLS: t, ParseTime: false, ClientFoundRows: true,
-			Timeout: 10 * time.Second, ReadTimeout: pool.readTimeout(2 * time.Minute), WriteTimeout: 15 * time.Second,
+			Timeout: databaseDialTimeout, ReadTimeout: pool.readTimeout(), WriteTimeout: databaseWriteTimeout,
 		})
 		if e != nil {
 			return nil, errors.New("invalid MySQL connection configuration")
 		}
-		db = pool.openConnector(connector, 2*time.Minute)
+		db = openConnector(connector)
 	case dialect.PostgreSQL:
 		if os.Getenv("PGSERVICE") != "" {
 			return nil, errors.New("PGSERVICE cannot override server-managed database connections")
@@ -68,18 +69,16 @@ func (pool databasePool) openDatabase(c core.ConnectionConfig, max int) (*sql.DB
 		}
 		cfg.TLSConfig = t
 		cfg.Fallbacks = nil
-		if pool == catalogPool {
-			cfg.DialFunc = catalogDialer{dial: cfg.DialFunc}.DialContext
-		}
+		cfg.DialFunc = databaseDialer{dial: cfg.DialFunc, readTimeout: pool.readTimeout(), writeTimeout: databaseWriteTimeout}.DialContext
 		configurePostgresTransport(cfg, c, t)
 		cfg.SSLNegotiation = "postgres"
-		cfg.ConnectTimeout = 10 * time.Second
+		cfg.ConnectTimeout = databaseDialTimeout
 		cfg.RuntimeParams = map[string]string{"application_name": "Chen Go"}
 		cfg.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 		cfg.BuildContextWatcherHandler = func(conn *pgconn.PgConn) ctxwatch.Handler {
 			return &pgconn.CancelRequestContextWatcherHandler{Conn: conn, CancelRequestDelay: 0, DeadlineDelay: 3 * time.Second}
 		}
-		db = pool.openConnector(stdlib.GetConnector(*cfg), cfg.ConnectTimeout)
+		db = openConnector(stdlib.GetConnector(*cfg))
 	default:
 		db, err = pool.extraDatabase(c, t)
 		if err != nil {
@@ -123,7 +122,7 @@ func configurePostgresTransport(cfg *pgx.ConnConfig, c core.ConnectionConfig, t 
 }
 
 func postgresTLSConnection(ctx context.Context, conn net.Conn, cfg *tls.Config, prefer bool) (net.Conn, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, databaseLoginTimeout)
 	defer cancel()
 	deadline, _ := ctx.Deadline()
 	if err := conn.SetDeadline(deadline); err != nil {

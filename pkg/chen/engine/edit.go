@@ -490,7 +490,7 @@ func (v *Server) applyEdits(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithCancel(c.ctx)
 	e := &execution{edit: p, sql: p.previewSQL, ctx: ctx, cancel: cancel, cancelDone: make(chan struct{}), submitReview: req.SubmitReview, confirmWarnings: req.ConfirmWarnings, view: ExecutionView{ID: newID("exe_"), ConsoleID: c.id, Status: "queued", ResultIDs: []string{}, StatementResults: []StatementResult{}, AuditStatus: "pending", Edit: &EditOutcome{PlanID: p.id, Outcome: "pending"}}}
-	e.startDeadline(v.opts.QueryTimeout)
+	e.startDeadline(s, v.opts.QueryTimeout)
 	select {
 	case c.queue <- e:
 		s.executions[e.view.ID] = e

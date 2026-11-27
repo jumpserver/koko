@@ -8,7 +8,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/jumpserver/koko/internal/dbconn"
@@ -21,9 +20,10 @@ import (
 func (pool databasePool) extraDatabase(c core.ConnectionConfig, t *tls.Config) (*sql.DB, error) {
 	switch d := dialect.ID(c.Dialect); d {
 	case dialect.OceanBaseMySQL, dialect.OceanBaseOracle:
+		c.DialContext = databaseDialer{dial: c.DialContext}.DialContext
 		options := dbconn.MySQLOptions{
 			TLS: t, ParseTime: false, ClientFoundRows: d == dialect.OceanBaseMySQL,
-			Timeout: 10 * time.Second, ReadTimeout: pool.readTimeout(2 * time.Minute), WriteTimeout: 15 * time.Second,
+			Timeout: databaseDialTimeout, ReadTimeout: pool.readTimeout(), WriteTimeout: databaseWriteTimeout,
 		}
 		if d == dialect.OceanBaseOracle {
 			options.Autocommit = "1"
@@ -32,9 +32,9 @@ func (pool databasePool) extraDatabase(c core.ConnectionConfig, t *tls.Config) (
 		if err != nil {
 			return nil, errors.New("invalid OceanBase connection configuration")
 		}
-		return pool.openConnector(connector, 2*time.Minute), nil
+		return openConnector(connector), nil
 	case dialect.SQLServer:
-		config, err := msdsn.Parse("server=127.0.0.1;user id=chen;database=master;encrypt=disable;connection timeout=10;dial timeout=10")
+		config, err := msdsn.Parse("server=127.0.0.1;user id=chen;database=master;encrypt=disable")
 		if err != nil {
 			return nil, errors.New("invalid SQL Server connection defaults")
 		}
@@ -46,17 +46,12 @@ func (pool databasePool) extraDatabase(c core.ConnectionConfig, t *tls.Config) (
 			config.Encryption = msdsn.EncryptionRequired
 			config.HostInCertificateProvided = true
 		}
-		loginTimeout := config.ConnTimeout
-		if pool == catalogPool {
-			// ConnTimeout otherwise applies the same deadline to reads and writes.
-			config.ConnTimeout = 0
-		}
+		// ConnTimeout applies to both reads and writes in go-mssqldb.
+		config.ConnTimeout, config.DialTimeout = 0, databaseDialTimeout
 		connector := mssql.NewConnectorConfig(config)
-		if pool == catalogPool {
-			dialer := &net.Dialer{KeepAlive: config.KeepAlive}
-			connector.Dialer = catalogDialer{dial: dialer.DialContext, writeTimeout: loginTimeout}
-		}
-		return pool.openConnector(connector, loginTimeout), nil
+		dialer := &net.Dialer{Timeout: databaseDialTimeout, KeepAlive: config.KeepAlive}
+		connector.Dialer = databaseDialer{dial: dialer.DialContext, readTimeout: pool.readTimeout(), writeTimeout: databaseWriteTimeout}
+		return openConnector(connector), nil
 	case dialect.ClickHouse:
 		protocol := clickhouse.Native
 		if c.Transport == "http" || c.Transport == "" && (c.Port == 8123 || c.Port == 8443) {
@@ -66,20 +61,14 @@ func (pool databasePool) extraDatabase(c core.ConnectionConfig, t *tls.Config) (
 		if database == "" {
 			database = "default"
 		}
-		options := &clickhouse.Options{Addr: []string{net.JoinHostPort(c.Host, strconv.Itoa(c.Port))}, Auth: clickhouse.Auth{Database: database, Username: c.User, Password: c.Password}, TLS: t, Protocol: protocol, DialTimeout: 10 * time.Second, ReadTimeout: 2 * time.Minute, ClientInfo: clickhouse.ClientInfo{Products: []struct{ Name, Version string }{{Name: "chen", Version: "go"}}}}
-		if pool == catalogPool {
-			options.TransportFunc = catalogClickHouseHTTPTransport
-		}
+		options := &clickhouse.Options{Addr: []string{net.JoinHostPort(c.Host, strconv.Itoa(c.Port))}, Auth: clickhouse.Auth{Database: database, Username: c.User, Password: c.Password}, TLS: t, Protocol: protocol, DialTimeout: databaseDialTimeout, ClientInfo: clickhouse.ClientInfo{Products: []struct{ Name, Version string }{{Name: "chen", Version: "go"}}}}
 		if protocol == clickhouse.HTTP {
-			return pool.openConnector(&clickHouseHTTPConnector{options: *options}, options.DialTimeout), nil
+			return openConnector(&clickHouseHTTPConnector{options: *options, pool: pool}), nil
 		}
 		if c.Transport == "auto" {
-			return pool.openConnector(&clickHouseAutoConnector{options: *options, pool: pool}, options.DialTimeout), nil
+			return openConnector(&clickHouseAutoConnector{options: *options, pool: pool}), nil
 		}
-		if pool == catalogPool {
-			return pool.openConnector(catalogClickHouseNative(*options), options.DialTimeout), nil
-		}
-		return clickhouse.OpenDB(options), nil
+		return openConnector(pool.clickHouseNative(*options)), nil
 	case dialect.Oracle:
 		options := oracleConnectionOptions(c)
 		if pool == catalogPool {
@@ -89,14 +78,20 @@ func (pool databasePool) extraDatabase(c core.ConnectionConfig, t *tls.Config) (
 			options["SSL"] = "true"
 			options["SSL VERIFY"] = strconv.FormatBool(!t.InsecureSkipVerify)
 		}
+		dialer := databaseDialer{dial: c.DialContext}
 		if pool == catalogPool {
-			c.DialContext = catalogDialer{dial: (&net.Dialer{Timeout: 10 * time.Second}).DialContext, writeTimeout: 2 * time.Minute}.DialContext
+			dialer.readTimeout, dialer.writeTimeout = pool.readTimeout(), databaseWriteTimeout
 		}
+		// Regular go-ora uses *net.TCPConn for out-of-band breaks. Keep its
+		// native 120s I/O fallback until break and fetch cleanup can be split.
+		followRedirects := pool == regularPool && c.DialContext == nil && (c.TLS.ServerName == "" || c.TLS.ServerName == c.Host)
+		c.DialContext = dialer.DialContext
 		connector := dbconn.OracleConnector(c, t, options)
-		if pool == catalogPool {
-			return pool.openConnector(catalogOracleConnector{connector}, 2*time.Minute), nil
+		if followRedirects {
+			// Direct connections can follow the listener to another RAC instance.
+			connector.Dialer(dialer)
 		}
-		return sql.OpenDB(connector), nil
+		return openConnector(oracleConnector{connector, pool}), nil
 	case dialect.Dameng:
 		if t != nil {
 			return nil, errors.New("Dameng TLS requires a configured vendor certificate directory; TLS cannot be silently disabled")
@@ -111,7 +106,7 @@ func (pool databasePool) extraDatabase(c core.ConnectionConfig, t *tls.Config) (
 		if pool == catalogPool {
 			dialName = damengCatalogDialName
 		}
-		dsn := "dm://" + c.User + ":" + c.Password + "@" + net.JoinHostPort(c.Host, strconv.Itoa(c.Port)) + "?connectTimeout=10000&socketTimeout=120&doSwitch=0&logLevel=off&lobMode=1&dialName=" + dialName
+		dsn := "dm://" + c.User + ":" + c.Password + "@" + net.JoinHostPort(c.Host, strconv.Itoa(c.Port)) + "?connectTimeout=10000&socketTimeout=0&doSwitch=0&logLevel=off&lobMode=1&dialName=" + dialName
 		return pool.openDameng(dsn)
 
 	case dialect.DB2:

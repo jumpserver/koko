@@ -58,6 +58,7 @@ func editTransactionState(ctx context.Context, c *console, d dialect.ID) (editTx
 		}
 	}
 	err := c.conn.Raw(func(raw any) error {
+		raw = rawDatabaseConn(raw)
 		if wrapped, ok := raw.(*damengConn); ok {
 			raw = wrapped.damengContextConn
 		}
@@ -134,11 +135,11 @@ func (b *editBoundary) preserveOracleTransaction() error {
 		return nil
 	}
 	return b.conn.Raw(func(raw any) error {
-		if conn, ok := raw.(interface{ ChenSetAutoCommit(bool) bool }); ok {
+		if conn, ok := rawDatabaseConn(raw).(interface{ ChenSetAutoCommit(bool) bool }); ok {
 			previous := conn.ChenSetAutoCommit(false)
 			b.restoreAutoCommit = func() {
 				_ = b.conn.Raw(func(raw any) error {
-					if conn, ok := raw.(interface{ ChenSetAutoCommit(bool) bool }); ok {
+					if conn, ok := rawDatabaseConn(raw).(interface{ ChenSetAutoCommit(bool) bool }); ok {
 						conn.ChenSetAutoCommit(previous)
 					}
 					return nil
@@ -146,7 +147,7 @@ func (b *editBoundary) preserveOracleTransaction() error {
 			}
 			return nil
 		}
-		if _, ok := raw.(interface{ ChenTransactionState() string }); ok {
+		if _, ok := rawDatabaseConn(raw).(interface{ ChenTransactionState() string }); ok {
 			return nil
 		}
 		return errors.New("Oracle driver cannot preserve the existing transaction")

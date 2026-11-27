@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -61,49 +60,23 @@ func (v *Server) cancelExecutionWithResponse(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	e := s.executions[r.PathValue("eid")]
-	var c *console
-	if e != nil {
-		c = s.consoles[e.view.ConsoleID]
-	}
 	s.mu.Unlock()
 	if e == nil {
 		fail(w, 404, "not_found", "Execution not found")
 		return
 	}
-	e.mu.Lock()
-	if terminal(e.view.Status) {
-		view := e.view
-		e.mu.Unlock()
-		writeJSON(w, 200, response(view))
+	status := http.StatusAccepted
+	switch e.requestCancellation(s, "user") {
+	case cancelFinished:
+		status = http.StatusOK
+	case cancelUnsupported:
+		fail(w, http.StatusConflict, "cancel_unsupported", "The installed database driver cannot cancel an active query")
+		return
+	case cancelTransactionBoundary:
+		fail(w, http.StatusConflict, "transaction_cancel_unsupported", "Transaction boundaries cannot be canceled")
 		return
 	}
-	if e.cancelRequested.Load() {
-		e.mu.Unlock()
-		writeJSON(w, 202, response(e.snapshot()))
-		return
-	}
-	if !supportsActiveCancellation(s.grant.Dialect()) && e.view.Status != "queued" && e.view.Status != "waiting_review" {
-		e.mu.Unlock()
-		fail(w, 409, "cancel_unsupported", "The installed database driver cannot cancel an active query")
-		return
-	}
-	if e.transactionAction != "" && e.view.Status != "queued" && e.view.Status != "waiting_review" {
-		e.mu.Unlock()
-		fail(w, 409, "transaction_cancel_unsupported", "Transaction boundaries cannot be canceled")
-		return
-	}
-	e.cancelRequested.Store(true)
-	e.view.Status = "cancel_requested"
-	e.view.Revision++
-	if e.databaseDone != nil && c != nil && s.db != nil && supportsBackendInterrupt(s.grant.Dialect()) {
-		go interruptDatabaseWork(s, c, e, e.databaseDone)
-	} else {
-		e.cancel()
-		close(e.cancelDone)
-	}
-	e.mu.Unlock()
-	s.emit("execution.updated", e.snapshot())
-	writeJSON(w, 202, response(e.snapshot()))
+	writeJSON(w, status, response(e.snapshot()))
 }
 func (v *Server) worker(s *session, c *console) {
 	defer s.workers.Done()
@@ -156,7 +129,7 @@ func (v *Server) update(s *session, e *execution, fn func(*ExecutionView)) {
 }
 
 func interruptExecutionBackend(s *session, c *console, e *execution) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), databaseCancelTimeout)
 	defer cancel()
 	if err := cancelBackend(ctx, s, c, e); err != nil {
 		slog.Warn("database_interrupt_failed", "dialect", s.grant.Dialect(), "execution", e.view.ID, "error", err)
@@ -181,32 +154,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	if d == dialect.DB2 {
 		db2CancelCheckpoint = db2CancellationCheckpoint(c)
 	}
-	// A canceled mysql driver context closes the client TCP connection; that
-	// alone does not prove that a server-side write stopped. Cover timeouts,
-	// admin/session/console closure as well as the explicit HTTP cancel path.
-	var databaseTouched atomic.Bool
-	databaseCancelDone := make(chan struct{})
-	stopDatabaseCancel := context.AfterFunc(e.ctx, func() {
-		defer close(databaseCancelDone)
-		if (!d.UsesMySQLWire() && d != dialect.ClickHouse) || !databaseTouched.Load() || e.cancelRequested.Load() {
-			return
-		}
-		interruptExecutionBackend(s, c, e)
-	})
-	databaseCancelJoined := false
-	joinDatabaseCancel := func() {
-		if databaseCancelJoined {
-			return
-		}
-		databaseCancelJoined = true
-		if !stopDatabaseCancel() {
-			<-databaseCancelDone
-		}
-	}
+	var databaseTouched bool
 	defer func() {
-		// Stop the callback before normal completion cancels e.ctx. Join a
-		// running KILL before releasing the connection to any next execution.
-		joinDatabaseCancel()
+		e.finishDatabaseWork()
 		e.stopDeadline()
 		e.cancel()
 		if e.cancelRequested.Load() {
@@ -251,6 +201,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		audit.ReplayOutput = e.replayOutput
 		audit.Output += fmt.Sprintf(" execution_id=%s state=%s completed_statements=%d", view.ID, state, completedStatements)
+		if view.CancelReason != "" {
+			audit.Output += " cancel_reason=" + view.CancelReason
+		}
 		if view.Transaction != nil {
 			audit.Output += fmt.Sprintf(" transaction_mode=%t transaction_state=%s transaction_outcome=%s prior_committed=%t", view.Transaction.Manual, view.Transaction.State, view.Transaction.Outcome, view.Transaction.PriorCommitted)
 		}
@@ -300,7 +253,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		if e.export != nil {
 			e.export.finishExecution()
 		}
-		if databaseTouched.Load() && runErr != nil && !c.closed.Load() && !c.lost.Load() {
+		if databaseTouched && runErr != nil && !c.closed.Load() && !c.lost.Load() {
 			ping, done := context.WithTimeout(context.Background(), time.Second)
 			defer done()
 			if c.conn.PingContext(ping) != nil {
@@ -310,10 +263,6 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	}()
 	failure := func(err error, api *APIError) {
 		e.finishDatabaseWork()
-		if errors.Is(err, context.Canceled) && e.deadlineExpired.Load() {
-			err = context.DeadlineExceeded
-			api = safeDatabaseError(err)
-		}
 		runErr = err
 		if d == dialect.DB2 && db2CancellationAcknowledged(c, db2CancelCheckpoint) {
 			confirmedCancel = true
@@ -323,7 +272,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			api, maskedDiagnostic = v.maskDatabaseDiagnostic(s, api)
 		}
 		status := "failed"
-		if confirmedCancel {
+		if api.Code == "transaction_outcome_unknown" {
+			status = "unknown"
+		} else if confirmedCancel {
 			status = "canceled"
 		} else if currentInFlight {
 			if !isServerError(err) {
@@ -333,9 +284,11 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		} else if e.ctx.Err() != nil || e.cancelRequested.Load() {
 			status = "canceled"
 		}
+		if status == "canceled" && e.deadlineExpired.Load() {
+			api = safeDatabaseError(context.DeadlineExceeded)
+		}
 		rolledBack := false
 		if c.manual && e.transactionAction == "" && (userSQLStarted || preflightStartedTransaction) && c.manualTx != nil {
-			joinDatabaseCancel()
 			var rollbackErr error
 			if preflightStartedTransaction && !userSQLStarted {
 				rollbackErr = v.rollbackSourcePreflight(s, c, e)
@@ -369,9 +322,6 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				api = &APIError{code, message + api.Message}
 			}
 		}
-		if api.Code == "transaction_outcome_unknown" {
-			status = "unknown"
-		}
 		v.update(s, e, func(x *ExecutionView) {
 			x.Status = status
 			x.Error = api
@@ -383,7 +333,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				x.Transaction.TransactionView = *current
 			}
 		})
-		if (d == dialect.Dameng || d == dialect.DB2) && databaseTouched.Load() && (e.ctx.Err() != nil || e.cancelRequested.Load() || confirmedCancel) {
+		if (d == dialect.Dameng || d == dialect.DB2) && databaseTouched && (e.ctx.Err() != nil || e.cancelRequested.Load() || confirmedCancel) {
 			invalidateEditConnection(s, c)
 		}
 	}
@@ -423,12 +373,12 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		v.update(s, e, func(x *ExecutionView) { x.Status = "succeeded"; x.StartedAt = &start })
 		return
 	}
-	if err := e.beginDatabaseWork(); err != nil {
+	if err := e.beginDatabaseWork(s, c); err != nil {
 		failure(err, safeDatabaseError(err))
 		return
 	}
 	if d.UsesMySQLWire() {
-		databaseTouched.Store(true)
+		databaseTouched = true
 	}
 	var mysqlState *mysqlSessionState
 	var mysqlHint *resultStarSource
@@ -493,10 +443,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			e.restoreReadContext = func() error {
 				// A late KILL must finish before USE/SET restores the namespace.
 				e.finishDatabaseWork()
-				joinDatabaseCancel()
 				return guard.restore(s)
 			}
-			databaseTouched.Store(true)
+			databaseTouched = true
 			if err := guard.enter(e.ctx); err != nil {
 				failure(err, sourceContextError(err))
 				return
@@ -670,7 +619,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		// sql_mode (or change database), so take a new snapshot after each.
 		current := opts
 		if statementIndex > 0 {
-			if err := e.beginDatabaseWork(); err != nil {
+			if err := e.beginDatabaseWork(s, c); err != nil {
 				failure(err, safeDatabaseError(err))
 				return
 			}
@@ -727,7 +676,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		v.update(s, e, func(view *ExecutionView) { view.Status = "running" })
 
-		if err := e.beginDatabaseWork(); err != nil {
+		if err := e.beginDatabaseWork(s, c); err != nil {
 			failure(err, safeDatabaseError(err))
 			return
 		}
@@ -773,6 +722,13 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			}
 			if risk {
 				pending := c.manualTx != nil
+				// Resolve the previous transaction outside the interrupt window for
+				// the upcoming DDL. Record its result before admitting the DDL.
+				e.finishDatabaseWork()
+				if e.cancelRequested.Load() || e.ctx.Err() != nil {
+					failure(context.Canceled, safeDatabaseError(context.Canceled))
+					return
+				}
 				if err := v.finishManualTransaction(s, c, e, true); err != nil {
 					failure(err, &APIError{"transaction_outcome_unknown", err.Error()})
 					return
@@ -780,6 +736,10 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				v.publishTransaction(s, c, e, "implicit_commit")
 				if pending {
 					v.update(s, e, func(x *ExecutionView) { x.Transaction.PriorCommitted = true })
+				}
+				if err := e.beginDatabaseWork(s, c); err != nil {
+					failure(err, safeDatabaseError(err))
+					return
 				}
 			} else {
 				if err := sqlservice.CheckTransactionTables(e.ctx, c.conn, d, statement, current); err != nil {
@@ -806,7 +766,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		userSQLStarted = true
 		currentInFlight = true
-		databaseTouched.Store(true)
+		databaseTouched = true
 		if e.planMode != "" {
 			err := v.runEstimatedPlan(s, c, e, statement.SQL, planVersion)
 			if err != nil {
@@ -840,7 +800,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				if collectErr == nil {
 					collectErr = rows.Err()
 				}
-				rows.Close()
+				collectErr = errors.Join(collectErr, rows.Close())
 				if collectErr == nil {
 					collectErr = e.restoreSourceReadContext()
 				}
@@ -852,7 +812,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			} else if e.browse != nil && e.browse.plan != nil && e.browse.plan.action == "append" {
 				collectErr = v.collectBrowseAppend(s, e, rows)
 			} else if e.export != nil {
-				collectErr = v.collectExport(s, c, e, rows)
+				collectErr = v.collectExport(s, e, rows)
 			} else {
 				collectErr = v.collectResults(s, e, rows, starSource)
 			}
@@ -928,7 +888,18 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		// when it reused the same open transaction.
 		v.publishTransaction(s, c, e, outcome)
 	}
-	v.update(s, e, func(x *ExecutionView) { x.Status = "succeeded" })
+	// Cancellation may win while the last statement's audit is being recorded.
+	// Publish success under the same lock that accepts cancellation requests.
+	var canceled bool
+	v.update(s, e, func(x *ExecutionView) {
+		canceled = e.cancelRequested.Load() || e.ctx.Err() != nil
+		if !canceled {
+			x.Status = "succeeded"
+		}
+	})
+	if canceled {
+		failure(context.Canceled, safeDatabaseError(context.Canceled))
+	}
 }
 func statementSQL(stmts []sqlservice.Statement) []string {
 	out := make([]string, 0, len(stmts))
@@ -1011,13 +982,15 @@ func normalizeValue(value any, dbType string) any {
 func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows, starSource *resultStarSource) (err error) {
 	var collected []*Result
 	defer func() {
-		rows.Close()
+		if closeErr := rows.Close(); err == nil {
+			err = closeErr
+		}
 		// Once the rows have drained, an already requested interrupt must
 		// finish before source metadata uses the same physical connection.
 		if e.cancelRequested.Load() {
 			e.finishDatabaseWork()
 		}
-		if e.resultSQL != "" {
+		if err == nil && e.resultSQL != "" {
 			v.bindResultEditSource(s, e, collected, starSource)
 		}
 		e.finishDatabaseWork()

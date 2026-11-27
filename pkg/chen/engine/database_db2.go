@@ -6,9 +6,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"errors"
-	"net"
 	"sync/atomic"
-	"time"
 
 	db2 "github.com/go-db2/go-db2"
 	"github.com/jumpserver/koko/internal/dbconn"
@@ -20,10 +18,8 @@ func (pool databasePool) openDB2(c core.ConnectionConfig, t *tls.Config) (*sql.D
 	if err != nil {
 		return nil, err
 	}
-	if pool == catalogPool {
-		cfg.DialContext = catalogDialer{dial: (&net.Dialer{Timeout: cfg.Timeout}).DialContext, writeTimeout: cfg.Timeout}.DialContext
-	}
-	return pool.openConnector(&db2Connector{Connector: db2.NewConnector(cfg)}, db2LoginTimeout), nil
+	cfg.DialContext = databaseDialer{dial: cfg.DialContext, readTimeout: pool.readTimeout(), writeTimeout: databaseWriteTimeout}.DialContext
+	return openConnector(&db2Connector{Connector: db2.NewConnector(cfg)}), nil
 }
 
 func db2Config(c core.ConnectionConfig, t *tls.Config) (*db2.Config, error) {
@@ -31,41 +27,34 @@ func db2Config(c core.ConnectionConfig, t *tls.Config) (*db2.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfg.Timeout = time.Minute
+	cfg.Timeout = databaseDialTimeout
 	cfg.ClientApplName = "Chen Go"
 	return cfg, nil
 }
 
-const db2LoginTimeout = 10 * time.Second
-
 type db2Connector struct{ *db2.Connector }
 
 func (c *db2Connector) Connect(ctx context.Context) (driver.Conn, error) {
-	connect, cancel := context.WithTimeout(ctx, db2LoginTimeout)
-	defer cancel()
-	raw, err := c.Connector.Connect(connect)
+	raw, err := c.Connector.Connect(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn := &db2Conn{Conn: raw.(*db2.Conn)}
-	if login, ok := ctx.Value(catalogLoginKey{}).(*catalogLogin); ok {
-		conn.catalog = login.sockets
-	}
-	return conn, nil
+	login := ctx.Value(databaseLoginKey{}).(*databaseLogin)
+	return &db2Conn{Conn: raw.(*db2.Conn), sockets: login.sockets}, nil
 }
 
 // Keep transaction ownership and original server cancellation diagnostics on the
 // same physical connection. database/sql can replace Rows.Err with ctx.Err.
 type db2Conn struct {
 	*db2.Conn
-	catalog       *catalogSockets
+	sockets       *databaseSockets
 	inTransaction atomic.Bool
 	uncertain     atomic.Bool
 	cancellations atomic.Uint64
 }
 
 func (c *db2Conn) ChenTransactionState() string {
-	if c.uncertain.Load() || !c.Conn.IsValid() {
+	if !c.IsValid() {
 		return string(editTxUnknown)
 	}
 	if c.inTransaction.Load() {
@@ -76,7 +65,7 @@ func (c *db2Conn) ChenTransactionState() string {
 func (c *db2Conn) ChenCancellationSequence() uint64 { return c.cancellations.Load() }
 
 func (c *db2Conn) IsValid() bool {
-	return (c.catalog == nil || c.catalog.valid()) && !c.uncertain.Load() && c.Conn.IsValid()
+	return c.sockets.valid() && !c.uncertain.Load() && c.Conn.IsValid()
 }
 
 func (c *db2Conn) ResetSession(ctx context.Context) error {
@@ -160,11 +149,9 @@ func (s *db2Stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (d
 
 func (c *db2Conn) wrapRows(ctx context.Context, rows driver.Rows) *db2Rows {
 	r := &db2Rows{Rows: rows.(*db2.Rows), conn: c}
-	if c.catalog != nil {
-		// Db2 closes cursors with a background context, including a network
-		// round trip. Keep cancellation armed until the cursor is released.
-		r.stop = c.catalog.watch(ctx)
-	}
+	// Db2 closes cursors with a background context, including a network
+	// round trip. Keep cancellation armed until the cursor is released.
+	r.stop = c.sockets.watch(ctx)
 	return r
 }
 
@@ -175,10 +162,8 @@ type db2Rows struct {
 }
 
 func (r *db2Rows) Close() error {
-	if r.stop != nil {
-		defer r.stop()
-	}
-	return r.Rows.Close()
+	defer r.stop()
+	return r.conn.observe(r.conn.sockets.runCleanup(r.Rows.Close))
 }
 
 func (r *db2Rows) Next(values []driver.Value) error { return r.conn.observe(r.Rows.Next(values)) }

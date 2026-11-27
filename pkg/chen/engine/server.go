@@ -696,7 +696,7 @@ func (v *Server) createConsole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.Unlock()
-	ctx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(s.ctx, databaseCheckoutTimeout)
 	defer cancel()
 	db := s.db
 	var owned *sql.DB
@@ -731,6 +731,12 @@ func (v *Server) createConsole(w http.ResponseWriter, r *http.Request) {
 	}()
 	cctx, ccancel := context.WithCancel(s.ctx)
 	c := &console{id: newID("con_"), conn: conn, queue: make(chan *execution, 8), ctx: cctx, cancel: ccancel, requests: map[string]*execution{}, ownedDB: owned, catalogAuditAt: map[string]time.Time{}}
+	_ = conn.Raw(func(raw any) error {
+		if managed, ok := raw.(interface{ managedConn() *databaseConn }); ok {
+			c.sockets = managed.managedConn().sockets
+		}
+		return nil
+	})
 	c.context, c.backendID, err = initializeConsole(ctx, c, s.grant.Config, req)
 	if err != nil {
 		ccancel()

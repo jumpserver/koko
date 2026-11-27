@@ -71,6 +71,7 @@ type StatementResult struct {
 	RowsAffected string `json:"rows_affected,omitempty"`
 }
 type ExecutionView struct {
+	CancelReason     string                 `json:"cancel_reason,omitempty"`
 	maskedDiagnostic bool                   // the stored database error (including any script warning) is safe for AI
 	Revision         uint64                 `json:"revision"`
 	Confirmation     *ExecutionConfirmation `json:"confirmation,omitempty"`
@@ -157,9 +158,12 @@ type execution struct {
 	ctx                   context.Context
 	cancel                context.CancelFunc
 	cancelDone            chan struct{}
+	stopDatabaseWatch     func()        // protected by mu; joined before releasing the connection
+	interruptBackend      func()        // one server interrupt for the current database operation
 	databaseDone          chan struct{} // protected by mu; non-nil while the worker owns cancellable database work
 	cancelRequested       atomic.Bool
 	deadlineExpired       atomic.Bool
+	transactionBoundary   bool // protected by mu
 	submitReview          bool
 	confirmWarnings       bool
 	deadlineTimer         *time.Timer
@@ -203,8 +207,9 @@ func terminal(s string) bool {
 }
 
 type console struct {
-	manual              bool      // protected by mu
-	manualTx            driver.Tx // worker-owned on the pinned physical connection
+	sockets             *databaseSockets // physical transports captured at login; immutable after publication
+	manual              bool             // protected by mu
+	manualTx            driver.Tx        // worker-owned on the pinned physical connection
 	transaction         atomic.Pointer[TransactionView]
 	transactionActivity time.Time // last completed SQL/grid execution, protected by mu
 	id                  string

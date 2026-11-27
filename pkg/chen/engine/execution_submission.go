@@ -156,7 +156,7 @@ func (v *Server) admitExecution(w http.ResponseWriter, s *session, c *console, r
 		e.export = j
 		e.view.ExportID = j.id
 	}
-	e.startDeadline(v.opts.QueryTimeout)
+	e.startDeadline(s, v.opts.QueryTimeout)
 	select {
 	case c.queue <- e:
 		s.executions[e.view.ID] = e
