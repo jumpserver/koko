@@ -43,7 +43,8 @@ type ObjectPlanRequest struct {
 	NewName       string               `json:"new_name,omitempty"`
 	State         string               `json:"state,omitempty"`
 	Arguments     []ObjectArgument     `json:"arguments,omitempty"`
-	ConfirmTriggerAppend bool          `json:"confirm_trigger_append,omitempty"`
+
+	ConfirmTriggerReorder bool `json:"confirm_trigger_reorder,omitempty"`
 }
 
 type ObjectStep struct {

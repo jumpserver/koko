@@ -194,6 +194,28 @@ func MySQLObjectDetail(ctx context.Context, conn *sql.Conn, d dialect.ID, ref Ob
 	case TriggerKind:
 		result.Related = []ObjectSummary{{Ref: ObjectRef{Database: ref.Database, Schema: ref.Schema, Kind: "table", Name: ref.Table}, Label: ref.Table}}
 		if p.has("TRIGGERS", "ACTION_ORDER", "ACTION_TIMING", "EVENT_MANIPULATION") {
+			if p.Product == dialect.MariaDB && p.Version.Major >= 12 {
+				// MariaDB orders each event independently. The integer ACTION_ORDER
+				// column exposes only the first event's position. A sibling with a
+				// different, overlapping event set makes automatic placement unsafe.
+				var matches []string
+				args := []any{ref.Schema, ref.Schema, ref.Table, props["action_timing"], props["event_manipulation"]}
+				for _, event := range props["events"].([]string) {
+					matches = append(matches, "FIND_IN_SET(?,REPLACE(EVENT_MANIPULATION,' ',''))>0")
+					args = append(args, event)
+				}
+				query := `SELECT EXISTS(SELECT 1 FROM information_schema.TRIGGERS
+ WHERE TRIGGER_SCHEMA=? AND BINARY TRIGGER_SCHEMA=BINARY ? AND BINARY EVENT_OBJECT_TABLE=BINARY ?
+ AND ACTION_TIMING=? AND EVENT_MANIPULATION<>? AND (` + strings.Join(matches, " OR ") + "))"
+				var mixed bool
+				if err := conn.QueryRowContext(CatalogQueryContext(ctx), query, args...).Scan(&mixed); err != nil {
+					return result, err
+				}
+				if mixed {
+					props["trigger_order_requires_choice"] = true
+					return result, nil
+				}
+			}
 			// Neighbours are visible to the same TRIGGER grantee on the same table.
 			// Keep only their names for recreation instead of enumerating all siblings.
 			for _, side := range []struct{ key, op, order string }{{"previous_trigger", "<", "DESC"}, {"next_trigger", ">", "ASC"}} {

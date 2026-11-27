@@ -157,7 +157,7 @@ func checkMySQLTriggerAnchor(ctx context.Context, conn *sql.Conn, p MySQLObjectP
 	return nil
 }
 
-func mysqlRestoreTriggerOrder(source string, h mysqlDDLHeader, detail ObjectDetail) (string, error) {
+func mysqlRestoreTriggerOrder(source string, h mysqlDDLHeader, detail ObjectDetail, confirmReorder bool) (string, error) {
 	previous, _ := detail.Properties["previous_trigger"].(string)
 	next, _ := detail.Properties["next_trigger"].(string)
 	if h.next+1 >= len(h.tokens) || !h.tokens[h.next].is(myString(detail.Properties, "action_timing")) {
@@ -180,6 +180,15 @@ func mysqlRestoreTriggerOrder(source string, h mysqlDDLHeader, detail ObjectDeta
 		t := h.tokens
 		if t[i].is("FOR") && t[i+1].is("EACH") && t[i+2].is("ROW") {
 			if i+3 < len(t) && (t[i+3].is("FOLLOWS") || t[i+3].is("PRECEDES")) {
+				if confirmReorder {
+					return "", errors.New("choose either an ordering anchor or database-default ordering")
+				}
+				return source, nil
+			}
+			if mixed, _ := detail.Properties["trigger_order_requires_choice"].(bool); mixed {
+				if !confirmReorder {
+					return "", errors.New("overlapping trigger events require an explicit FOLLOWS or PRECEDES anchor or acceptance of the database-default ordering")
+				}
 				return source, nil
 			}
 			relation, name := "FOLLOWS", previous
@@ -219,7 +228,7 @@ func mysqlPlanDDL(req ObjectPlanRequest, profile MySQLObjectProfile, opts Analyz
 		return nil, errors.New("the native original definition cannot be verified for replacement")
 	}
 	if req.Ref.Kind == TriggerKind {
-		source, err = mysqlRestoreTriggerOrder(source, header, detail)
+		source, err = mysqlRestoreTriggerOrder(source, header, detail, req.ConfirmTriggerReorder)
 		if err != nil {
 			return nil, err
 		}
