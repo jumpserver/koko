@@ -17,7 +17,7 @@ require (
 	github.com/xo/dburl v0.23.1
 	github.com/xo/tblfmt v0.13.1
 	github.com/xo/usql v0.19.1
-	go.mongodb.org/mongo-driver/v2 v2.4.1
+	go.mongodb.org/mongo-driver/v2 v2.4.2
 )
 
 require (
