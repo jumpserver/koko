@@ -162,6 +162,14 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		if e.cancelRequested.Load() {
 			<-e.cancelDone
 		}
+		if p := e.objectPlan; p != nil {
+			// The request ID, masked SQL, fingerprint and outcomes survive for
+			// retries. Release bound values and drafts once the worker is done.
+			p.req.Definition = ""
+			p.req.Arguments = nil
+			p.commands.Steps = nil
+			e.objectDecisions = nil
+		}
 		if userSQLStarted && c.manualTx != nil {
 			c.transactionActivity = time.Now()
 		}
@@ -180,6 +188,8 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	var runErr error
 	currentInFlight := false
 	completedStatements := 0
+	objectTransaction := false
+	var objectPolicies map[string]string
 	confirmedCancel := false
 	triggeredWarnings := map[string]core.AuditRecord{}
 	auditStatus := "recorded"
@@ -206,6 +216,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		if view.Transaction != nil {
 			audit.Output += fmt.Sprintf(" transaction_mode=%t transaction_state=%s transaction_outcome=%s prior_committed=%t", view.Transaction.Manual, view.Transaction.State, view.Transaction.Outcome, view.Transaction.PriorCommitted)
+		}
+		if plan := e.objectPlan; plan != nil {
+			audit.Output += fmt.Sprintf(" object_plan=%s fingerprint=%s action=%s object=%q step=%d", plan.id, plan.commands.Fingerprint, plan.req.Action, plan.commands.Ref.Name, e.objectStep+1)
 		}
 		if e.queryPage != nil {
 			audit.Output += queryPageAudit(e.queryPage)
@@ -305,6 +318,19 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				}
 			}
 		}
+		if objectTransaction {
+			cleanup, stop := context.WithTimeout(context.Background(), databaseCleanupTimeout)
+			_, rbErr := c.conn.ExecContext(cleanup, "ROLLBACK")
+			stop()
+			objectTransaction = false
+			if rbErr != nil {
+				status = "unknown"
+				api = &APIError{"transaction_outcome_unknown", "Object transaction rollback could not be confirmed"}
+				invalidateEditConnection(s, c)
+			} else {
+				rolledBack = true
+			}
+		}
 		if restoreErr := e.restoreSourceReadContext(); restoreErr != nil {
 			runErr = errors.Join(runErr, restoreErr)
 			status = "unknown"
@@ -323,6 +349,21 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			}
 		}
 		v.update(s, e, func(x *ExecutionView) {
+			if o := x.ObjectPlan; o != nil {
+				if step := &o.Steps[e.objectStep]; step.Status == "sent" {
+					step.Status = status
+				}
+				switch {
+				case rolledBack:
+					o.Outcome = "rolled_back"
+				case status == "unknown":
+					o.Outcome = "unknown"
+				case completedStatements > 0:
+					o.Outcome = "partial"
+				default:
+					o.Outcome = "failed"
+				}
+			}
 			x.Status = status
 			x.Error = api
 			x.maskedDiagnostic = maskedDiagnostic && status == "failed"
@@ -555,7 +596,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				failure(errors.New("raw_console_manual_mode"), &APIError{"raw_console_manual_mode", "This raw command has unknown transaction behavior; switch to automatic transaction mode before executing it"})
 				return
 			}
-			risk, control := sqlservice.ManualTransactionRisk(d, statement)
+			risk, control := objectTransactionRisk(e, d, statement)
 			if control {
 				failure(errors.New("transaction_control_sql"), &APIError{"transaction_control_sql", "Use the toolbar to change transactions; transaction and session-control SQL is unavailable in manual mode"})
 				return
@@ -594,7 +635,56 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		failure(startErr, safeDatabaseError(startErr))
 		return
 	}
+	if p := e.objectPlan; p != nil {
+		if len(p.commands.Steps) != len(analysis.Statements) {
+			failure(sqlservice.ErrObjectChanged, objectPlanAPIError(sqlservice.ErrObjectChanged))
+			return
+		}
+		var all []string
+		for i, step := range p.commands.Steps {
+			if step.PolicySQL != "" {
+				all = append(all, step.PolicySQL)
+			} else {
+				all = append(all, statementSQL(analysis.Statements[i:i+1])...)
+			}
+		}
+		if implicitCommit || len(analysis.Statements) > 1 && d == dialect.PostgreSQL && !c.manual {
+			all = append(all, "COMMIT")
+		}
+		if len(analysis.Statements) > 1 && d == dialect.PostgreSQL && !c.manual {
+			all = append(all, "BEGIN", "ROLLBACK")
+		}
+		e.finishDatabaseWork()
+		objectPolicies, err = v.objectPolicies(e.ctx, s, all)
+		if err == nil {
+			err = v.authorizeExecution(s, e, all, &audit)
+		}
+		if err != nil {
+			var pe *core.PolicyError
+			if errors.As(err, &pe) {
+				audit.ACLID, audit.GroupID, audit.RiskLevel = pe.ACLID, pe.GroupID, pe.RiskLevel
+			}
+			failure(err, objectPlanAPIError(err))
+			return
+		}
+		if err = e.beginDatabaseWork(s, c); err != nil {
+			failure(err, safeDatabaseError(err))
+			return
+		}
+		if err = v.recheckObject(e.ctx, s, c, p); err != nil {
+			failure(err, objectPlanAPIError(err))
+			return
+		}
+		if len(analysis.Statements) > 1 && d == dialect.PostgreSQL && !c.manual {
+			if _, err = c.conn.ExecContext(e.ctx, "BEGIN"); err != nil {
+				failure(err, safeDatabaseError(err))
+				return
+			}
+			objectTransaction = true
+		}
+	}
 	for statementIndex, statement := range analysis.Statements {
+		e.objectStep = statementIndex
 		audit = core.AuditRecord{ID: fmt.Sprintf("%s:statement:%d", e.view.ID, statementIndex+1), SQL: statement.SQL, StartedAt: time.Now(), RiskClassified: true}
 		if e.browse != nil || e.queryPage != nil || e.planMode != "" {
 			audit.SQL = e.sql
@@ -629,7 +719,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				return
 			}
 		}
-		if (e.planMode != "" || e.browse != nil || e.queryPage != nil) && current != opts {
+		if (e.planMode != "" || e.browse != nil || e.queryPage != nil || e.objectPlan != nil) && current != opts {
 			failure(errors.New("sql_context_changed"), &APIError{"sql_context_changed", "SQL mode changed during admission; submit a new request"})
 			return
 		}
@@ -648,11 +738,16 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		// Match Java's statement boundary: a later rejection or confirmation
 		// cannot prevent an earlier statement from executing, nor replay it.
 		commands := statementSQL([]sqlservice.Statement{statement})
+		if e.objectPlan != nil {
+			if command := e.objectPlan.commands.Steps[statementIndex].PolicySQL; command != "" {
+				commands = []string{command}
+			}
+		}
 		if e.browse != nil || e.queryPage != nil || e.planMode != "" {
 			commands = append([]string{e.sql}, commands...)
 		}
 		if c.manual {
-			if risk, _ := sqlservice.ManualTransactionRisk(d, statement); risk {
+			if risk, _ := objectTransactionRisk(e, d, statement); risk {
 				commands = append(commands, "COMMIT")
 			}
 		}
@@ -664,7 +759,23 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
 			return
 		}
-		if err := v.authorizeExecution(s, e, commands, &audit); err != nil {
+		if e.objectPlan != nil {
+			var currentPolicies map[string]string
+			currentPolicies, err = v.objectPolicies(e.ctx, s, commands)
+			for sql, decision := range currentPolicies {
+				if authorization, ok := e.objectDecisions[sql]; ok && authorization.ACLID != "" && authorization.RiskLevel >= audit.RiskLevel {
+					audit.ACLID, audit.GroupID, audit.RiskLevel = authorization.ACLID, authorization.GroupID, authorization.RiskLevel
+				}
+				known, ok := objectPolicies[sql]
+				if !ok || known != decision {
+					err = errors.New("command policy changed; request a fresh object preview")
+					break
+				}
+			}
+		} else {
+			err = v.authorizeExecution(s, e, commands, &audit)
+		}
+		if err != nil {
 			var pe *core.PolicyError
 			code := "command_denied"
 			if errors.As(err, &pe) {
@@ -681,7 +792,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			return
 		}
 		var starSource *resultStarSource
-		if statement.ReturnsRows && e.planMode == "" && e.queryPage == nil && e.browse == nil {
+		if statement.ReturnsRows && e.objectPlan == nil && e.planMode == "" && e.queryPage == nil && e.browse == nil {
 			if mysqlHint != nil {
 				e.mu.RLock()
 				// A later statement or an approval wait may have outlived
@@ -704,7 +815,11 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		for _, command := range commands {
 			if warning, ok := e.policyWarnings[command]; ok {
 				key := warning.ACLID + ":" + warning.GroupID
-				triggeredWarnings[key] = core.AuditRecord{ID: audit.ID + ":warning:" + key, SQL: command, RiskLevel: warning.RiskLevel, ACLID: warning.ACLID, GroupID: warning.GroupID}
+				shown := command
+				if e.objectPlan != nil {
+					shown = audit.SQL
+				}
+				triggeredWarnings[key] = core.AuditRecord{ID: audit.ID + ":warning:" + key, SQL: shown, RiskLevel: warning.RiskLevel, ACLID: warning.ACLID, GroupID: warning.GroupID}
 				if warning.RiskLevel > audit.RiskLevel {
 					audit.RiskLevel, audit.ACLID, audit.GroupID = warning.RiskLevel, warning.ACLID, warning.GroupID
 				}
@@ -715,7 +830,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				failure(errors.New("raw_console_manual_mode"), &APIError{"raw_console_manual_mode", "This raw command has unknown transaction behavior; switch to automatic transaction mode before executing it"})
 				return
 			}
-			risk, control := sqlservice.ManualTransactionRisk(d, statement)
+			risk, control := objectTransactionRisk(e, d, statement)
 			if control || (risk && !e.confirmImplicitCommit) {
 				failure(errors.New("transaction_changed"), &APIError{"transaction_changed", "SQL transaction behavior changed; submit again"})
 				return
@@ -764,6 +879,26 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
 			return
 		}
+		if e.objectPlan != nil {
+			if statementIndex > 0 && e.objectPlan.commands.Steps[statementIndex-1].VerifyAfter {
+				if err := v.checkObjectFingerprint(e.ctx, s, c, e.objectPlan); err != nil {
+					failure(err, objectPlanAPIError(err))
+					return
+				}
+			}
+			step := e.objectPlan.commands.Steps[statementIndex]
+			if step.BoundSQL != "" {
+				statement.SQL = step.BoundSQL
+			}
+			browseArgs = step.Args
+			statement.MayWrite = true
+			v.update(s, e, func(view *ExecutionView) { view.ObjectPlan.Steps[statementIndex].Status = "sent" })
+			if err := v.journal(s, e, "sending"); err != nil {
+				v.update(s, e, func(view *ExecutionView) { view.ObjectPlan.Steps[statementIndex].Status = "not_sent" })
+				failure(err, &APIError{"audit_persistence_failed", "The object step could not be journaled; SQL was not sent"})
+				return
+			}
+		}
 		userSQLStarted = true
 		currentInFlight = true
 		databaseTouched = true
@@ -781,6 +916,10 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		} else if statement.ReturnsRows {
 			e.resultSQL = statement.SQL
 			e.resultAnalysis = statement.Facts
+			if e.objectPlan != nil {
+				e.resultSQL = ""
+				e.resultAnalysis = nil
+			}
 			rows, err := c.conn.QueryContext(executionContext(e.ctx, d, e.view.ID), statement.SQL, browseArgs...)
 			if err != nil {
 				confirmedCancel = isServerCancellation(err) || driverConfirmedCancellation(d, err)
@@ -824,7 +963,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				return
 			}
 		} else {
-			result, err := c.conn.ExecContext(executionContext(e.ctx, d, e.view.ID), statement.SQL)
+			result, err := c.conn.ExecContext(executionContext(e.ctx, d, e.view.ID), statement.SQL, browseArgs...)
 			if err != nil {
 				confirmedCancel = isServerCancellation(err) || driverConfirmedCancellation(d, err)
 				failure(err, safeDatabaseError(err))
@@ -836,8 +975,11 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				x.StatementResults = append(x.StatementResults, StatementResult{RowsAffected: strconv.FormatInt(affected, 10)})
 			})
 		}
+		if e.objectPlan != nil {
+			v.update(s, e, func(view *ExecutionView) { view.ObjectPlan.Steps[statementIndex].Status = "succeeded" })
+		}
 		if c.manual && e.planMode == "" {
-			risk, _ := sqlservice.ManualTransactionRisk(d, statement)
+			risk, _ := objectTransactionRisk(e, d, statement)
 			if risk {
 				state, probeErr := editTransactionState(e.ctx, c, d)
 				if probeErr != nil || state != editTxIdle {
@@ -874,8 +1016,29 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			return
 		}
 		e.finishDatabaseWork()
+		if e.objectPlan != nil {
+			if err := v.journal(s, e, "received"); err != nil {
+				failure(err, &APIError{"audit_persistence_failed", "Database acknowledged the object step, but its receipt could not be persisted"})
+				return
+			}
+		}
 		if err := finishAudit(true); err != nil {
 			failure(err, &APIError{"audit_persistence_failed", "The completed statement could not be audited; remaining statements were not sent"})
+			return
+		}
+	}
+	if objectTransaction {
+		if err := e.beginTransactionBoundary(); err != nil {
+			failure(err, safeDatabaseError(err))
+			return
+		}
+		cleanup, done := context.WithTimeout(c.ctx, databaseCleanupTimeout)
+		_, err := c.conn.ExecContext(cleanup, "COMMIT")
+		done()
+		objectTransaction = false
+		if err != nil {
+			invalidateEditConnection(s, c)
+			failure(err, &APIError{"transaction_outcome_unknown", "Object transaction commit could not be confirmed"})
 			return
 		}
 	}
@@ -895,6 +1058,12 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		canceled = e.cancelRequested.Load() || e.ctx.Err() != nil
 		if !canceled {
 			x.Status = "succeeded"
+			if x.ObjectPlan != nil {
+				x.ObjectPlan.Outcome = "committed"
+				if c.manualTx != nil {
+					x.ObjectPlan.Outcome = "staged"
+				}
+			}
 		}
 	})
 	if canceled {
@@ -1013,7 +1182,7 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows, starSo
 			s.mu.Unlock()
 			v.update(s, e, func(x *ExecutionView) {
 				x.ResultIDs = append(x.ResultIDs, result.ID)
-				x.StatementResults = append(x.StatementResults, StatementResult{ResultID: result.ID, SourceSQL: result.SourceSQL})
+				x.StatementResults = append(x.StatementResults, StatementResult{ResultID: result.ID, SourceSQL: result.SourceSQL, ResultRole: result.objectRole})
 			})
 		}
 	}()
@@ -1032,7 +1201,7 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows, starSo
 		if err != nil {
 			return err
 		}
-		if e.consoleMode && len(result.Columns) == 0 {
+		if (e.consoleMode || e.objectPlan != nil) && len(result.Columns) == 0 {
 			// QueryContext is also used for opaque commands that return no row
 			// set. Do not invent an empty table or an unknown affected-row count.
 			if !rows.NextResultSet() {
@@ -1056,6 +1225,11 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows, starSo
 			result.sourceAnalysis = nil
 			result.Browse = nil
 		}
+		if e.objectPlan != nil {
+			result.objectRole = e.objectPlan.commands.Steps[e.objectStep].ResultRole
+			result.editSourceBound = true
+			result.editSourceError = "Routine results are read-only"
+		}
 		result.SourceSQL = result.sourceSQL
 		if result.querySource != nil {
 			view := result.querySource.view
@@ -1065,6 +1239,10 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows, starSo
 		collected = append(collected, result)
 		if !rows.NextResultSet() {
 			return rows.Err()
+		}
+		if e.objectPlan != nil && len(collected) >= 32 {
+			v.update(s, e, func(view *ExecutionView) { view.ObjectPlan.ResultsTruncated = true })
+			return nil
 		}
 	}
 }

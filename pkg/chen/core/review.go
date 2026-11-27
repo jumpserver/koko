@@ -42,16 +42,20 @@ func (p *CoreProvider) AuthorizeCommand(ctx context.Context, g *Grant, request A
 	if !errors.As(err, &policy) || policy.Code != "command_review_required" {
 		return decision, err
 	}
+	shown := request.ReviewSQL
+	if shown == "" {
+		shown = request.SQL
+	}
 	batch := request.BatchSQL
 	if batch == "" {
-		batch = request.SQL
+		batch = shown
 	}
 	if !request.SubmitReview {
 		return decision, err
 	}
 	command := batch
-	if batch != request.SQL {
-		command = fmt.Sprintf("Batch SQL:\n%s\n\nReview-triggering SQL:\n%s", batch, request.SQL)
+	if batch != shown {
+		command = fmt.Sprintf("Batch SQL:\n%s\n\nReview-triggering SQL:\n%s", batch, shown)
 	}
 	affected := "unknown"
 	if request.AffectedRows != nil {

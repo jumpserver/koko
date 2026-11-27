@@ -71,6 +71,8 @@ func (v *Server) Handler() http.Handler {
 	mux.HandleFunc("DELETE "+apiPath+"/consoles/{cid}", v.deleteConsole)
 	mux.HandleFunc("GET "+apiPath+"/consoles/{cid}/transaction-state", v.consoleTransactionState)
 	mux.HandleFunc("POST "+apiPath+"/consoles/{cid}/executions", v.submit)
+	mux.HandleFunc("POST "+apiPath+"/consoles/{cid}/object-plans/preview", v.previewObjectPlan)
+	mux.HandleFunc("POST "+apiPath+"/consoles/{cid}/object-plans/{pid}/apply", v.applyObjectPlan)
 	mux.HandleFunc("POST "+apiPath+"/consoles/{cid}/browse", v.browseTable)
 	mux.HandleFunc("GET "+apiPath+"/consoles/{cid}/results/{rid}/edit", v.editMetadata)
 	mux.HandleFunc("POST "+apiPath+"/consoles/{cid}/results/{rid}/copy-sql", v.copyResultSQL)

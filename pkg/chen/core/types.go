@@ -27,6 +27,7 @@ type Provider interface {
 }
 
 type AuthorizationRequest struct {
+	ReviewSQL       string // Optional masked display of SQL for an approval ticket; SQL remains the policy input.
 	AffectedRows    *int64 // nil for a console-owned query; grid plans know their change count
 	SQL             string
 	BatchSQL        string
