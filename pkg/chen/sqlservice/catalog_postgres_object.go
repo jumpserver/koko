@@ -187,14 +187,21 @@ func postgresDefinitionSource(ctx context.Context, conn *sql.Conn, ref ObjectRef
 		return q, "", err
 	}
 	object, owner, source, rowVersion := "p.oid", "p.proowner", "pg_get_functiondef", "p.xmin::text,p.ctid::text"
+	class := "'pg_catalog.pg_proc'::pg_catalog.regclass"
 	dependencies := `(SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(ns.nspname,ty.typname) ORDER BY a.pos)
  FROM pg_catalog.unnest(pg_catalog.array_append(COALESCE(p.proallargtypes,p.proargtypes::pg_catalog.oid[]),p.prorettype)) WITH ORDINALITY a(id,pos)
  JOIN pg_catalog.pg_type ty ON ty.oid=a.id JOIN pg_catalog.pg_namespace ns ON ns.oid=ty.typnamespace)`
 	if ref.Kind == TriggerKind {
 		object, owner, source, rowVersion = "t.oid", "c.relowner", "pg_get_triggerdef", "t.xmin::text,t.ctid::text"
+		class = "'pg_catalog.pg_trigger'::pg_catalog.regclass"
 		dependencies = `(SELECT pg_catalog.jsonb_build_array(ns.nspname,p.proname,p.oid)
     FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace ns ON ns.oid=p.pronamespace WHERE p.oid=t.tgfoid)`
 	}
+	// Native SQL bodies and trigger expressions can reference columns or
+	// other objects whose renaming changes the DDL without updating its row.
+	// pg_identify_object returns their qualified identities under any search_path.
+	dependencies += `,(SELECT pg_catalog.jsonb_agg((pg_catalog.pg_identify_object(d.refclassid,d.refobjid,d.refobjsubid)).identity
+ ORDER BY d.refclassid,d.refobjid,d.refobjsubid) FROM pg_catalog.pg_depend d WHERE d.classid=` + class + " AND d.objid=" + object + ")"
 	// The decompiler qualifies identifiers using this connection's search_path.
 	// A tuple updated twice in one transaction keeps its xmin but changes ctid.
 	// Include names of referenced types/functions so a rename also invalidates it.
