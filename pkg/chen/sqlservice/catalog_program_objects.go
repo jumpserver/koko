@@ -29,6 +29,7 @@ type ObjectDetail struct {
 }
 
 type ObjectDefinition struct {
+	NextOffset       int               `json:"next_offset,omitempty"`
 	DefaultPositions []int             `json:"default_positions,omitempty"`
 	Environment      map[string]string `json:"environment,omitempty"`
 	Ref              ObjectRef         `json:"ref"`
@@ -37,6 +38,46 @@ type ObjectDefinition struct {
 	Text             string            `json:"text,omitempty"`
 	Source           string            `json:"source"`
 	Version          string            `json:"version,omitempty"`
+}
+
+// The offset counts Unicode characters in the native server definition.
+type DefinitionPageRequest struct {
+	Offset  int    `json:"offset,omitempty"`
+	Version string `json:"version,omitempty"`
+}
+
+func (p DefinitionPageRequest) Valid() bool {
+	if p.Version == "" {
+		return p.Offset == 0
+	}
+	if len(p.Version) != sha256.Size*2 || p.Offset < 0 || p.Offset >= 1<<30 {
+		return false
+	}
+	_, err := hex.DecodeString(p.Version)
+	return err == nil
+}
+
+const definitionPageCharacters = 256 << 10
+
+// Complete definitions stay available to the editor. Each page of a larger
+// definition remains explicitly read-only, including its last page.
+func (d *ObjectDefinition) setPage(page DefinitionPageRequest, body string, total int) error {
+	if page.Version != "" && page.Version != d.Version || page.Offset >= total {
+		return ErrObjectChanged
+	}
+	count := 0
+	for i := range body {
+		if count == definitionPageCharacters {
+			body = body[:i]
+			break
+		}
+		count++
+	}
+	d.Status, d.Text = "truncated", body
+	if next := page.Offset + count; next < total {
+		d.NextOffset = next
+	}
+	return nil
 }
 
 func definitionFingerprint(body string) string {

@@ -17,6 +17,7 @@ type catalogScope struct {
 	functionOID                                    uint32
 	ref                                            sqlservice.ObjectRef
 	oid                                            uint32
+	definitionPage                                 sqlservice.DefinitionPageRequest
 }
 
 func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) {

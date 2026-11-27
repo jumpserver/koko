@@ -7,7 +7,6 @@ import (
 	"errors"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 )
 
 // The object, its logical identity, its native privileges and every returned
@@ -222,12 +221,27 @@ func (q postgresObjectLookup) policySQL(query string) string {
 }
 
 func PostgreSQLObjectDefinition(ctx context.Context, conn *sql.Conn, ref ObjectRef, oid uint32, authorize func(string) error) (ObjectDefinition, error) {
+	return PostgreSQLObjectDefinitionPage(ctx, conn, ref, oid, DefinitionPageRequest{}, authorize)
+}
+
+func PostgreSQLObjectDefinitionPage(ctx context.Context, conn *sql.Conn, ref ObjectRef, oid uint32, page DefinitionPageRequest, authorize func(string) error) (ObjectDefinition, error) {
+	if !page.Valid() || page.Version != "" && oid == 0 {
+		return ObjectDefinition{}, ErrObjectChanged
+	}
 	q, source, err := postgresDefinitionSource(ctx, conn, ref, oid)
 	result := ObjectDefinition{Ref: ref, Source: source}
 	if err != nil {
 		return result, err
 	}
-	query := "SELECT resolved.oid,pg_catalog.length(body),pg_catalog.left(body," + strconv.Itoa(MaxDocumentCodeUnits) + "),version" + q.from
+	// A character may occupy two UTF-16 units. Initially fetch enough to
+	// apply the same execution size limit as the editor. Larger definitions
+	// are read in bounded windows tied to the actual decompiler output.
+	maxUnits, pageChars := strconv.Itoa(MaxDocumentCodeUnits), strconv.Itoa(definitionPageCharacters)
+	window := "CASE WHEN pg_catalog.length(body)>" + maxUnits + " THEN " + pageChars + " ELSE " + maxUnits + " END"
+	if page.Offset > 0 {
+		window = pageChars
+	}
+	query := "SELECT resolved.oid,pg_catalog.length(body),pg_catalog.substr(body," + strconv.Itoa(page.Offset+1) + "," + window + "),version,CASE WHEN pg_catalog.octet_length(body)>" + maxUnits + " THEN pg_catalog.md5(body) ELSE '' END" + q.from
 	if authorize != nil {
 		if err := authorize(q.policySQL(query)); err != nil {
 			return result, err
@@ -235,17 +249,22 @@ func PostgreSQLObjectDefinition(ctx context.Context, conn *sql.Conn, ref ObjectR
 	}
 	var length sql.NullInt64
 	var body sql.NullString
-	var version string
-	if err := conn.QueryRowContext(ctx, query, q.args...).Scan(&result.OID, &length, &body, &version); err != nil {
+	var version, renderedHash string
+	if err := conn.QueryRowContext(ctx, query, q.args...).Scan(&result.OID, &length, &body, &version, &renderedHash); err != nil {
 		return result, postgresObjectReadError(err)
 	}
 	result.Status = "restricted"
 	if body.Valid {
-		result.Text = body.String
-		result.Status = "truncated"
-		if int64(utf8.RuneCountInString(result.Text)) == length.Int64 {
-			result.Status = "complete"
-			result.Version = definitionFingerprint(version)
+		if page.Offset > 0 || length.Int64 > MaxDocumentCodeUnits || DocumentExceedsLimit(body.String) {
+			result.Version = definitionFingerprint(version + "\x00" + renderedHash)
+			if err := result.setPage(page, body.String, int(length.Int64)); err != nil {
+				return ObjectDefinition{}, err
+			}
+			return result, nil
+		}
+		result.Text, result.Status, result.Version = body.String, "complete", definitionFingerprint(version)
+		if page.Version != "" && page.Version != result.Version {
+			return ObjectDefinition{}, ErrObjectChanged
 		}
 	}
 	return result, nil

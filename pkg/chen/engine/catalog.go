@@ -63,6 +63,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		var object struct {
 			Ref sqlservice.ObjectRef `json:"ref"`
 			OID uint32               `json:"oid"`
+			sqlservice.DefinitionPageRequest
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 		if !decode(w, r, &object) {
@@ -72,6 +73,12 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 			fail(w, 400, "invalid_catalog_request", "Invalid catalog object identity")
 			return nil
 		}
+		page := object.DefinitionPageRequest
+		if !page.Valid() || page.Version != "" && (operation != "object-definition" || s.grant.Dialect() == dialect.PostgreSQL && object.OID == 0) {
+			fail(w, 400, "invalid_catalog_request", "Invalid definition page or version")
+			return nil
+		}
+		scope.definitionPage = page
 		scope.ref, scope.oid = object.Ref, object.OID
 		scope.database, scope.schema, scope.kind, scope.table = object.Ref.Database, object.Ref.Schema, string(object.Ref.Kind), object.Ref.Table
 	}
@@ -358,6 +365,8 @@ func catalogError(w http.ResponseWriter, r *http.Request, s *session, err error)
 		fail(w, 422, "catalog_operation_unsupported", "This operation is not currently supported for the connected database version.")
 	case errors.Is(err, errRoutineCatalogChanged):
 		fail(w, 409, "catalog_contract_changed", "Catalog version changed; refresh the object list")
+	case errors.Is(err, sqlservice.ErrObjectChanged):
+		fail(w, 409, "catalog_object_changed", "Object definition changed; read it again")
 	case errors.Is(err, sqlservice.ErrDiagramContractChanged):
 		fail(w, 409, "diagram_contract_changed", "Catalog product, version or fields changed; refresh the diagram")
 	case errors.Is(err, sqlservice.ErrOverviewContractChanged):

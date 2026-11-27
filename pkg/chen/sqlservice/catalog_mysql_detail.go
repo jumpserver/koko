@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/jumpserver/koko/pkg/chen/dialect"
@@ -243,6 +244,13 @@ func myObjectErrorCode(err error) uint16 {
 }
 
 func MySQLObjectDefinition(ctx context.Context, conn *sql.Conn, d dialect.ID, ref ObjectRef, authorize func(string) error) (ObjectDefinition, error) {
+	return MySQLObjectDefinitionPage(ctx, conn, d, ref, DefinitionPageRequest{}, authorize)
+}
+
+func MySQLObjectDefinitionPage(ctx context.Context, conn *sql.Conn, d dialect.ID, ref ObjectRef, page DefinitionPageRequest, authorize func(string) error) (ObjectDefinition, error) {
+	if !page.Valid() {
+		return ObjectDefinition{}, ErrObjectChanged
+	}
 	command, err := MySQLDefinitionCommand(d, ref)
 	result := ObjectDefinition{Ref: ref, Source: "SHOW CREATE " + strings.ToUpper(string(ref.Kind))}
 	if err != nil {
@@ -320,13 +328,38 @@ func MySQLObjectDefinition(ctx context.Context, conn *sql.Conn, d dialect.ID, re
 			result.Environment[k] = s
 		}
 	}
-	if len(result.Text) > MaxDocumentBytes {
-		cut := MaxDocumentBytes
-		for cut > 0 && (result.Text[cut]&0xC0) == 0x80 {
-			cut--
+	overLimit := DocumentExceedsLimit(result.Text)
+	versionText := result.Text
+	if overLimit {
+		// SHOW CREATE returns one native field. Hash it before slicing so a
+		// change anywhere in the full source invalidates every page.
+		versionText = definitionFingerprint(result.Text)
+	}
+	evidence, err := json.Marshal([]any{ref, versionText, result.Environment, after})
+	if err != nil {
+		return ObjectDefinition{}, err
+	}
+	result.Version = definitionFingerprint(string(evidence))
+	if page.Version != "" && page.Version != result.Version {
+		return ObjectDefinition{}, ErrObjectChanged
+	}
+	if overLimit {
+		total := utf8.RuneCountInString(result.Text)
+		if page.Offset >= total {
+			return ObjectDefinition{}, ErrObjectChanged
 		}
-		result.Text, result.Status = result.Text[:cut], "truncated"
+		body := result.Text
+		for i := 0; i < page.Offset; i++ {
+			_, n := utf8.DecodeRuneInString(body)
+			body = body[n:]
+		}
+		if err := result.setPage(page, body, total); err != nil {
+			return ObjectDefinition{}, err
+		}
 		return result, nil
+	}
+	if page.Offset != 0 {
+		return ObjectDefinition{}, ErrObjectChanged
 	}
 	result.Status = "complete"
 	// MariaDB 11.8 introduced parameter defaults before the PARAMETERS view
@@ -340,10 +373,5 @@ func MySQLObjectDefinition(ctx context.Context, conn *sql.Conn, d dialect.ID, re
 			slices.Sort(result.DefaultPositions)
 		}
 	}
-	evidence, err := json.Marshal([]any{ref, result.Text, result.Environment, after})
-	if err != nil {
-		return ObjectDefinition{}, err
-	}
-	result.Version = definitionFingerprint(string(evidence))
 	return result, nil
 }

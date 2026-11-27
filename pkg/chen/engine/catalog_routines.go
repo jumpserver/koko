@@ -108,9 +108,9 @@ func (v *Server) catalogProgramObject(w http.ResponseWriter, r *http.Request) {
 	var data sqlservice.ObjectDefinition
 	var err error
 	if d.UsesMySQLSyntax() {
-		data, err = sqlservice.MySQLObjectDefinition(req.ctx, req.conn, d, req.scope.ref, authorize)
+		data, err = sqlservice.MySQLObjectDefinitionPage(req.ctx, req.conn, d, req.scope.ref, req.scope.definitionPage, authorize)
 	} else {
-		data, err = sqlservice.PostgreSQLObjectDefinition(req.ctx, req.conn, req.scope.ref, req.scope.oid, authorize)
+		data, err = sqlservice.PostgreSQLObjectDefinitionPage(req.ctx, req.conn, req.scope.ref, req.scope.oid, req.scope.definitionPage, authorize)
 	}
 	var policy *core.PolicyError
 	if errors.As(err, &policy) {
