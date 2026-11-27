@@ -47,6 +47,9 @@ func (p *objectPlan) outcome() *ObjectPlanOutcome {
 }
 
 func (v *Server) objectCommands(ctx context.Context, s *session, c *console, req sqlservice.ObjectPlanRequest) (sqlservice.ObjectCommands, error) {
+	if req.Action == "fetchCursor" {
+		return v.cursorCommands(ctx, s, c, req)
+	}
 	return sqlservice.BuildObjectCommands(ctx, c.conn, s.grant.Dialect(), req, func(sql string) error { return v.provider.Authorize(ctx, s.grant, sql) }, func(name, value string) (string, bool) {
 		masked, hidden := v.provider.Mask(s.grant, name, name, value)
 		return fmt.Sprint(masked), hidden
@@ -259,7 +262,7 @@ func objectTransactionRisk(e *execution, d dialect.ID, s sqlservice.Statement) (
 	if e.objectPlan != nil && e.objectPlan.req.Action == "invoke" && d == dialect.PostgreSQL && s.Kind == "call" && !e.confirmImplicitCommit {
 		return false, false
 	}
-	if e.objectPlan != nil && d == dialect.PostgreSQL && s.Kind == "lock" {
+	if e.objectPlan != nil && d == dialect.PostgreSQL && (s.Kind == "lock" || s.Kind == "fetch" && e.objectPlan.req.Action == "fetchCursor") {
 		return false, false
 	}
 	return sqlservice.ManualTransactionRisk(d, s)

@@ -174,16 +174,20 @@ func pgObjectDDL(ctx context.Context, conn *sql.Conn, req ObjectPlanRequest, det
 	return ref, steps, nil
 }
 
-func pgInvoke(ctx context.Context, conn *sql.Conn, detail ObjectDetail, args []ObjectArgument, mask func(string, string) (string, bool)) (ObjectStep, error) {
+func pgInvoke(ctx context.Context, conn *sql.Conn, detail ObjectDetail, args []ObjectArgument, resultColumns []ObjectResultColumn, mask func(string, string) (string, bool)) (ObjectStep, error) {
 	if !slices.Contains(detail.Actions, "invoke") {
 		return ObjectStep{}, ErrCatalogForbidden
 	}
 	var inputs []any
 	var sqlArgs, policyArgs, displayArgs []string
+	hasOutput := false
 	index := 0
 	skipped, ambiguous := false, false
 	for _, param := range detail.Parameters {
 		mode := param.Mode
+		if mode == "TABLE" || mode == "OUT" || mode == "INOUT" {
+			hasOutput = true
+		}
 		if mode == "TABLE" || mode == "OUT" && detail.Ref.Kind == FunctionKind {
 			continue
 		}
@@ -211,13 +215,8 @@ func pgInvoke(ctx context.Context, conn *sql.Conn, detail ObjectDetail, args []O
 					return ObjectStep{}, ErrCatalogUnsupported
 				}
 				actual := *arg.ActualType
-				var allowed bool
-				err := conn.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_type t JOIN pg_catalog.pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname=$1 AND t.typname=$2 AND t.typtype<>'p' AND pg_catalog.has_type_privilege(t.oid,'USAGE'))`, actual.Schema, actual.Name).Scan(&allowed)
-				if err != nil {
+				if err := pgUsableConcreteType(ctx, conn, actual); err != nil {
 					return ObjectStep{}, err
-				}
-				if !allowed {
-					return ObjectStep{}, errors.New("the concrete type is unavailable")
 				}
 				typ = actual
 				ambiguous = true
@@ -277,10 +276,48 @@ func pgInvoke(ctx context.Context, conn *sql.Conn, detail ObjectDetail, args []O
 			return ObjectStep{}, errors.New("the shortened or polymorphic call may resolve to another overload; supply the full declared types")
 		}
 	}
-	prefix, role := "SELECT * FROM ", "function_return"
+	prefix, role, suffix := "SELECT * FROM ", "function_return", ")"
+	anonymous := detail.Ref.Kind == FunctionKind && detail.Properties["return_type"] == "record" && !hasOutput
+	if ret, ok := detail.Properties["return_type_ref"].(map[string]any); ok {
+		anonymous = detail.Ref.Kind == FunctionKind && !hasOutput && ret["schema"] == "pg_catalog" && ret["name"] == "record"
+	}
+	if len(resultColumns) > 0 {
+		if !anonymous || len(resultColumns) > 100 {
+			return ObjectStep{}, errors.New("a column description is allowed only for an anonymous record result")
+		}
+		names := map[string]bool{}
+		columns := make([]string, len(resultColumns))
+		for i, col := range resultColumns {
+			if names[col.Name] || !validObjectIdentifier(col.Name, 63) {
+				return ObjectStep{}, errors.New("record result columns require unique valid names")
+			}
+			names[col.Name] = true
+			if err := pgUsableConcreteType(ctx, conn, col.Type); err != nil {
+				return ObjectStep{}, err
+			}
+			columns[i] = pgIdent(col.Name) + " " + pgTypeName(col.Type)
+		}
+		suffix += " AS chen_record(" + strings.Join(columns, ", ") + ")"
+	} else if anonymous {
+		// A record-valued target expression is valid without a caller-supplied
+		// row descriptor. FROM requires a descriptor for an anonymous record.
+		prefix = "SELECT "
+	}
 	if detail.Ref.Kind == ProcedureKind {
 		prefix, role = "CALL ", "output_parameters"
 	}
 	prefix += pgIdent(detail.Ref.Schema) + "." + pgIdent(detail.Ref.Name) + "("
-	return ObjectStep{SQL: prefix + strings.Join(displayArgs, ", ") + ")", PolicySQL: prefix + strings.Join(policyArgs, ", ") + ")", BoundSQL: prefix + strings.Join(sqlArgs, ", ") + ")", Args: inputs, ResultRole: role}, nil
+	return ObjectStep{SQL: prefix + strings.Join(displayArgs, ", ") + suffix, PolicySQL: prefix + strings.Join(policyArgs, ", ") + suffix, BoundSQL: prefix + strings.Join(sqlArgs, ", ") + suffix, Args: inputs, ResultRole: role}, nil
+}
+
+func pgUsableConcreteType(ctx context.Context, conn *sql.Conn, typ ObjectTypeRef) error {
+	var allowed bool
+	err := conn.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_type t JOIN pg_catalog.pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname=$1 AND t.typname=$2 AND t.typtype<>'p' AND pg_catalog.has_schema_privilege(n.oid,'USAGE') AND pg_catalog.has_type_privilege(t.oid,'USAGE'))`, typ.Schema, typ.Name).Scan(&allowed)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return errors.New("the concrete type is unavailable")
+	}
+	return nil
 }

@@ -1159,6 +1159,9 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows, starSo
 		if e.cancelRequested.Load() {
 			e.finishDatabaseWork()
 		}
+		if err == nil {
+			bindObjectCursors(s, e, collected)
+		}
 		if err == nil && e.resultSQL != "" {
 			v.bindResultEditSource(s, e, collected, starSource)
 		}
@@ -1388,6 +1391,19 @@ func (v *Server) resultRows(w http.ResponseWriter, r *http.Request) {
 	end := min(offset+limit, len(result.Rows))
 	page.Rows = append([][]any{}, result.Rows[offset:end]...)
 	page.Offset = offset
+	if page.CursorSource != nil {
+		source := *page.CursorSource
+		source.Cells = nil
+		for _, cell := range page.CursorSource.Cells {
+			if cell.Row >= offset && cell.Row < end {
+				source.Cells = append(source.Cells, cell)
+			}
+		}
+		page.CursorSource = &source
+		if len(source.Cells) == 0 {
+			page.CursorSource = nil
+		}
+	}
 	if end < len(result.Rows) {
 		page.NextOffset = &end
 	}

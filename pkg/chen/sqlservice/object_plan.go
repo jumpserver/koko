@@ -19,15 +19,29 @@ type ObjectArgument struct {
 	ActualType *ObjectTypeRef `json:"actual_type,omitempty"`
 }
 
+type ObjectResultColumn struct {
+	Name string        `json:"name"`
+	Type ObjectTypeRef `json:"type"`
+}
+
+type CursorFetch struct {
+	ResultID string `json:"result_id"`
+	Row      int    `json:"row"`
+	Column   int    `json:"column"`
+	Limit    int    `json:"limit"`
+}
+
 type ObjectPlanRequest struct {
-	Action     string           `json:"action"`
-	Ref        ObjectRef        `json:"ref"`
-	OID        uint32           `json:"oid,omitempty"`
-	Baseline   string           `json:"baseline,omitempty"`
-	Definition string           `json:"definition,omitempty"`
-	NewName    string           `json:"new_name,omitempty"`
-	State      string           `json:"state,omitempty"`
-	Arguments  []ObjectArgument `json:"arguments,omitempty"`
+	Cursor        *CursorFetch         `json:"cursor,omitempty"`
+	ResultColumns []ObjectResultColumn `json:"result_columns,omitempty"`
+	Action        string               `json:"action"`
+	Ref           ObjectRef            `json:"ref"`
+	OID           uint32               `json:"oid,omitempty"`
+	Baseline      string               `json:"baseline,omitempty"`
+	Definition    string               `json:"definition,omitempty"`
+	NewName       string               `json:"new_name,omitempty"`
+	State         string               `json:"state,omitempty"`
+	Arguments     []ObjectArgument     `json:"arguments,omitempty"`
 }
 
 type ObjectStep struct {
@@ -144,7 +158,7 @@ func BuildObjectCommands(ctx context.Context, conn *sql.Conn, d dialect.ID, req 
 		err = buildErr
 		out.Steps = []ObjectStep{step}
 	case "invoke":
-		step, buildErr := pgInvoke(ctx, conn, detail, req.Arguments, mask)
+		step, buildErr := pgInvoke(ctx, conn, detail, req.Arguments, req.ResultColumns, mask)
 		err = buildErr
 		out.Steps = []ObjectStep{step}
 	case "rename":

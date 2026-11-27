@@ -100,6 +100,7 @@ type Column struct {
 	DataType string `json:"data_type"`
 }
 type Result struct {
+	CursorSource    *cursorSource `json:"cursor_source,omitempty"`
 	objectRole      string
 	SourceSQL       string     `json:"source_sql,omitempty"` // exact server-bound statement, including script result provenance
 	QueryPage       *QueryPage `json:"query_page,omitempty"`
