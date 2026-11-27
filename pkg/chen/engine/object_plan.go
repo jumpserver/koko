@@ -322,6 +322,28 @@ func (v *Server) objectPolicies(ctx context.Context, s *session, commands []stri
 	return decisions, s.grant.Check()
 }
 
+func (v *Server) recheckObjectPolicies(ctx context.Context, s *session, approved map[string]string, commands ...string) error {
+	current, err := v.objectPolicies(ctx, s, commands)
+	if err != nil {
+		return err
+	}
+	for sql, decision := range current {
+		if prior, ok := approved[sql]; !ok || prior != decision {
+			return errors.New("command policy changed; request a fresh object preview")
+		}
+	}
+	return nil
+}
+
+func (e *execution) objectBoundaryAudit(command string) core.AuditRecord {
+	decision := e.objectDecisions[command]
+	return core.AuditRecord{
+		ID: e.view.ID + ":" + strings.ToLower(command), SQL: command,
+		StartedAt: time.Now(), RiskClassified: true,
+		ACLID: decision.ACLID, GroupID: decision.GroupID, RiskLevel: decision.RiskLevel,
+	}
+}
+
 func objectTransactionRisk(e *execution, d dialect.ID, s sqlservice.Statement) (bool, bool) {
 	// CALL in an explicit PostgreSQL transaction cannot commit it. Keep the
 	// selected console's transaction unless the operator chose a top-level CALL.

@@ -333,17 +333,29 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			}
 		}
 		if objectTransaction {
+			rollback := e.objectBoundaryAudit("ROLLBACK")
 			cleanup, stop := context.WithTimeout(context.Background(), databaseCleanupTimeout)
-			_, rbErr := c.conn.ExecContext(cleanup, "ROLLBACK")
+			rbErr := v.recheckObjectPolicies(cleanup, s, objectPolicies, rollback.SQL)
+			if rbErr == nil {
+				_, rbErr = c.conn.ExecContext(cleanup, rollback.SQL)
+			}
 			stop()
 			objectTransaction = false
+			rollback.FinishedAt = time.Now()
+			rollback.Output = fmt.Sprintf("execution_id=%s object_plan=%s rollback_confirmed=%t", e.view.ID, e.objectPlan.id, rbErr == nil)
 			if rbErr != nil {
 				status = "unknown"
 				api = &APIError{"transaction_outcome_unknown", "Object transaction rollback could not be confirmed"}
+				rollback.Error = api.Message
 				invalidateEditConnection(s, c)
 			} else {
 				rolledBack = true
 			}
+			auditCtx, cancel := context.WithTimeout(context.Background(), databaseCleanupTimeout)
+			if v.provider.Record(auditCtx, s.grant, rollback) != nil {
+				auditStatus = "failed"
+			}
+			cancel()
 		}
 		if restoreErr := e.restoreSourceReadContext(); restoreErr != nil {
 			runErr = errors.Join(runErr, restoreErr)
@@ -412,6 +424,15 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		if (d == dialect.Dameng || d == dialect.DB2) && databaseTouched && (e.ctx.Err() != nil || e.cancelRequested.Load() || confirmedCancel) {
 			invalidateEditConnection(s, c)
 		}
+	}
+	denyCommand := func(err error) {
+		code := "command_denied"
+		var policy *core.PolicyError
+		if errors.As(err, &policy) {
+			audit.RiskLevel, audit.ACLID, audit.GroupID = policy.RiskLevel, policy.ACLID, policy.GroupID
+			code = policy.Code
+		}
+		failure(err, &APIError{code, err.Error()})
 	}
 	if err := e.ctx.Err(); err != nil {
 		failure(err, safeDatabaseError(err))
@@ -716,11 +737,20 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			return
 		}
 		if len(analysis.Statements) > 1 && d == dialect.PostgreSQL && !c.manual {
+			audit = e.objectBoundaryAudit("BEGIN")
+			if err = v.recheckObjectPolicies(e.ctx, s, objectPolicies, "BEGIN"); err != nil {
+				denyCommand(err)
+				return
+			}
 			if _, err = c.conn.ExecContext(e.ctx, "BEGIN"); err != nil {
 				failure(err, safeDatabaseError(err))
 				return
 			}
 			objectTransaction = true
+			if err = finishAudit(true); err != nil {
+				failure(err, &APIError{"audit_persistence_failed", "The object transaction could not be audited; no object steps were sent"})
+				return
+			}
 		}
 	}
 	for statementIndex, statement := range analysis.Statements {
@@ -800,29 +830,17 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			return
 		}
 		if e.objectPlan != nil {
-			var currentPolicies map[string]string
-			currentPolicies, err = v.objectPolicies(e.ctx, s, commands)
-			for sql, decision := range currentPolicies {
+			err = v.recheckObjectPolicies(e.ctx, s, objectPolicies, commands...)
+			for _, sql := range commands {
 				if authorization, ok := e.objectDecisions[sql]; ok && authorization.ACLID != "" && authorization.RiskLevel >= audit.RiskLevel {
 					audit.ACLID, audit.GroupID, audit.RiskLevel = authorization.ACLID, authorization.GroupID, authorization.RiskLevel
-				}
-				known, ok := objectPolicies[sql]
-				if !ok || known != decision {
-					err = errors.New("command policy changed; request a fresh object preview")
-					break
 				}
 			}
 		} else {
 			err = v.authorizeExecution(s, e, commands, &audit)
 		}
 		if err != nil {
-			var pe *core.PolicyError
-			code := "command_denied"
-			if errors.As(err, &pe) {
-				audit.RiskLevel, audit.ACLID, audit.GroupID = pe.RiskLevel, pe.ACLID, pe.GroupID
-				code = pe.Code
-			}
-			failure(err, &APIError{code, err.Error()})
+			denyCommand(err)
 			return
 		}
 		v.update(s, e, func(view *ExecutionView) { view.Status = "running" })
@@ -1085,6 +1103,16 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 	}
 	if objectTransaction {
+		// The last step's audit may outlive the grant or its COMMIT policy.
+		// Record the boundary separately so its outcome cannot be mistaken
+		// for the preceding statement's acknowledgement.
+		audit = e.objectBoundaryAudit("COMMIT")
+		auditPending = true
+		triggeredWarnings = nil
+		if err := v.recheckObjectPolicies(e.ctx, s, objectPolicies, "COMMIT"); err != nil {
+			denyCommand(err)
+			return
+		}
 		if err := e.beginTransactionBoundary(); err != nil {
 			failure(err, safeDatabaseError(err))
 			return

@@ -27,9 +27,7 @@ func (v *Server) clearFailedObjectVariables(s *session, c *console, e *execution
 	ctx, stop := context.WithTimeout(c.ctx, databaseCleanupTimeout)
 	defer stop()
 	stmt := plan.commands.Steps[last].SQL
-	current, err := v.objectPolicies(ctx, s, []string{stmt})
-	decision, known := approved[stmt]
-	if err != nil || !known || decision != current[stmt] {
+	if err := v.recheckObjectPolicies(ctx, s, approved, stmt); err != nil {
 		invalidateEditConnection(s, c)
 		return true
 	}
@@ -40,7 +38,7 @@ func (v *Server) clearFailedObjectVariables(s *session, c *console, e *execution
 		return false
 	}
 	before := time.Now()
-	_, err = c.conn.ExecContext(ctx, stmt)
+	_, err := c.conn.ExecContext(ctx, stmt)
 	msg, status := "Released routine output variables", "succeeded"
 	if err != nil {
 		msg, status = "Routine output variable cleanup could not be confirmed", "unknown"
