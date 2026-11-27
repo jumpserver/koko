@@ -19,7 +19,7 @@ type OverviewValue struct {
 	Source string  `json:"source,omitempty"`
 }
 type OverviewRow struct {
-	Object  CatalogObject            `json:"object"`
+	Object  CatalogRelation          `json:"object"`
 	Name    string                   `json:"name"`
 	Ordinal int                      `json:"ordinal,omitempty"`
 	Fields  map[string]OverviewValue `json:"fields"`
@@ -72,16 +72,8 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req 
 	if req.Sort != "name_asc" && req.Sort != "name_desc" {
 		return result, fmt.Errorf("invalid overview sort")
 	}
-	if (d.UsesMySQLSyntax() || d == dialect.ClickHouse) && req.Schema != "" && req.Schema != req.Database {
-		return result, ErrCatalogForbidden
-	}
-	if err := catalogDatabaseAccess(ctx, conn, d, req.Database); err != nil {
+	if err := catalogScopeAccess(ctx, conn, d, req.Database, req.Schema); err != nil {
 		return result, err
-	}
-	if d == dialect.PostgreSQL && req.Schema != "" {
-		if err := catalogSchemaAccess(ctx, conn, req.Schema); err != nil {
-			return result, err
-		}
 	}
 	result.Contract = string(d)
 	var clickHouse *clickHouseCapabilities
@@ -416,8 +408,7 @@ func overviewSQL(d dialect.ID, r OverviewRequest) (string, []any) {
 		if r.Section == "views" {
 			kinds = "('v','m')"
 		}
-		return `SELECT pg_catalog.current_database(),n.nspname,c.relname,CASE WHEN c.relkind IN ('v','m') THEN 'view' ELSE 'table' END,
- CASE c.relkind WHEN 'm' THEN 'materialized_view' WHEN 'f' THEN 'foreign_table' WHEN 'p' THEN 'partitioned_table' WHEN 'v' THEN 'view' ELSE 'table' END,
+		return `SELECT ` + postgresRelationProjection + `,
  LEFT(pg_catalog.obj_description(c.oid,'pg_class'),4097),
  CASE WHEN c.relkind IN ('r','m') AND c.reltuples>=0 THEN FLOOR(c.reltuples)::numeric::text END,
  CASE WHEN c.relkind IN ('r','m') THEN pg_catalog.pg_table_size(c.oid)::text END,
