@@ -124,7 +124,7 @@ func mysqlInvoke(req ObjectPlanRequest, detail ObjectDetail, profile MySQLObject
 		}
 	}
 	prefix += mysqlQualified(req.Ref) + "("
-	steps = append(steps, ObjectStep{SQL: prefix + strings.Join(shown, ", ") + ")", PolicySQL: prefix + strings.Join(policy, ", ") + ")", BoundSQL: prefix + strings.Join(parts, ", ") + ")", Args: args, ResultRole: role, SessionVariables: strings.HasPrefix(prefix, "SET ")})
+	steps = append(steps, ObjectStep{SQL: prefix + strings.Join(shown, ", ") + ")", PolicySQL: prefix + strings.Join(policy, ", ") + ")", BoundSQL: prefix + strings.Join(parts, ", ") + ")", Args: args, ResultRole: role})
 	if len(outputs) > 0 {
 		steps = append(steps, ObjectStep{SQL: "SELECT " + strings.Join(outputs, ", "), ResultRole: "output_parameters"})
 		clear := make([]string, len(vars))
