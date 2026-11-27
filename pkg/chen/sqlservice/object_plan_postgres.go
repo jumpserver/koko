@@ -96,6 +96,9 @@ func pgObjectDDL(ctx context.Context, conn *sql.Conn, req ObjectPlanRequest, det
 			if param == nil {
 				return ref, nil, errors.New("invalid routine parameter")
 			}
+			if f.IsProcedure && version < 140000 && param.Mode == pg.FunctionParameterMode_FUNC_PARAM_OUT {
+				return ref, nil, ErrCatalogUnsupported
+			}
 			if param.Mode == pg.FunctionParameterMode_FUNC_PARAM_OUT || param.Mode == pg.FunctionParameterMode_FUNC_PARAM_TABLE {
 				continue
 			}
