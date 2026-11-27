@@ -5,20 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jumpserver-dev/usql/feature"
-	"github.com/jumpserver-dev/usql/handler"
-	"github.com/jumpserver-dev/usql/internal/nosql"
-	"github.com/jumpserver-dev/usql/store"
-	"github.com/xo/usql/metacmd"
 	"io"
 	"net/url"
 	"os"
 	"os/user"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 
+	"github.com/jumpserver/koko/tools/usql/feature"
+	"github.com/jumpserver/koko/tools/usql/handler"
+	"github.com/jumpserver/koko/tools/usql/internal/nosql"
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -26,6 +23,7 @@ import (
 	"github.com/xo/dburl"
 	"github.com/xo/usql/drivers"
 	"github.com/xo/usql/env"
+	"github.com/xo/usql/metacmd"
 	"github.com/xo/usql/rline"
 	"github.com/xo/usql/text"
 )
@@ -413,9 +411,12 @@ func Run(ctx context.Context, args *Args, connections map[string]interface{}, in
 		if err := json.Unmarshal([]byte(rulesJson), &rules); err != nil {
 			return err
 		}
-		rules = slices.DeleteFunc(rules, func(r feature.DataMaskingRule) bool { return !r.Enabled() })
-		store.GetGlobalStore().Set(feature.DataMaskingKey, rules)
-		if len(rules) != 0 {
+		policy, err := feature.CompilePolicy(rules)
+		if err != nil {
+			return err
+		}
+		h.SetMaskPolicy(policy)
+		if policy.Enabled() {
 			h.MaskDiagnostics()
 			// Non-interactive failures and the last error at EOF reach main's logger.
 			defer func() { runErr = h.DiagnosticError(runErr) }()

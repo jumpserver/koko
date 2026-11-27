@@ -7,8 +7,7 @@ on:
     paths:
       - 'go.mod'
       - 'go.sum'
-      - 'tools/usql/go.mod'
-      - 'tools/usql/go.sum'
+      - 'pkg/dbkit/go.mod'
       - 'pkg/chen/third_party/*/go.mod'
       - 'Dockerfile-base'
   workflow_dispatch:

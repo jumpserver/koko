@@ -155,6 +155,9 @@ func parseConfig(dsn string) (*db2driver.Config, error) {
 	if (cfg.SSLClientCertPath == "") != (cfg.SSLClientKeyPath == "") {
 		return nil, errors.New("Db2 client certificate and key must be supplied together")
 	}
+	// Preserve WebCLI's plain db2:// transport with the shared driver. Never
+	// downgrade a TLS URL, or opt into plaintext for an encrypted SECMEC.
+	cfg.AllowPlaintextAuth = !cfg.UseSSL && (cfg.SecurityMechanism == 0 || cfg.SecurityMechanism == 3)
 	return cfg, nil
 }
 

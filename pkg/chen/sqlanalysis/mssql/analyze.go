@@ -10,8 +10,8 @@ import (
 
 	"github.com/bytebase/omni/mssql/ast"
 	"github.com/bytebase/omni/mssql/parser"
-	"github.com/jumpserver/koko/pkg/chen/dialect"
-	a "github.com/jumpserver/koko/pkg/chen/sqlanalysis"
+	"github.com/jumpserver/koko/pkg/dbkit/dialect"
+	a "github.com/jumpserver/koko/pkg/dbkit/sqlanalysis"
 )
 
 type Analyzer struct{}

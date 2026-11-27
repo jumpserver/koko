@@ -2,8 +2,10 @@ package handler
 
 import (
 	"database/sql"
-	"github.com/jumpserver-dev/usql/feature"
+	"slices"
 	"strings"
+
+	"github.com/jumpserver/koko/pkg/dbkit/masking"
 )
 
 // WarpRows 是对 sql.Rows 的包装，支持按列索引脱敏
@@ -11,7 +13,9 @@ type WarpRows struct {
 	rows          *sql.Rows
 	maskIndexes   []int
 	temp          []interface{}
-	dataMaskRules map[int]feature.DataMaskingRule
+	dataMaskRules map[int]masking.Transform
+	policy        masking.Policy
+	planErr       error
 }
 
 // NewWarpRows 构造函数
@@ -22,6 +26,32 @@ func NewWarpRows(rows *sql.Rows, maskIndexes []int) *WarpRows {
 	}
 }
 
+func rowsWithPolicy(rows *sql.Rows, policy masking.Policy) (*WarpRows, error) {
+	w := &WarpRows{rows: rows, policy: policy}
+	return w, w.bindColumns()
+}
+
+// Each result set has its own column order. Never reuse decisions by ordinal
+// across a stored procedure's results, even when their widths happen to match.
+func (w *WarpRows) bindColumns() error {
+	w.temp = nil
+	if !w.policy.Enabled() {
+		return nil
+	}
+	names, err := w.rows.Columns()
+	if err != nil {
+		return err
+	}
+	w.dataMaskRules = make(map[int]masking.Transform)
+	for i, name := range names {
+		// Preserve the terminal matcher's Unicode lowercase and final-LF anchor.
+		if m, ok := w.policy.Match(strings.ToLower(strings.TrimSuffix(name, "\n"))); ok {
+			w.dataMaskRules[i] = m
+		}
+	}
+	return nil
+}
+
 // Next 代理
 func (w *WarpRows) Next() bool {
 	return w.rows.Next()
@@ -30,7 +60,7 @@ func (w *WarpRows) Next() bool {
 // Scan 对行进行读取并按规则脱敏
 func (w *WarpRows) Scan(dest ...interface{}) error {
 	// 初始化 temp 缓存
-	if w.temp == nil {
+	if len(w.temp) != len(dest) {
 		w.temp = make([]interface{}, len(dest))
 		for i := range w.temp {
 			w.temp[i] = new(interface{})
@@ -45,77 +75,37 @@ func (w *WarpRows) Scan(dest ...interface{}) error {
 	// 遍历每一列，赋值到用户传入的 dest
 	for i := range dest {
 		src := *w.temp[i].(*interface{})
-		if contains(w.maskIndexes, i) {
-			rule, ok := w.dataMaskRules[i]
-			val := rule.MaskPattern
-
-			if ok {
-				switch src.(type) {
-				case []byte:
-					val = replaceColumnVal(rule, string(src.([]byte)))
-				case *string:
-					val = replaceColumnVal(rule, *(src.(*string)))
-				case *sql.NullString:
-					if src.(*sql.NullString).Valid {
-						val = replaceColumnVal(rule, src.(*sql.NullString).String)
-					}
-				case string:
-					val = replaceColumnVal(rule, src.(string))
-				}
-				if src != nil {
-					dest[i] = val
+		if rule, ok := w.dataMaskRules[i]; ok && src != nil {
+			switch v := src.(type) {
+			case []byte:
+				dest[i] = rule.Text(string(v))
+			case string:
+				dest[i] = rule.Text(v)
+			case *string:
+				if v != nil {
+					dest[i] = rule.Text(*v)
 				} else {
-					dest[i] = "NULL"
+					dest[i] = rule.Pattern
 				}
+			case *sql.NullString:
+				if v != nil && v.Valid {
+					dest[i] = rule.Text(v.String)
+				} else {
+					dest[i] = rule.Pattern
+				}
+			default:
+				dest[i] = rule.Pattern
 			}
+		} else if slices.Contains(w.maskIndexes, i) && !ok {
+			// Preserve the legacy NewWarpRows constructor's unassigned cells.
+			continue
+		} else if src == nil {
+			dest[i] = "NULL"
 		} else {
-			if src != nil {
-				dest[i] = src
-			} else {
-				dest[i] = "NULL"
-			}
+			dest[i] = src
 		}
 	}
 	return nil
-
-}
-
-func replaceColumnVal(rule feature.DataMaskingRule, val string) string {
-	characters := []rune(val)
-	switch rule.MaskingMethod {
-	case feature.MaskingMethodFixedChar:
-		// 固定字符替换
-		if rule.MaskPattern == "" {
-			return rule.MaskPattern
-		}
-		return rule.MaskPattern
-
-	case feature.MaskingMethodHideMiddle:
-		// 隐藏中间
-		if len(characters) < 3 {
-			return rule.MaskPattern
-		}
-		return string(characters[:1]) + strings.Repeat("*", len(characters)-2) + string(characters[len(characters)-1:])
-
-	case feature.MaskingMethodKeepPrefix:
-		// 保留前缀
-		n := 2
-		if n <= 0 || n >= len(characters) {
-			return "####"
-		}
-		return string(characters[:n]) + strings.Repeat("*", len(characters)-n)
-
-	case feature.MaskingMethodKeepSuffix:
-		// 保留后缀
-		n := 2
-		if n <= 0 || n >= len(characters) {
-			return "####"
-		}
-		return strings.Repeat("*", len(characters)-n) + string(characters[len(characters)-n:])
-	default:
-		// 未知策略
-		return rule.MaskPattern
-	}
 }
 
 // Columns 代理
@@ -135,22 +125,17 @@ func (w *WarpRows) Close() error {
 
 // Err 代理
 func (w *WarpRows) Err() error {
+	if w.planErr != nil {
+		return w.planErr
+	}
 	return w.rows.Err()
 }
 
 // NextResultSet 代理
 func (w *WarpRows) NextResultSet() bool {
-	return w.rows.NextResultSet()
-}
-
-// ---------------- 工具函数 ----------------
-
-// contains 判断 index 是否在 maskIndexes 中
-func contains(indexes []int, target int) bool {
-	for _, i := range indexes {
-		if i == target {
-			return true
-		}
+	if w.planErr != nil || !w.rows.NextResultSet() {
+		return false
 	}
-	return false
+	w.planErr = w.bindColumns()
+	return w.planErr == nil
 }

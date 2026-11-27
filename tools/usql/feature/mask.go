@@ -3,6 +3,8 @@ package feature
 import (
 	"strings"
 	"unicode"
+
+	"github.com/jumpserver/koko/pkg/dbkit/masking"
 )
 
 type DataMaskingRule struct {
@@ -22,14 +24,21 @@ func (r DataMaskingRule) Enabled() bool {
 
 const DataMaskingKey = "data-masking-rules"
 
-//fixed_char = "fixed_char", _("Fixed Character Replacement")  # 固定字符替换
-//hide_middle = "hide_middle", _("Hide Middle Characters")  # 隐藏中间几位
-//keep_prefix = "keep_prefix", _("Keep Prefix Only")  # 只保留前缀
-//keep_suffix = "keep_suffix", _("Keep Suffix Only")  # 只保留后缀
-
 const (
-	MaskingMethodFixedChar  = "fixed_char"
-	MaskingMethodHideMiddle = "hide_middle"
-	MaskingMethodKeepPrefix = "keep_prefix"
-	MaskingMethodKeepSuffix = "keep_suffix"
+	MaskingMethodFixedChar  = masking.FixedChar
+	MaskingMethodHideMiddle = masking.HideMiddle
+	MaskingMethodKeepPrefix = masking.KeepPrefix
+	MaskingMethodKeepSuffix = masking.KeepSuffix
 )
+
+// CompilePolicy maps the terminal's wire format into an ordered session policy.
+// Legacy callers can omit is_active; inactive and empty rules remain ignored.
+func CompilePolicy(rules []DataMaskingRule) (masking.Policy, error) {
+	var input []masking.Rule
+	for _, r := range rules {
+		if r.Enabled() {
+			input = append(input, masking.Rule{Fields: strings.ToLower(r.FieldsPattern), Transform: masking.Transform{Method: r.MaskingMethod, Pattern: r.MaskPattern}})
+		}
+	}
+	return masking.Compile(input)
+}

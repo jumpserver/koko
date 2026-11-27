@@ -52,7 +52,7 @@ func init() {
 	}
 
 	d.Open = func(ctx context.Context, source *dburl.URL, f func() io.Writer, f2 func() io.Writer) (func(string, string) (*sql.DB, error), error) {
-		return func(_, dsn string) (*sql.DB, error) {
+		return func(string, string) (*sql.DB, error) {
 			u := *source // Retry/password prompts must not mutate a shared URL.
 			u.RawQuery += u.RawFragment
 			queryParams := u.Query()
@@ -73,8 +73,7 @@ func init() {
 			if err != nil {
 				return nil, err
 			}
-			dsn = newDSN.DSN
-			cfg, err := mysql.ParseDSN(dsn)
+			cfg, err := mysql.ParseDSN(newDSN.DSN)
 			if err != nil {
 				return nil, err
 			}

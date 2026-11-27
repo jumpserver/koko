@@ -17,6 +17,11 @@ import (
 	"strings"
 )
 
+type changeDatabaseKey struct{}
+
+// IsDatabaseChange distinguishes an interactive database switch from opening a new DSN.
+func IsDatabaseChange(ctx context.Context) bool { return ctx.Value(changeDatabaseKey{}) == true }
+
 // Cmd is a command implementation.
 type Cmd struct {
 	Section Section
@@ -95,7 +100,7 @@ func init() {
 				if err != nil {
 					return err
 				}
-				ctx, cancel := signal.NotifyContext(context.WithValue(context.Background(), "CHANGE_DATABASE", "1"), os.Interrupt)
+				ctx, cancel := signal.NotifyContext(context.WithValue(context.Background(), changeDatabaseKey{}, true), os.Interrupt)
 				defer cancel()
 				return p.Handler.Open(ctx, vals...)
 			},
@@ -169,6 +174,9 @@ func init() {
 				// read begin params
 				readOnly := false
 				ok, n, err := p.GetOptional(true)
+				if err != nil {
+					return err
+				}
 				if ok {
 					if n != "read-only" {
 						return fmt.Errorf(text.InvalidOption, n)

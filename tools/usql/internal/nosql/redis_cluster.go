@@ -33,7 +33,7 @@ type clusterScanState struct {
 func (s *redisSession) clusterMasters(ctx context.Context) ([]clusterMaster, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	slots, err := s.cluster.ClusterSlots(ctx).Result()
+	slots, err := s.cluster.ClusterSlots(ctx).Result() //nolint:staticcheck // CLUSTER SHARDS is unavailable before Redis 7.
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func (s *redisSession) watchMonitor(ctx context.Context, masters []clusterMaster
 			return
 		case <-ticker.C:
 			check, cancel := context.WithTimeout(ctx, 5*time.Second)
-			slots, err := client.ClusterSlots(check).Result()
+			slots, err := client.ClusterSlots(check).Result() //nolint:staticcheck // CLUSTER SHARDS is unavailable before Redis 7.
 			cancel()
 			if err == nil {
 				var current []clusterMaster

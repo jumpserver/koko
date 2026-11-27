@@ -74,7 +74,9 @@ $ make run # 3. 运行；从源码编译 usql，首次运行时准备 libghostty
 
 `make build` 生成 `build/koko`、`build/kael` 和 `build/usql`。WebCLI 仍以子进程运行 usql。手工运行解压后的离线包时，请把解压目录放在 `PATH` 最前面；`make dev` 和容器已使用随包构建的二进制。
 
-[usql](tools/usql/README.md) 保留独立 Go 模块，迁入基线为 [jumpserver-dev/usql v0.2.14](https://github.com/jumpserver-dev/usql/tree/3bb1da2711c04d84a3699aed75a209621e4eef86)。单独编译使用 `make usql`，测试使用 `go -C tools/usql test ./...`。修改 usql 源码后随 KoKo 发布，无需单独发布 usql；模块依赖变化时才需要为此重建 base 镜像。
+[usql](tools/usql/README.md) 与 KoKo 共用根目录的 go.mod 和 go.sum，仍作为独立的无 CGO 子进程构建。迁入基线为 [jumpserver-dev/usql v0.2.14](https://github.com/jumpserver-dev/usql/tree/3bb1da2711c04d84a3699aed75a209621e4eef86)。单独编译使用 `make usql`，测试使用 `CGO_ENABLED=0 go test ./tools/usql/...`。修改 usql 源码后随 KoKo 发布，无需单独发布 usql；模块依赖变化时才需要为此重建 base 镜像。
+
+WebCLI 和 WebGUI 的公共数据库契约在 [dbkit](pkg/dbkit/README.md)。该模块只依赖标准库，独立测试使用 `go -C pkg/dbkit test ./...`。
 
 本地运行 Kael 前，先根据 `cmd/kael/config_example.yml` 配置 `cmd/kael/config.yml`，并将 Codex CLI 加入 `PATH` 或设置 `CODEX_BINARY`。Kael 数据保存在 `cmd/kael/data/`。[Kael 文档](docs/kael/README.md)
 

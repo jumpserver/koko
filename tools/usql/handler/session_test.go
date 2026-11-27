@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jumpserver-dev/usql/metacmd"
+	"github.com/jumpserver/koko/tools/usql/metacmd"
 	"github.com/xo/dburl"
 	"github.com/xo/usql/drivers"
 	"github.com/xo/usql/rline"

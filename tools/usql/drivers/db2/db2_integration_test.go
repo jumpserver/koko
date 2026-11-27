@@ -84,7 +84,7 @@ func TestLiveDB2(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 		var answer int
 		if err := tx.QueryRowContext(ctx, "VALUES 7").Scan(&answer); err != nil {
 			t.Fatal(err)
