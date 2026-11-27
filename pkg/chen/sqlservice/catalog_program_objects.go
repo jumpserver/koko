@@ -8,14 +8,16 @@ import (
 )
 
 type RoutineParameter struct {
-	Position   int           `json:"position"`
-	Name       string        `json:"name,omitempty"`
-	Mode       string        `json:"mode"`
-	Type       ObjectTypeRef `json:"type"`
-	DataType   string        `json:"data_type"`
-	TypeKind   string        `json:"type_kind,omitempty"`
-	HasDefault bool          `json:"has_default"`
-	Default    *string       `json:"default,omitempty"`
+	CharacterSet string        `json:"character_set,omitempty"`
+	Collation    string        `json:"collation,omitempty"`
+	Position     int           `json:"position"`
+	Name         string        `json:"name,omitempty"`
+	Mode         string        `json:"mode"`
+	Type         ObjectTypeRef `json:"type"`
+	DataType     string        `json:"data_type"`
+	TypeKind     string        `json:"type_kind,omitempty"`
+	HasDefault   bool          `json:"has_default"`
+	Default      *string       `json:"default,omitempty"`
 }
 
 type ObjectDetail struct {
@@ -27,12 +29,13 @@ type ObjectDetail struct {
 }
 
 type ObjectDefinition struct {
-	Ref     ObjectRef `json:"ref"`
-	OID     uint32    `json:"oid,omitempty"`
-	Status  string    `json:"status"`
-	Text    string    `json:"text,omitempty"`
-	Source  string    `json:"source"`
-	Version string    `json:"version,omitempty"`
+	Environment map[string]string `json:"environment,omitempty"`
+	Ref         ObjectRef         `json:"ref"`
+	OID         uint32            `json:"oid,omitempty"`
+	Status      string            `json:"status"`
+	Text        string            `json:"text,omitempty"`
+	Source      string            `json:"source"`
+	Version     string            `json:"version,omitempty"`
 }
 
 func definitionFingerprint(body string) string {
@@ -55,6 +58,9 @@ func ValidObjectRef(ref ObjectRef) bool {
 	}
 	if ref.Kind == TriggerKind {
 		return valid(ref.Table) && len(ref.InputTypes) == 0
+	}
+	if ref.Kind == EventKind {
+		return ref.Table == "" && len(ref.InputTypes) == 0
 	}
 	return ref.Kind.IsRoutine() && ref.Table == ""
 }

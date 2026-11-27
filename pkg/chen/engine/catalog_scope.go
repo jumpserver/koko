@@ -110,6 +110,11 @@ func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) 
 			}
 			s.functionOID = uint32(n)
 		}
+	case "event":
+		s.collection = "event"
+		if s.kind != "" && s.kind != "event" {
+			return s, errors.New("invalid_catalog_request")
+		}
 	case "routine":
 		s.collection = "routine"
 		if s.kind != "" && !sqlservice.ObjectKind(s.kind).IsRoutine() {

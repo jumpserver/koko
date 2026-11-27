@@ -30,6 +30,13 @@ func ReadCatalogCapabilities(ctx context.Context, conn *sql.Conn, d dialect.ID, 
 	result = CatalogCapabilities{Version: 2, Collections: map[string]CatalogCollection{
 		"relation": {Kinds: []ObjectKind{"table", "view"}, Actions: []string{"list"}},
 	}}
+	if d.UsesMySQLSyntax() {
+		profile, e := ReadMySQLObjectProfile(ctx, conn, d)
+		if e != nil {
+			return CatalogCapabilities{}, e
+		}
+		profile.addCollections(&result)
+	}
 	if d == dialect.PostgreSQL {
 		version, err := PostgreSQLCatalogVersion(ctx, conn)
 		if err != nil {
