@@ -14,6 +14,8 @@ import (
 
 const catalogTimeout = 3 * time.Second
 
+var _ Catalog = connectionCatalog{}
+
 type connectionCatalog struct {
 	conn    *sql.Conn
 	dialect dialect.ID

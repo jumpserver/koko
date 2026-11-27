@@ -24,10 +24,9 @@ KOKOLDFLAGS+=-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$(CipherKey)'
 
 KOKOBUILD=CGO_ENABLED=1 go build -trimpath -ldflags "$(KOKOLDFLAGS) ${LDFLAGS}"
 
-# usql remains a separate module and PTY child. Do not apply KoKo's driver
-# replacements or CGO settings to its build.
+# WebCLI shares the root dependency graph but remains a separate, CGO-free PTY child.
 define build_usql
-	GOWORK=off CGO_ENABLED=0 GOOS=$(1) GOARCH=$(2) go -C tools/usql build -mod=readonly -trimpath -ldflags "$(LDFLAGS) -X 'github.com/xo/usql/text.CommandVersion=$(VERSION)'" -o "$(abspath $(3))" .
+	GOWORK=off CGO_ENABLED=0 GOOS=$(1) GOARCH=$(2) go build -mod=readonly -trimpath -ldflags "$(LDFLAGS) -X 'github.com/xo/usql/text.CommandVersion=$(VERSION)'" -o "$(abspath $(3))" ./tools/usql
 endef
 
 define make_artifact_full

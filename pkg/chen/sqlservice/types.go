@@ -4,11 +4,11 @@
 package sqlservice
 
 import (
-	"context"
 	"errors"
 
 	"github.com/jumpserver/koko/pkg/chen/dialect"
 	"github.com/jumpserver/koko/pkg/chen/sqlanalysis"
+	"github.com/jumpserver/koko/pkg/dbkit/catalog"
 )
 
 const (
@@ -46,10 +46,7 @@ var (
 	ErrDocumentTooLarge   = errors.New("SQL document exceeds 4,194,304 UTF-16 code units")
 )
 
-type Context struct {
-	Database string `json:"database"`
-	Schema   string `json:"schema"`
-}
+type Context = catalog.Namespace
 
 type Statement struct {
 	PolicySQL []string `json:"-"`
@@ -74,29 +71,10 @@ type AnalyzeOptions struct {
 	MySQLVersion int // Server version as major*10000+minor*100+patch. Zero means 80000.
 }
 
-type MetadataRequest struct {
-	Context Context `json:"context"`
-	Prefix  string  `json:"prefix"`
-	Limit   int     `json:"limit"`
-}
-type ColumnRequest struct {
-	Context Context `json:"context"`
-	Schema  string  `json:"schema"`
-	Table   string  `json:"table"`
-}
-type Relation struct {
-	Database string `json:"database"`
-	Schema   string `json:"schema"`
-	Name     string `json:"name"`
-	Kind     string `json:"kind"`
-	Comment  string `json:"comment"`
-}
-type Column struct {
-	Name     string `json:"name"`
-	DataType string `json:"data_type"`
-	Nullable bool   `json:"nullable"`
-	Comment  string `json:"comment"`
-}
+type MetadataRequest = catalog.RelationRequest
+type ColumnRequest = catalog.ColumnRequest
+type Relation = catalog.Relation
+type Column = catalog.Column
 
 type CompletionRequest struct {
 	Document    string  `json:"document"`
@@ -122,9 +100,4 @@ type CompletionItem struct {
 	SortText      string `json:"sort_text,omitempty"`
 }
 
-// Catalog is scoped to the authenticated session/connection by its caller. A
-// request-local memoizer is used for completion; there is no cross-user cache.
-type Catalog interface {
-	Relations(context.Context, MetadataRequest) ([]Relation, error)
-	Columns(context.Context, ColumnRequest) ([]Column, error)
-}
+type Catalog = catalog.Reader

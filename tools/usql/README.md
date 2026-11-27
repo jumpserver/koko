@@ -1,6 +1,8 @@
 # JumpServer usql
 
-This WebCLI is built from source as part of KoKo. See the [KoKo build instructions](../../README.md) or run `make usql` at the repository root. The module remains separate so its driver versions do not inherit KoKo's replacements.
+This WebCLI is built from source as part of KoKo. See the [KoKo build instructions](../../README.md) or run `make usql` at the repository root. WebCLI is a separate CGO-free executable, built with the root go.mod and the same patched Oracle, Db2 and Dameng drivers as WebGUI.
+
+When updating the xo dependency family, run `CGO_ENABLED=0 go test ./tools/usql/...`. dburl v0.25.1 registers Dameng itself, which conflicts with this CLI's registration and handles reserved characters in credentials differently. Building alone does not exercise driver registration.
 
 ## MySQL and PostgreSQL TLS
 

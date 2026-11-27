@@ -74,7 +74,9 @@ $ make run # 3. Run; builds usql from source and sets up libghostty-vt on first 
 
 `make build` produces `build/koko`, `build/kael` and `build/usql`. WebCLI still launches usql as a separate process. When running an unpacked release, put its directory first on `PATH`; `make dev` and the container already select the bundled binary.
 
-[usql](tools/usql/README.md) is a separate Go module in this repository, imported from [jumpserver-dev/usql v0.2.14](https://github.com/jumpserver-dev/usql/tree/3bb1da2711c04d84a3699aed75a209621e4eef86). Use `make usql` to build it alone and `go -C tools/usql test ./...` to run its tests. Source-only changes ship with KoKo; rebuild the base image when module dependencies change. No separate usql release is needed.
+[usql](tools/usql/README.md) is built from the KoKo root Go module. Its source was imported from [jumpserver-dev/usql v0.2.14](https://github.com/jumpserver-dev/usql/tree/3bb1da2711c04d84a3699aed75a209621e4eef86). Use `make usql` to build it alone and `CGO_ENABLED=0 go test ./tools/usql/...` to run its tests. Source-only changes ship with KoKo; rebuild the base image when module dependencies change. No separate usql release is needed.
+
+WebCLI and WebGUI share the driver-independent [dbkit module](pkg/dbkit/README.md). Test it separately with `go -C pkg/dbkit test ./...`.
 
 To run Kael locally, configure `cmd/kael/config.yml` from `cmd/kael/config_example.yml` and make the Codex CLI available on `PATH` or set `CODEX_BINARY`. Kael keeps its data in `cmd/kael/data/`. [Kael documentation](docs/kael/README.md)
 

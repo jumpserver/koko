@@ -10,6 +10,7 @@ import (
 
 	"github.com/dlclark/regexp2"
 	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver/koko/pkg/dbkit/masking"
 	"github.com/jumpserver/koko/pkg/session"
 )
 
@@ -153,96 +154,41 @@ func javaACLQuotedPattern(pattern string) string {
 	return out.String()
 }
 
-type maskRule struct {
-	fields  []*regexp.Regexp
-	method  string
-	pattern string
-}
-
-func compileMaskers(rules []model.DataMaskingRule) ([]maskRule, error) {
-	result := make([]maskRule, 0, len(rules))
-	for _, rule := range rules {
-		if strings.TrimSpace(rule.FieldsPattern) == "" {
-			return nil, errors.New("unsupported_empty_data_masking_rule")
+func compileMaskers(rules []model.DataMaskingRule) (masking.Policy, error) {
+	input := make([]masking.Rule, 0, len(rules))
+	for _, r := range rules {
+		pattern := r.MaskPattern
+		if pattern == "" {
+			pattern = "####"
 		}
-		r := maskRule{method: rule.MaskingMethod, pattern: rule.MaskPattern}
-		for _, field := range strings.Split(rule.FieldsPattern, ",") {
-			field = strings.TrimSpace(field)
-			if field == "" {
-				continue
-			}
-			// Only '*' is special; a Core field pattern is not a regex.
-			pattern := "(?i)^" + strings.ReplaceAll(regexp.QuoteMeta(field), `\*`, ".*") + "$"
-			r.fields = append(r.fields, regexp.MustCompile(pattern))
-		}
-		if len(r.fields) == 0 {
-			return nil, errors.New("unsupported_empty_data_masking_pattern")
-		}
-		result = append(result, r)
+		input = append(input, masking.Rule{Fields: r.FieldsPattern, Transform: masking.Transform{Method: r.MaskingMethod, Pattern: pattern}})
 	}
-	return result, nil
+	return masking.Compile(input)
 }
 
-// Mask must run before any result value is exposed or persisted as a browser
-// result. Matching both the source column and label preserves alias protection
-// when source-column metadata is available. Last matching rule wins, as in Java.
+// The WebGUI owns its fallback for missing provenance and non-scalar values.
 func (p *CoreProvider) Mask(g *Grant, column, label string, value any) (any, bool) {
 	if g == nil {
 		return "####", true
 	}
-	var match *maskRule
-	for i := range g.maskers {
-		for _, field := range g.maskers[i].fields {
-			if field.MatchString(column) || field.MatchString(label) {
-				match = &g.maskers[i]
-				break
-			}
-		}
-	}
-	if match == nil {
-		if len(g.maskers) > 0 && column == "" {
-			// Without origin metadata an alias/expression can hide a protected
-			// source field. Never claim label-only matching enforces that policy.
+	m, ok := g.maskers.Match(column, label)
+	if !ok {
+		if g.maskers.Enabled() && column == "" {
 			return "####", true
 		}
 		return value, false
 	}
-	pattern := match.pattern
-	if pattern == "" {
-		pattern = "####"
+	if value == nil || m.Method == masking.FixedChar {
+		return m.Pattern, true
 	}
-	if value == nil || match.method == "fixed_char" {
-		return pattern, true
-	}
-	var str string
 	switch v := value.(type) {
 	case string:
-		str = v
+		return m.Text(v), true
 	case []byte:
-		str = string(v)
+		return m.Text(string(v)), true
 	case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
-		str = fmt.Sprint(v)
+		return m.Text(fmt.Sprint(v)), true
 	default:
-		return pattern, true
-	}
-	runes := []rune(str)
-	switch match.method {
-	case "hide_middle":
-		if len(runes) < 3 {
-			return pattern, true
-		}
-		return string(runes[:1]) + strings.Repeat("*", len(runes)-2) + string(runes[len(runes)-1:]), true
-	case "keep_prefix":
-		if len(runes) <= 2 {
-			return "####", true
-		}
-		return string(runes[:2]) + strings.Repeat("*", len(runes)-2), true
-	case "keep_suffix":
-		if len(runes) <= 2 {
-			return "####", true
-		}
-		return strings.Repeat("*", len(runes)-2) + string(runes[len(runes)-2:]), true
-	default:
-		return pattern, true
+		return m.Pattern, true
 	}
 }

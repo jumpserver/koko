@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/jumpserver/koko/pkg/dbkit/catalog"
+	"github.com/jumpserver/koko/pkg/dbkit/dialect"
 	obdriver "github.com/oceanbase/go-oceanbase-driver"
 	"github.com/xo/dburl"
 	"github.com/xo/usql/drivers"
@@ -28,11 +30,11 @@ var (
 
 func init() {
 	for _, mode := range []struct {
-		name   string
-		oracle bool
+		name    string
+		dialect dialect.ID
 	}{
-		{"oceanbase", false},
-		{"oboracle", true},
+		{"oceanbase", dialect.OceanBaseMySQL},
+		{"oboracle", dialect.OceanBaseOracle},
 	} {
 		mode := mode
 		dburl.Register(dburl.Scheme{
@@ -45,21 +47,21 @@ func init() {
 		})
 		d := drivers.Driver{
 			AllowMultilineComments: true,
-			AllowHashComments:      !mode.oracle,
+			AllowHashComments:      !mode.dialect.UsesOracleSyntax(),
 			LexerName:              "mysql",
 			UseColumnTypes:         true,
 			Version: func(ctx context.Context, db drivers.DB) (string, error) {
-				query := "SELECT VERSION()"
-				if mode.oracle {
-					query = "SELECT BANNER FROM V$VERSION"
+				if mode.dialect.UsesMySQLSyntax() {
+					return catalog.ReadMySQLVersion(ctx, db)
 				}
+				const query = "SELECT BANNER FROM V$VERSION"
 				var version string
 				err := db.QueryRowContext(ctx, query).Scan(&version)
 				return version, err
 			},
 			User: func(ctx context.Context, db drivers.DB) (string, error) {
 				query := "SELECT CURRENT_USER()"
-				if mode.oracle {
+				if mode.dialect.UsesOracleSyntax() {
 					query = "SELECT USER FROM DUAL"
 				}
 				var username string
@@ -83,7 +85,7 @@ func init() {
 			Open: openOceanBase,
 			Copy: drivers.CopyWithInsert(func(int) string { return "?" }),
 		}
-		if mode.oracle {
+		if mode.dialect.UsesOracleSyntax() {
 			d.LexerName = "oracle"
 			d.NewMetadataReader = newOracleMetadataReader
 			d.NewMetadataWriter = func(db drivers.DB, w io.Writer, opts ...metadata.ReaderOption) metadata.Writer {

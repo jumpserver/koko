@@ -38,14 +38,17 @@ func TestTLSCertificateVerification(t *testing.T) {
 					return
 				}
 				defer conn.Close()
-				conn.SetDeadline(time.Now().Add(3 * time.Second))
+				if err := conn.SetDeadline(time.Now().Add(3 * time.Second)); err != nil {
+					handshaken <- err
+					return
+				}
 				err = conn.(*tls.Conn).Handshake()
 				handshaken <- err
 				if err == nil {
 					// End after the first DRDA header: this fixture validates TLS,
 					// not a simulated database authentication success.
 					var header [6]byte
-					io.ReadFull(conn, header[:])
+					_, _ = io.ReadFull(conn, header[:])
 				}
 			}()
 			q := url.Values{"ssl": {"true"}}

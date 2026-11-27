@@ -6,8 +6,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/jumpserver-dev/usql/internal/dbdiagnostic"
-	"github.com/jumpserver-dev/usql/text"
+	"github.com/jumpserver/koko/tools/usql/internal/dbdiagnostic"
+	"github.com/jumpserver/koko/tools/usql/text"
 	"github.com/xo/usql/rline"
 )
 

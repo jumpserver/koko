@@ -1,35 +1,32 @@
-// Package dialect identifies the database products supported by Chen.
+// Package dialect preserves Chen's dialect API. Shared identity lives in dbkit.
 package dialect
 
 import (
 	"errors"
 	"slices"
 	"strings"
+
+	shared "github.com/jumpserver/koko/pkg/dbkit/dialect"
 )
 
-// ID identifies a SQL dialect, including the tenant mode for OceanBase.
-type ID string
+type ID = shared.ID
 
 const (
-	MySQL           ID = "mysql"
-	MariaDB         ID = "mariadb"
-	PostgreSQL      ID = "postgresql"
-	SQLServer       ID = "sqlserver"
-	Oracle          ID = "oracle"
-	Dameng          ID = "dameng"
-	ClickHouse      ID = "clickhouse"
-	OceanBaseMySQL  ID = "oceanbase-mysql"
-	OceanBaseOracle ID = "oceanbase-oracle"
-	DB2             ID = "db2"
+	MySQL           = shared.MySQL
+	MariaDB         = shared.MariaDB
+	PostgreSQL      = shared.PostgreSQL
+	SQLServer       = shared.SQLServer
+	Oracle          = shared.Oracle
+	Dameng          = shared.Dameng
+	ClickHouse      = shared.ClickHouse
+	OceanBaseMySQL  = shared.OceanBaseMySQL
+	OceanBaseOracle = shared.OceanBaseOracle
+	DB2             = shared.DB2
 )
 
 const oceanBaseProtocol = "oceanbase"
 
 var supported = [...]ID{MySQL, MariaDB, PostgreSQL, SQLServer, Oracle, Dameng, ClickHouse, OceanBaseMySQL, OceanBaseOracle, DB2}
-
-func (d ID) Supported() bool {
-	return slices.Contains(supported[:], d)
-}
 
 // SupportedProtocols returns the advertised protocol names in API order.
 func SupportedProtocols() []string {
@@ -71,23 +68,8 @@ func Parse(protocol, tenantMode string) (ID, error) {
 		return MariaDB, nil
 	}
 	d := ID(protocol)
-	if !d.Supported() {
+	if !slices.Contains(supported[:], d) {
 		return "", errors.New("unsupported_database_for_go_v1")
 	}
 	return d, nil
-}
-
-// UsesMySQLSyntax reports whether the dialect uses MySQL syntax.
-func (d ID) UsesMySQLSyntax() bool {
-	return d == MySQL || d == MariaDB || d == OceanBaseMySQL
-}
-
-// UsesOracleSyntax reports whether the dialect uses Oracle syntax.
-func (d ID) UsesOracleSyntax() bool {
-	return d == Oracle || d == Dameng || d == OceanBaseOracle
-}
-
-// UsesMySQLWire includes the Oracle SQL mode of OceanBase.
-func (d ID) UsesMySQLWire() bool {
-	return d.UsesMySQLSyntax() || d == OceanBaseOracle
 }

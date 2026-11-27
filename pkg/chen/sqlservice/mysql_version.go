@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/jumpserver/koko/pkg/chen/dialect"
+	"github.com/jumpserver/koko/pkg/dbkit/catalog"
 	ob "github.com/oceanbase/go-oceanbase-driver"
 )
 
@@ -22,7 +23,7 @@ const (
 func (s MySQLVersionSource) Query() string {
 	switch s {
 	case MySQLVersionFunction:
-		return "SELECT VERSION()"
+		return catalog.MySQLVersionSQL
 	case MySQLVersionComment:
 		return "SELECT @@version_comment"
 	default:
@@ -112,8 +113,8 @@ func versionCommentUnavailable(err error) bool {
 // ReadMySQLServerVersion preserves the original report if the optional lookup
 // fails. Product identity can also be unknown after two successful queries.
 func ReadMySQLServerVersion(ctx context.Context, conn *sql.Conn, d dialect.ID) (MySQLServerVersion, error) {
-	var reported string
-	if err := conn.QueryRowContext(ctx, MySQLVersionFunction.Query()).Scan(&reported); err != nil {
+	reported, err := catalog.ReadMySQLVersion(ctx, conn)
+	if err != nil {
 		return MySQLServerVersion{}, &MySQLVersionProbeError{Source: MySQLVersionFunction, cause: err}
 	}
 	return resolveMySQLServerVersion(ctx, conn, d, reported)

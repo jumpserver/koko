@@ -25,13 +25,21 @@ jobs:
         run: |
           echo "PKG_CONFIG_PATH=$(./utils/setup-libghostty-vt.sh)/lib/pkgconfig" >> "$GITHUB_ENV"
 
-      # The root module's ./... does not descend into the standalone usql module.
-      - name: Test the WebCLI module
-        working-directory: tools/usql
+      # Root ./... does not descend into nested modules. Keep dbkit driver-independent.
+      - name: Test shared database contracts
+        working-directory: pkg/dbkit
         env:
           GOWORK: 'off'
           CGO_ENABLED: '0'
-        run: go test -mod=readonly ./...
+        run: |
+          test "$(go list -m all)" = "$(go list -m)"
+          go test -mod=readonly ./...
+
+      - name: Test WebCLI with the release CGO setting
+        env:
+          GOWORK: 'off'
+          CGO_ENABLED: '0'
+        run: go test -mod=readonly ./tools/usql/...
 
       - uses: golangci/golangci-lint-action@v9
         with:

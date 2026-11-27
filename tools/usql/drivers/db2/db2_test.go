@@ -37,6 +37,20 @@ func TestURLCredentialsAndTLS(t *testing.T) {
 	}
 }
 
+func TestPlaintextCompatibilityIsScopedToSelectedTransport(t *testing.T) {
+	for _, tt := range []struct {
+		query string
+		allow bool
+	}{
+		{"", true}, {"?secmec=3", true}, {"?secmec=9", false}, {"?ssl=true&secmec=3", false},
+	} {
+		cfg, err := parseConfig("db2://user:password@localhost/sample" + tt.query)
+		if err != nil || cfg.AllowPlaintextAuth != tt.allow {
+			t.Fatalf("query %q: allow plaintext should be %v, err=%v", tt.query, tt.allow, err)
+		}
+	}
+}
+
 func TestInvalidURLs(t *testing.T) {
 	for _, dsn := range []string{
 		"db2://host", "db2:///sample", "db2://host:65536/sample", "db2://host/sample#fragment",
@@ -75,7 +89,9 @@ func TestConfiguredAddressAndCancellation(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer listener.Close()
-			listener.(*net.TCPListener).SetDeadline(time.Now().Add(3 * time.Second))
+			if err := listener.(*net.TCPListener).SetDeadline(time.Now().Add(3 * time.Second)); err != nil {
+				t.Fatal(err)
+			}
 			reached := make(chan error, 1)
 			go func() {
 				conn, err := listener.Accept()
@@ -84,7 +100,10 @@ func TestConfiguredAddressAndCancellation(t *testing.T) {
 					return
 				}
 				defer conn.Close()
-				conn.SetDeadline(time.Now().Add(3 * time.Second))
+				if err := conn.SetDeadline(time.Now().Add(3 * time.Second)); err != nil {
+					reached <- err
+					return
+				}
 				// Receiving a DRDA DSS header proves the exact configured socket
 				// was reached. Then withhold replies to exercise context cancel.
 				var header [6]byte
@@ -93,7 +112,7 @@ func TestConfiguredAddressAndCancellation(t *testing.T) {
 					err = errors.New("not a DRDA DSS header")
 				}
 				reached <- err
-				io.Copy(io.Discard, conn)
+				_, _ = io.Copy(io.Discard, conn) // wait for the client to cancel
 			}()
 			db, err := open("db2", "db2://probe:test@"+listener.Addr().String()+"/sample")
 			if err != nil {

@@ -8,11 +8,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/dlclark/regexp2"
-	"github.com/jumpserver-dev/usql/feature"
-	"github.com/jumpserver-dev/usql/metacmd"
-	"github.com/jumpserver-dev/usql/store"
-	"github.com/jumpserver-dev/usql/text"
 	"io"
 	"log"
 	"net/url"
@@ -33,6 +28,9 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/formatters"
 	"github.com/alecthomas/chroma/v2/styles"
+	"github.com/jumpserver/koko/pkg/dbkit/masking"
+	"github.com/jumpserver/koko/tools/usql/metacmd"
+	"github.com/jumpserver/koko/tools/usql/text"
 	"github.com/xo/dburl"
 	"github.com/xo/dburl/passfile"
 	"github.com/xo/tblfmt"
@@ -55,6 +53,7 @@ import (
 // stream.
 type Handler struct {
 	maskDiagnostics bool
+	maskPolicy      masking.Policy
 	l               rline.IO
 	user            *user.User
 	wd              string
@@ -437,8 +436,7 @@ func (h *Handler) Execute(ctx context.Context, w io.Writer, opt metacmd.Option, 
 	}
 	if err = drivers.WrapErr(h.u.Driver, f(ctx, w, opt, prefix, sqlstr, qtyp, bind)); err != nil {
 		if forceTrans {
-			defer h.tx.Rollback()
-			h.tx = nil
+			_ = h.Rollback() // report the original execution error
 		}
 		return err
 	}
@@ -749,7 +747,7 @@ func (h *Handler) Open(ctx context.Context, params ...string) error {
 		return text.ErrPreviousTransactionExists
 	}
 	if len(params) == 1 {
-		if ctx.Value("CHANGE_DATABASE") == "1" {
+		if metacmd.IsDatabaseChange(ctx) {
 			return h.changeDatabase(ctx, params[0])
 		} else {
 			if v, ok := env.Cget(params[0]); ok {
@@ -760,7 +758,7 @@ func (h *Handler) Open(ctx context.Context, params ...string) error {
 	}
 	u := h.u
 	var err error
-	if ctx.Value("CHANGE_DATABASE") != "1" {
+	if !metacmd.IsDatabaseChange(ctx) {
 		if len(params) < 2 {
 			dsn := params[0]
 			// parse dsn
@@ -1227,30 +1225,9 @@ func (h *Handler) doQuery(ctx context.Context, w io.Writer, opt metacmd.Option, 
 		params["pager_cmd"] = env.All()["PAGER"]
 	}
 
-	var wRows *WarpRows
-	rules, exists := store.GetGlobalStore().Get(feature.DataMaskingKey)
-
-	if exists {
-		dataMaskingRules := rules.([]feature.DataMaskingRule)
-		maskIndexes := make([]int, 0)
-		maskRules := make(map[int]feature.DataMaskingRule)
-		for i := range dataMaskingRules {
-
-			dbColumns, err := rows.Columns()
-			if err != nil {
-				return err
-			}
-			for j := range dbColumns {
-				if matchRule(dataMaskingRules[i].FieldsPattern, dbColumns[j]) {
-					maskIndexes = append(maskIndexes, j)
-					maskRules[j] = dataMaskingRules[i]
-				}
-			}
-		}
-		wRows = &WarpRows{rows: rows, maskIndexes: maskIndexes, dataMaskRules: maskRules}
-
-	} else {
-		wRows = &WarpRows{rows: rows}
+	wRows, err := rowsWithPolicy(rows, h.maskPolicy)
+	if err != nil {
+		return err
 	}
 
 	// set up column type config
@@ -1265,7 +1242,11 @@ func (h *Handler) doQuery(ctx context.Context, w io.Writer, opt metacmd.Option, 
 	resultSet := tblfmt.ResultSet(wRows)
 	if opt.Exec == metacmd.ExecCrosstab {
 		var err error
-		resultSet, err = tblfmt.NewCrosstabView(rows, append(extra, tblfmt.WithParams(opt.Crosstab...))...)
+		var input tblfmt.ResultSet = rows
+		if h.maskPolicy.Enabled() {
+			input = wRows
+		}
+		resultSet, err = tblfmt.NewCrosstabView(input, append(extra, tblfmt.WithParams(opt.Crosstab...))...)
 		if err != nil {
 			return err
 		}
@@ -1292,54 +1273,14 @@ func (h *Handler) doQuery(ctx context.Context, w io.Writer, opt metacmd.Option, 
 	if pipe != nil {
 		pipe.Close()
 		if cmd != nil {
-			cmd.Wait()
+			_ = cmd.Wait() // a pager's exit status is not the query result
 		}
 	}
 	return err
 }
 
-// 将带通配符的模式，转成安全的正则，并加上 ^...$
-func wildcardToRegexAnchored(p string) string {
-	p = strings.TrimSpace(p)
-	if p == "" {
-		return "^$"
-	}
-	// 先把用户输入整体转义，避免正则元字符被误用
-	esc := regexp.QuoteMeta(p) // 例如 "." 会变成 "\."
-	// 再把被转义的 "\*" 还原为 ".*" 以实现通配符
-	esc = strings.ReplaceAll(esc, `\*`, ".*")
-	// 最终加锚点，做到“整串匹配”
-	return "^" + esc + "$"
-}
-
-func matchRule(patterns string, name string) bool {
-	ps := strings.Split(patterns, ",")
-	for _, raw := range ps {
-		p := strings.TrimSpace(raw)
-		if p == "" {
-			continue
-		}
-
-		regex := wildcardToRegexAnchored(p)
-
-		// 忽略大小写（按需）
-		opts := regexp2.RE2 | regexp2.IgnoreCase
-		re, err := regexp2.Compile(regex, regexp2.RegexOptions(opts))
-		if err != nil {
-			// 某个模式坏了就跳过，不要整体失败
-			continue
-		}
-
-		matched, err := re.MatchString(name)
-		if err != nil {
-			continue
-		}
-		if matched {
-			return true
-		}
-	}
-	return false
-}
+// SetMaskPolicy binds a compiled policy to this handler, not to the process.
+func (h *Handler) SetMaskPolicy(policy masking.Policy) { h.maskPolicy = policy }
 
 // doExecRows executes all the columns in the row.
 func (h *Handler) doExecRows(ctx context.Context, w io.Writer, rows *sql.Rows) error {
@@ -1554,6 +1495,7 @@ func (h *Handler) Include(path string, relative bool) error {
 	}
 	p := New(l, h.user, filepath.Dir(path), h.nopw)
 	p.maskDiagnostics = h.maskDiagnostics
+	p.maskPolicy = h.maskPolicy
 	p.db, p.u, p.conn, p.tx = h.db, h.u, h.conn, h.tx
 	drivers.ConfigStmt(p.u, p.buf)
 	err = p.Run()

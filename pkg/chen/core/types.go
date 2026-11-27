@@ -10,6 +10,7 @@ import (
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/internal/dbconn"
 	"github.com/jumpserver/koko/pkg/chen/dialect"
+	"github.com/jumpserver/koko/pkg/dbkit/masking"
 	"github.com/jumpserver/koko/pkg/lion/gateway"
 	"github.com/jumpserver/koko/pkg/session"
 )
@@ -82,7 +83,7 @@ type Grant struct {
 	mu                 sync.Mutex
 	session            *model.Session
 	matchers           []commandMatcher
-	maskers            []maskRule
+	maskers            masking.Policy
 	gateway            *gateway.DomainGateway
 	created            time.Time
 	lastActive         time.Time
