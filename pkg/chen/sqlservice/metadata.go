@@ -98,7 +98,7 @@ func relationsFromCatalog(ctx context.Context, conn *sql.Conn, d dialect.ID, req
 			return items, err
 		}
 	}
-	query, err := catalogObjectQuery(d, CatalogObjectRequest{Database: req.Context.Database, Schema: schema, Query: req.Prefix}, true, req.Limit, clickHouse)
+	query, err := catalogRelationQuery(d, CatalogRelationRequest{Database: req.Context.Database, Schema: schema, Query: req.Prefix}, true, req.Limit, clickHouse)
 	if err != nil {
 		return items, err
 	}
@@ -108,18 +108,15 @@ func relationsFromCatalog(ctx context.Context, conn *sql.Conn, d dialect.ID, req
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var item Relation
-		var objectType string
-		var comment sql.NullString
-		if err := rows.Scan(&item.Database, &item.Schema, &item.Name, &item.Kind, &objectType, &comment); err != nil {
+		relation, err := scanCatalogRelation(rows)
+		if err != nil {
 			return nil, err
 		}
-		item.Comment = comment.String
-		if item.Kind == "view" {
-			item.Kind = "VIEW"
-		} else {
-			item.Kind = "BASE TABLE"
+		kind := "BASE TABLE"
+		if relation.Kind == "view" {
+			kind = "VIEW"
 		}
+		item := Relation{Database: relation.Database, Schema: relation.Schema, Name: relation.Name, Kind: kind, Comment: relation.Comment}
 		items = append(items, item)
 	}
 	return items, rows.Err()
@@ -205,14 +202,14 @@ func columnsFromCatalog(ctx context.Context, conn *sql.Conn, d dialect.ID, req C
 	if err != nil {
 		return items, err
 	}
-	if err := CatalogObjectAccess(ctx, conn, d, schema, req.Table); err != nil {
+	if err := CatalogRelationAccess(ctx, conn, d, schema, req.Table); err != nil {
 		// SQL Server resolves unqualified tables in the default schema, then
 		// dbo. Explicit schema qualifiers must never take this fallback.
 		if d != dialect.SQLServer || req.Schema != "" || schema == "dbo" || !errors.Is(err, ErrCatalogNotFound) {
 			return items, err
 		}
 		schema = "dbo"
-		if err := CatalogObjectAccess(ctx, conn, d, schema, req.Table); err != nil {
+		if err := CatalogRelationAccess(ctx, conn, d, schema, req.Table); err != nil {
 			return items, err
 		}
 	}

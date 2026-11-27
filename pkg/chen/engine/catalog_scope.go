@@ -103,8 +103,8 @@ func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) 
 	return s, nil
 }
 
-func (req *catalogRequest) relationRequest() sqlservice.CatalogObjectRequest {
-	return sqlservice.CatalogObjectRequest{
+func (req *catalogRequest) relationRequest() sqlservice.CatalogRelationRequest {
+	return sqlservice.CatalogRelationRequest{
 		Database: req.database, Schema: req.scope.schema, Kind: req.scope.kind, Query: req.scope.query,
 		AfterSchema: req.after.AfterSchema, AfterName: req.after.AfterName, Limit: req.scope.limit,
 	}

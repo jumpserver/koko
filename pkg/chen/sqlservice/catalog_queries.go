@@ -48,15 +48,15 @@ func (b *catalogBinder) orderedPage(query string, limit int) catalogQuery {
 	return catalogQuery{query, b.args}
 }
 
-// These products build directory, overview and diagram queries from objectSource.
+// These products build directory, overview and diagram queries from relationSource.
 // MySQL-family and PostgreSQL catalogs use their own native queries.
 func usesCatalogObjectSource(d dialect.ID) bool {
 	return d.UsesOracleSyntax() || d == dialect.SQLServer || d == dialect.DB2 || d == dialect.ClickHouse
 }
 
-// objectSource returns the objects visible to the authenticated connection. Db2
+// relationSource returns the objects visible to the authenticated connection. Db2
 // applies its additional data-access checks for grid editing.
-func (b *catalogBinder) objectSource(database string, editable bool) (string, error) {
+func (b *catalogBinder) relationSource(database string, editable bool) (string, error) {
 	switch b.dialect {
 	case dialect.SQLServer:
 		return `SELECT DB_NAME() AS dbname, s.name AS schemaname, o.name AS objectname,
@@ -138,9 +138,9 @@ func catalogSchemaQuery(d dialect.ID, database, after string, limit int) (catalo
 	return b.orderedPage(query, catalogLimit(limit)+1), nil
 }
 
-func catalogObjectQuery(d dialect.ID, req CatalogObjectRequest, prefix bool, limit int, clickHouse *clickHouseCapabilities) (catalogQuery, error) {
+func catalogRelationQuery(d dialect.ID, req CatalogRelationRequest, prefix bool, limit int, clickHouse *clickHouseCapabilities) (catalogQuery, error) {
 	b := &catalogBinder{dialect: d, clickHouse: clickHouse}
-	source, err := b.objectSource(req.Database, false)
+	source, err := b.relationSource(req.Database, false)
 	if err != nil {
 		return catalogQuery{}, err
 	}

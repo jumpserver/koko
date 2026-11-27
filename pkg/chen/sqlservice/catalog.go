@@ -172,7 +172,7 @@ func columnRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req CatalogCo
 		}
 		access := CatalogRelationAccess
 		if editable {
-			access = catalogEditableObjectAccess
+			access = catalogEditableRelationAccess
 		}
 		if err := access(ctx, conn, d, req.Schema, req.Table); err != nil {
 			return items, err

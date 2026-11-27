@@ -373,7 +373,7 @@ func editableTableKind(ctx context.Context, conn *sql.Conn, d dialect.ID, r *Cat
 	}
 	kind, err := readKind()
 	if errors.Is(err, sql.ErrNoRows) {
-		accessErr := catalogEditableObjectAccess(ctx, conn, d, r.Schema, r.Table)
+		accessErr := catalogEditableRelationAccess(ctx, conn, d, r.Schema, r.Table)
 		if d.UsesMySQLSyntax() && errors.Is(accessErr, ErrCatalogNotFound) {
 			r.Table, accessErr = editMySQLCanonicalTable(ctx, conn, r.Schema, r.Table)
 			if accessErr == nil {

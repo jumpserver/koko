@@ -12,7 +12,7 @@ import (
 func diagramCatalogQuery(d dialect.ID, r DiagramRequest) (catalogQuery, error) {
 	b := &catalogBinder{dialect: d}
 	if r.Section == "nodes" {
-		source, err := b.objectSource(r.Database, false)
+		source, err := b.relationSource(r.Database, false)
 		if err != nil {
 			return catalogQuery{}, err
 		}

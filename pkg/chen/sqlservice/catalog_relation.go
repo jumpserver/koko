@@ -64,7 +64,7 @@ func RelationRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req Catalog
 				return items, err
 			}
 		}
-		query, err = catalogObjectQuery(d, req, false, catalogLimit(req.Limit)+1, clickHouse)
+		query, err = catalogRelationQuery(d, req, false, catalogLimit(req.Limit)+1, clickHouse)
 		if err == nil {
 			rows, err = queryCatalogRows(ctx, conn, d, query.SQL, query.Args...)
 		}

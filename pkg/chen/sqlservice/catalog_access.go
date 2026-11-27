@@ -101,7 +101,7 @@ EXISTS (SELECT 1 `+postgresRelationLookup+`)`, schema, table).Scan(&schemaVisibl
 	return nil
 }
 
-func catalogEditableObjectAccess(ctx context.Context, conn *sql.Conn, d dialect.ID, schema, table string) error {
+func catalogEditableRelationAccess(ctx context.Context, conn *sql.Conn, d dialect.ID, schema, table string) error {
 	return catalogRelationAccessMode(ctx, conn, d, schema, table, true)
 }
 
@@ -177,7 +177,7 @@ func checkCatalogDatabaseName(ctx context.Context, conn *sql.Conn, d dialect.ID,
 
 func checkCatalogRelationSource(ctx context.Context, conn *sql.Conn, d dialect.ID, schema, table string, editable bool) error {
 	b := &catalogBinder{dialect: d}
-	source, err := b.objectSource(schema, editable)
+	source, err := b.relationSource(schema, editable)
 	if err != nil {
 		return err
 	}

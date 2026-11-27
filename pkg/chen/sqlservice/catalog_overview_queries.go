@@ -12,7 +12,7 @@ import (
 // Numeric values stay decimal strings at the API boundary. Missing vendor facts
 // remain unknown; an absent index or storage statistic is not an observed zero.
 func overviewCatalogSource(d dialect.ID, b *catalogBinder, database string, broadSegments bool) (string, error) {
-	base, err := b.objectSource(database, false)
+	base, err := b.relationSource(database, false)
 	if err != nil {
 		return "", err
 	}
@@ -189,7 +189,7 @@ func overviewCatalogIndexes(d dialect.ID, b *catalogBinder, database string) (st
 	if d == dialect.ClickHouse && (b.clickHouse == nil || b.clickHouse.skippingIndexes != CapabilitySupported) {
 		return "", nil
 	}
-	objects, err := b.objectSource(database, false)
+	objects, err := b.relationSource(database, false)
 	if err != nil {
 		return "", err
 	}
@@ -216,7 +216,7 @@ func overviewCatalogProperties(d dialect.ID, r OverviewRequest, b *catalogBinder
 		if r.Schema == "" {
 			q = `SELECT SYS_CONTEXT('USERENV','CURRENT_SCHEMA') AS current_schema FROM DUAL`
 		} else {
-			source, err := b.objectSource(r.Database, false)
+			source, err := b.relationSource(r.Database, false)
 			if err != nil {
 				return catalogQuery{}, err
 			}
@@ -226,7 +226,7 @@ func overviewCatalogProperties(d dialect.ID, r OverviewRequest, b *catalogBinder
 		if r.Schema == "" {
 			q = `SELECT RTRIM(CURRENT SERVER) AS database_name,RTRIM(CURRENT SCHEMA) AS current_schema FROM SYSIBM.SYSDUMMY1`
 		} else {
-			source, err := b.objectSource(r.Database, false)
+			source, err := b.relationSource(r.Database, false)
 			if err != nil {
 				return catalogQuery{}, err
 			}

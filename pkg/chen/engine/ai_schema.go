@@ -9,7 +9,7 @@ import (
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
 
-func aiSchemaResult(req *catalogRequest, e aiEditorContext, tool, query string, tables []string, limit int, objects []sqlservice.CatalogObject) (any, error) {
+func aiSchemaResult(req *catalogRequest, e aiEditorContext, tool, query string, tables []string, limit int, objects []sqlservice.CatalogRelation) (any, error) {
 	d := e.Dialect
 	if tool == "search_schema" {
 		if limit == 0 {
@@ -116,7 +116,7 @@ func aiSchemaResult(req *catalogRequest, e aiEditorContext, tool, query string, 
 	for _, table := range tables {
 		wanted[strings.ToLower(table)] = true
 	}
-	chosen := []sqlservice.CatalogObject{}
+	chosen := []sqlservice.CatalogRelation{}
 	for _, o := range objects {
 		if wanted[strings.ToLower(o.Name)] || query != "" && (query == "*" || strings.Contains(strings.ToLower(o.Name), strings.ToLower(query))) {
 			chosen = append(chosen, o)
@@ -127,7 +127,7 @@ func aiSchemaResult(req *catalogRequest, e aiEditorContext, tool, query string, 
 		if !wanted[strings.ToLower(table)] {
 			continue
 		}
-		matches, err := sqlservice.ObjectRows(req.ctx, req.conn, d, sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Query: table, Limit: 100})
+		matches, err := sqlservice.RelationRows(req.ctx, req.conn, d, sqlservice.CatalogRelationRequest{Database: req.database, Schema: e.Schema, Query: table, Limit: 100})
 		if err != nil {
 			return nil, errors.New("Unable to inspect authorized schema")
 		}

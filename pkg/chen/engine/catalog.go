@@ -393,11 +393,11 @@ func (v *Server) catalogObjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer req.done()
-	items, err := sqlservice.ObjectRows(req.ctx, req.conn, req.session.grant.Dialect(), req.relationRequest())
+	items, err := sqlservice.RelationRows(req.ctx, req.conn, req.session.grant.Dialect(), req.relationRequest())
 	if items == nil {
-		items = []sqlservice.CatalogObject{}
+		items = []sqlservice.CatalogRelation{}
 	}
-	result := catalogPage[sqlservice.CatalogObject]{Items: items}
+	result := catalogPage[sqlservice.CatalogRelation]{Items: items}
 	if len(items) > req.scope.limit {
 		result.HasMore = true
 		result.Items = items[:req.scope.limit]
