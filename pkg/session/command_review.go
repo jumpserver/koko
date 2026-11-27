@@ -49,14 +49,8 @@ func SubmitCommandReview(api *service.JMService, sessionID, aclID, command strin
 	response, err := client.Call(http.MethodPost, service.AclCommandReviewURL, map[string]string{
 		"session_id": sessionID, "cmd_filter_acl_id": aclID, "run_command": command,
 	}, &body)
-	if err == nil {
-		err = json.Unmarshal(body, &ticket)
-		if err == nil && ticket.CheckReq.URL != "" {
-			return ticket, nil
-		}
-		if err == nil {
-			err = errors.New("missing command review status URL")
-		}
+	if err == nil && json.Unmarshal(body, &ticket) == nil && ticket.CheckReq.URL != "" {
+		return ticket, nil
 	}
 	logger.Errorf("Session %s: command review submission failed", sessionID)
 	// Only expose structured client errors, never transport errors or server traces.

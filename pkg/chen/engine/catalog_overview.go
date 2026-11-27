@@ -2,7 +2,6 @@ package engine
 
 import (
 	"encoding/json"
-
 	"net/http"
 
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
@@ -15,7 +14,7 @@ func (v *Server) catalogOverview(w http.ResponseWriter, r *http.Request) {
 	}
 	defer req.done()
 	data, err := sqlservice.CatalogOverviewRows(req.ctx, req.conn, req.session.grant.Dialect(), sqlservice.OverviewRequest{
-		CatalogObjectRequest: sqlservice.CatalogObjectRequest{Database: req.database, Schema: req.scope.schema, Query: req.scope.query, Limit: req.scope.limit, AfterSchema: req.after.AfterSchema, AfterName: req.after.AfterName}, Section: req.scope.section, Sort: req.scope.sort, AfterTable: req.after.AfterTable, AfterOrdinal: req.after.AfterOrdinal, AfterContract: req.after.Contract})
+		CatalogObjectRequest: req.relationRequest(), Section: req.scope.section, Sort: req.scope.sort, AfterTable: req.after.AfterTable, AfterOrdinal: req.after.AfterOrdinal, AfterContract: req.after.Contract})
 	if err != nil {
 		v.finishCatalog(w, r, req, 0, err)
 		return
@@ -38,13 +37,12 @@ func (v *Server) catalogOverview(w http.ResponseWriter, r *http.Request) {
 		size += len(b)
 	}
 	if data.HasMore && len(data.Rows) > 0 {
-		req.scope.overviewContract = data.Contract
 		last := data.Rows[len(data.Rows)-1]
 		afterTable := ""
 		if req.scope.section == "indexes" {
 			afterTable = last.Object.Name
 		}
-		data.NextCursor = req.resource.encodeCursor(req.session.id, req.database, req.scope, last.Object.Schema, last.Name, last.Ordinal, afterTable)
+		data.NextCursor = req.nextCursor(catalogPosition{AfterSchema: last.Object.Schema, AfterName: last.Name, AfterOrdinal: last.Ordinal, AfterTable: afterTable, Contract: data.Contract})
 	}
 	if !v.finishCatalog(w, r, req, len(data.Rows), nil) {
 		return

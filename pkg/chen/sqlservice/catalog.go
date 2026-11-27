@@ -14,21 +14,14 @@ import (
 const MaxCatalogPageSize = 200
 
 var (
-	ErrCatalogForbidden = errors.New("catalog access forbidden")
-	ErrCatalogNotFound  = errors.New("catalog object not found")
+	ErrCatalogUnsupported = errors.New("catalog operation unsupported")
+	ErrCatalogForbidden   = errors.New("catalog access forbidden")
+	ErrCatalogNotFound    = errors.New("catalog object not found")
 )
 
 type CatalogSchema struct {
 	Database string `json:"database"`
 	Name     string `json:"name"`
-}
-type CatalogObject struct {
-	Database   string `json:"database"`
-	Schema     string `json:"schema"`
-	Name       string `json:"name"`
-	Kind       string `json:"kind"`
-	ObjectType string `json:"object_type"`
-	Comment    string `json:"comment"`
 }
 type CatalogColumn struct {
 	Database string `json:"database"`
@@ -39,10 +32,6 @@ type CatalogColumn struct {
 	Nullable bool   `json:"nullable"`
 	Comment  string `json:"comment"`
 	Ordinal  int    `json:"-"`
-}
-type CatalogObjectRequest struct {
-	Database, Schema, Kind, Query, AfterSchema, AfterName string
-	Limit                                                 int
 }
 type CatalogColumnRequest struct {
 	Database, Schema, Table string
@@ -99,101 +88,15 @@ ORDER BY schema_name COLLATE pg_catalog."C" LIMIT $3`, database, after, catalogL
 	return items, rows.Err()
 }
 
-func ObjectRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req CatalogObjectRequest) ([]CatalogObject, error) {
-	items := []CatalogObject{}
-	if err := validateCatalogInput(conn, d, req.Database, req.Schema, req.Query, req.AfterSchema, req.AfterName); err != nil {
-		return items, err
-	}
-	if req.Kind != "" && req.Kind != "table" && req.Kind != "view" {
-		return items, fmt.Errorf("catalog kind must be table or view")
-	}
-	if (d.UsesMySQLSyntax() || d == dialect.ClickHouse) && req.Schema != "" && req.Schema != req.Database {
-		return items, ErrCatalogForbidden
-	}
-	ctx, cancel := catalogReadContext(ctx)
-	defer cancel()
-	if err := catalogDatabaseAccess(ctx, conn, d, req.Database); err != nil {
-		return items, err
-	}
-	if d == dialect.PostgreSQL && req.Schema != "" {
-		if err := catalogSchemaAccess(ctx, conn, req.Schema); err != nil {
-			return items, err
-		}
-	}
-	var rows *sql.Rows
-	var err error
-	if usesCatalogObjectSource(d) {
-		var query catalogQuery
-		var clickHouse *clickHouseCapabilities
-		if d == dialect.ClickHouse {
-			clickHouse, err = probeClickHouseCapabilities(ctx, conn, "objects")
-			if err != nil {
-				return items, err
-			}
-		}
-		query, err = catalogObjectQuery(d, req, false, catalogLimit(req.Limit)+1, clickHouse)
-		if err == nil {
-			rows, err = queryCatalogRows(ctx, conn, d, query.SQL, query.Args...)
-		}
-	} else if d.UsesMySQLSyntax() {
-		// MySQL's INFORMATION_SCHEMA applies the current account's table and
-		// column privileges itself, including active roles. No grant parsing or
-		// elevated helper account is used.
-		schemaMatch := "BINARY TABLE_SCHEMA = BINARY ?"
-		args := []any{req.Database}
-		if d == dialect.MySQL || d == dialect.MariaDB {
-			// Let the dictionary narrow the schema before the exact check.
-			schemaMatch = "TABLE_SCHEMA = ? AND " + schemaMatch
-			args = append(args, req.Database)
-		}
-		args = append(args, req.Kind, req.Kind, req.Kind, catalogSearch(req.Query), req.AfterSchema, req.AfterSchema, req.AfterName, catalogLimit(req.Limit)+1)
-		rows, err = conn.QueryContext(CatalogQueryContext(ctx), `SELECT TABLE_SCHEMA, TABLE_SCHEMA, TABLE_NAME,
-CASE WHEN TABLE_TYPE = 'VIEW' THEN 'view' ELSE 'table' END,
-CASE WHEN TABLE_TYPE = 'VIEW' THEN 'view' ELSE 'table' END, COALESCE(TABLE_COMMENT, '')
-FROM information_schema.TABLES
-WHERE `+schemaMatch+` AND TABLE_TYPE IN ('BASE TABLE', 'VIEW', 'SYSTEM VIEW', 'SYSTEM VERSIONED')
-AND (? = '' OR (? = 'table' AND TABLE_TYPE <> 'VIEW') OR (? = 'view' AND TABLE_TYPE = 'VIEW'))
-AND TABLE_NAME LIKE ? ESCAPE '!'
-AND (BINARY TABLE_SCHEMA > BINARY ? OR (BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME > BINARY ?))
-ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME LIMIT ?`, args...)
-	} else {
-		rows, err = conn.QueryContext(ctx, `SELECT pg_catalog.current_database(), n.nspname, c.relname,
-CASE WHEN c.relkind IN ('v', 'm') THEN 'view' ELSE 'table' END,
-CASE c.relkind WHEN 'm' THEN 'materialized_view' WHEN 'f' THEN 'foreign_table' WHEN 'p' THEN 'partitioned_table' WHEN 'v' THEN 'view' ELSE 'table' END,
-COALESCE(pg_catalog.obj_description(c.oid, 'pg_class'), '')
-FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-WHERE pg_catalog.current_database() = $1 AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
-AND ($2 = '' OR n.nspname = $2) AND n.nspname IN (SELECT schema_name FROM information_schema.schemata)
-AND ($3 = '' OR ($3 = 'table' AND c.relkind IN ('r', 'p', 'f')) OR ($3 = 'view' AND c.relkind IN ('v', 'm')))
-AND c.relname ILIKE $4 ESCAPE '!'
-AND (n.nspname, c.relname) > ($5::pg_catalog.name, $6::pg_catalog.name)
-ORDER BY n.nspname, c.relname LIMIT $7`, req.Database, req.Schema, req.Kind, catalogSearch(req.Query), req.AfterSchema, req.AfterName, catalogLimit(req.Limit)+1)
-	}
-	if err != nil {
-		return items, fmt.Errorf("list catalog objects: %w", err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var item CatalogObject
-		var comment sql.NullString
-		if err := rows.Scan(&item.Database, &item.Schema, &item.Name, &item.Kind, &item.ObjectType, &comment); err != nil {
-			return nil, err
-		}
-		item.Comment = comment.String
-		items = append(items, item)
-	}
-	return items, rows.Err()
-}
-
 func ColumnRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req CatalogColumnRequest) ([]CatalogColumn, error) {
 	return columnRows(ctx, conn, d, req, false, false)
 }
 
 // MySQLSearchColumns reads names and comments for objects already returned by
-// ObjectRows on this connection. INFORMATION_SCHEMA still applies the account's
+// RelationRows on this connection. INFORMATION_SCHEMA still applies the account's
 // active grants, and each table keeps its own bounded page with one extra row.
 // The caller owns one deadline for the whole catalog search.
-func MySQLSearchColumns(ctx context.Context, conn *sql.Conn, database string, objects []CatalogObject, limit int) (map[string][]CatalogColumn, error) {
+func MySQLSearchColumns(ctx context.Context, conn *sql.Conn, database string, objects []CatalogRelation, limit int) (map[string][]CatalogColumn, error) {
 	// Plain equalities let the metadata optimizer narrow the lookup. Keep the
 	// binary comparisons for exact schema and table names.
 	const statement = `SELECT TABLE_NAME, COLUMN_NAME, COALESCE(COLUMN_COMMENT, ''), ORDINAL_POSITION
@@ -268,9 +171,9 @@ func columnRows(ctx context.Context, conn *sql.Conn, d dialect.ID, req CatalogCo
 		if err := catalogDatabaseAccess(ctx, conn, d, req.Database); err != nil {
 			return items, err
 		}
-		access := CatalogObjectAccess
+		access := CatalogRelationAccess
 		if editable {
-			access = catalogEditableObjectAccess
+			access = catalogEditableRelationAccess
 		}
 		if err := access(ctx, conn, d, req.Schema, req.Table); err != nil {
 			return items, err

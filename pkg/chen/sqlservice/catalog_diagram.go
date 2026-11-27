@@ -25,17 +25,17 @@ type DiagramPair struct {
 	Target  *string `json:"target"`
 }
 type DiagramEdge struct {
-	ColumnCount    int            `json:"column_count"`
-	Name           string         `json:"name"`
-	Source         CatalogObject  `json:"source"`
-	Target         *CatalogObject `json:"target"`
-	TargetOpenable bool           `json:"target_openable"`
-	State          string         `json:"state"`
-	Pairs          []DiagramPair  `json:"pairs"`
+	ColumnCount    int              `json:"column_count"`
+	Name           string           `json:"name"`
+	Source         CatalogRelation  `json:"source"`
+	Target         *CatalogRelation `json:"target"`
+	TargetOpenable bool             `json:"target_openable"`
+	State          string           `json:"state"`
+	Pairs          []DiagramPair    `json:"pairs"`
 }
 type DiagramItem struct {
-	Object *CatalogObject `json:"object,omitempty"`
-	Edge   *DiagramEdge   `json:"edge,omitempty"`
+	Object *CatalogRelation `json:"object,omitempty"`
+	Edge   *DiagramEdge     `json:"edge,omitempty"`
 }
 type CatalogDiagram struct {
 	Contract   string        `json:"-"`
@@ -78,16 +78,8 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d dialect.ID, r Dia
 	if d == dialect.PostgreSQL {
 		result.Source = "pg_catalog"
 	}
-	if (d.UsesMySQLSyntax() || d == dialect.ClickHouse) && r.Schema != "" && r.Schema != r.Database {
-		return result, ErrCatalogForbidden
-	}
-	if err := catalogDatabaseAccess(ctx, conn, d, r.Database); err != nil {
+	if err := catalogScopeAccess(ctx, conn, d, r.Database, r.Schema); err != nil {
 		return result, err
-	}
-	if d == dialect.PostgreSQL && r.Schema != "" {
-		if err := catalogSchemaAccess(ctx, conn, r.Schema); err != nil {
-			return result, err
-		}
 	}
 	columnPrivileges := false
 	if d == dialect.MariaDB || d == dialect.OceanBaseMySQL {
@@ -157,7 +149,7 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d dialect.ID, r Dia
 	defer rows.Close()
 	for rows.Next() {
 		if r.Section == "nodes" {
-			o := CatalogObject{Database: r.Database, Kind: "table"}
+			o := CatalogRelation{Database: r.Database, Kind: "table"}
 			if err := rows.Scan(&o.Schema, &o.Name, &o.ObjectType); err != nil {
 				return result, err
 			}
@@ -180,13 +172,13 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d dialect.ID, r Dia
 			}
 		}
 		if edge == nil {
-			edge = &DiagramEdge{ColumnCount: count, Name: name, Source: CatalogObject{Database: r.Database, Schema: schema, Name: table, Kind: "table", ObjectType: "table"}, State: "complete", Pairs: []DiagramPair{}, TargetOpenable: openable}
+			edge = &DiagramEdge{ColumnCount: count, Name: name, Source: CatalogRelation{Database: r.Database, Schema: schema, Name: table, Kind: "table", ObjectType: "table"}, State: "complete", Pairs: []DiagramPair{}, TargetOpenable: openable}
 			if targetSchema.Valid && targetName.Valid {
 				database := r.Database
 				if d.UsesMySQLSyntax() {
 					database = targetSchema.String
 				}
-				edge.Target = &CatalogObject{Database: database, Schema: targetSchema.String, Name: targetName.String, Kind: "table", ObjectType: "table"}
+				edge.Target = &CatalogRelation{Database: database, Schema: targetSchema.String, Name: targetName.String, Kind: "table", ObjectType: "table"}
 			} else {
 				edge.State = "restricted"
 			}
@@ -310,7 +302,7 @@ func diagramSQL(d dialect.ID, r DiagramRequest) (string, []any) {
 
 func diagramObjectAccess(ctx context.Context, conn *sql.Conn, d dialect.ID, r DiagramRequest) error {
 	if d != dialect.MariaDB && d != dialect.OceanBaseMySQL {
-		return CatalogObjectAccess(ctx, conn, d, r.Schema, r.Table)
+		return CatalogRelationAccess(ctx, conn, d, r.Schema, r.Table)
 	}
 	q, args := diagramCompatibleSQL(d, DiagramRequest{CatalogObjectRequest: r.CatalogObjectRequest, Section: "nodes", Direction: "incoming", Table: r.Table})
 	var schema, name, kind string

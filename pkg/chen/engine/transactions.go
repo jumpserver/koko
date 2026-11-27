@@ -300,6 +300,7 @@ func (v *Server) finishManualTransaction(s *session, c *console, e *execution, c
 	for _, result := range s.results {
 		if result.consoleID == c.id {
 			result.editStale = true
+			result.CursorSource = nil
 		}
 	}
 	s.mu.Unlock()

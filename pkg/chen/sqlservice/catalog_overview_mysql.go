@@ -6,9 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
-	"unicode/utf8"
 
 	mysql "github.com/go-sql-driver/mysql"
 	"github.com/jumpserver/koko/pkg/chen/dialect"
@@ -33,7 +31,7 @@ func probeOverviewMyCapabilities(ctx context.Context, conn *sql.Conn, d dialect.
 	if err != nil {
 		return nil, err
 	}
-	c := &overviewMyCapabilities{dialect: d, version: version, columns: map[string]bool{}, storage: true}
+	c := &overviewMyCapabilities{dialect: d, version: version, storage: true}
 	if len(version.Product) > 256 || !validOverviewText(version.Product) {
 		return nil, errors.New("invalid overview server version")
 	}
@@ -62,21 +60,9 @@ func probeOverviewMyCapabilities(ctx context.Context, conn *sql.Conn, d dialect.
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	names := []string{}
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			return nil, err
-		}
-		if len(names) >= 128 || !utf8.ValidString(name) || utf8.RuneCountInString(name) > 128 {
-			return nil, errors.New("overview capability budget exceeded")
-		}
-		name = strings.ToUpper(name)
-		c.columns[name] = true
-		names = append(names, name)
-	}
-	if err := rows.Err(); err != nil {
+	var names []string
+	c.columns, names, err = readMySQLCatalogFields(rows, 128, false)
+	if err != nil {
 		return nil, err
 	}
 	for _, name := range required {
@@ -84,7 +70,6 @@ func probeOverviewMyCapabilities(ctx context.Context, conn *sql.Conn, d dialect.
 			return nil, errors.New("overview catalog capability unavailable")
 		}
 	}
-	sort.Strings(names)
 	c.contract = fmt.Sprintf("%x", sha256.Sum256([]byte(string(c.dialect)+"\x00"+version.Product+"\x00"+table+"\x00"+strings.Join(names, ","))))
 	return c, nil
 }

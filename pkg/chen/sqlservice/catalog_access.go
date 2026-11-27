@@ -23,6 +23,21 @@ WHERE a.TABSCHEMA = t.TABSCHEMA AND a.TABNAME = t.TABNAME AND (a.SELECTAUTH IN (
 OR EXISTS (SELECT 1 FROM TABLE(SYSPROC.AUTH_LIST_AUTHORITIES_FOR_AUTHID(CURRENT USER, 'U')) AS a
 WHERE a.AUTHORITY = 'DATAACCESS' AND 'Y' IN (a.D_USER,a.D_GROUP,a.D_PUBLIC,a.ROLE_USER,a.ROLE_GROUP,a.ROLE_PUBLIC,a.D_ROLE)))`
 
+// catalogScopeAccess checks database and optional schema visibility on the
+// supplied connection, including its current role and transaction snapshot.
+func catalogScopeAccess(ctx context.Context, conn *sql.Conn, d dialect.ID, database, schema string) error {
+	if (d.UsesMySQLSyntax() || d == dialect.ClickHouse) && schema != "" && schema != database {
+		return ErrCatalogForbidden
+	}
+	if err := catalogDatabaseAccess(ctx, conn, d, database); err != nil {
+		return err
+	}
+	if d == dialect.PostgreSQL && schema != "" {
+		return catalogSchemaAccess(ctx, conn, schema)
+	}
+	return nil
+}
+
 func catalogDatabaseAccess(ctx context.Context, conn *sql.Conn, d dialect.ID, database string) error {
 	if usesCatalogObjectSource(d) {
 		return checkCatalogDatabaseName(ctx, conn, d, database)
@@ -43,9 +58,14 @@ func catalogDatabaseAccess(ctx context.Context, conn *sql.Conn, d dialect.ID, da
 	return nil
 }
 
+const postgresCatalogSchemaVisible = `EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = $1)`
+
+const postgresRelationLookup = `FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p', 'v', 'm', 'f')`
+
 func catalogSchemaAccess(ctx context.Context, conn *sql.Conn, schema string) error {
 	var allowed bool
-	err := conn.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = $1)`, schema).Scan(&allowed)
+	err := conn.QueryRowContext(ctx, `SELECT `+postgresCatalogSchemaVisible, schema).Scan(&allowed)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrCatalogNotFound
 	}
@@ -58,18 +78,17 @@ func catalogSchemaAccess(ctx context.Context, conn *sql.Conn, schema string) err
 	return nil
 }
 
-// CatalogObjectAccess checks visibility of an exact relation in the catalog. PostgreSQL and Db2 expose catalog
+// CatalogRelationAccess checks visibility of an exact relation in the catalog. PostgreSQL and Db2 expose catalog
 // rows independently of SELECT privileges on the described table. Actual reads
 // still run as the account, and editing uses the separate admission check below.
-func CatalogObjectAccess(ctx context.Context, conn *sql.Conn, d dialect.ID, schema, table string) error {
+func CatalogRelationAccess(ctx context.Context, conn *sql.Conn, d dialect.ID, schema, table string) error {
 	if d != dialect.PostgreSQL {
-		return catalogObjectAccessMode(ctx, conn, d, schema, table, false)
+		return catalogRelationAccessMode(ctx, conn, d, schema, table, false)
 	}
 	var schemaVisible, objectExists bool
 	err := conn.QueryRowContext(ctx, `SELECT
-EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = $1),
-EXISTS (SELECT 1 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p', 'v', 'm', 'f'))`, schema, table).Scan(&schemaVisible, &objectExists)
+`+postgresCatalogSchemaVisible+`,
+EXISTS (SELECT 1 `+postgresRelationLookup+`)`, schema, table).Scan(&schemaVisible, &objectExists)
 	if err != nil {
 		return fmt.Errorf("check catalog object: %w", err)
 	}
@@ -82,13 +101,13 @@ WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p', 'v', 'm', 'f
 	return nil
 }
 
-func catalogEditableObjectAccess(ctx context.Context, conn *sql.Conn, d dialect.ID, schema, table string) error {
-	return catalogObjectAccessMode(ctx, conn, d, schema, table, true)
+func catalogEditableRelationAccess(ctx context.Context, conn *sql.Conn, d dialect.ID, schema, table string) error {
+	return catalogRelationAccessMode(ctx, conn, d, schema, table, true)
 }
 
-func catalogObjectAccessMode(ctx context.Context, conn *sql.Conn, d dialect.ID, schema, table string, editable bool) error {
+func catalogRelationAccessMode(ctx context.Context, conn *sql.Conn, d dialect.ID, schema, table string, editable bool) error {
 	if usesCatalogObjectSource(d) {
-		return checkCatalogObjectSource(ctx, conn, d, schema, table, editable)
+		return checkCatalogRelationSource(ctx, conn, d, schema, table, editable)
 	}
 	if d.UsesMySQLSyntax() {
 		var exists bool
@@ -115,8 +134,7 @@ func postgresEditableObjectKind(ctx context.Context, conn *sql.Conn, schema, tab
 	err := conn.QueryRowContext(ctx, `SELECT c.relkind::text, pg_catalog.has_schema_privilege(n.oid, 'USAGE'),
 (pg_catalog.has_table_privilege(c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') OR pg_catalog.has_any_column_privilege(c.oid, 'SELECT,INSERT,UPDATE,REFERENCES')),
 pg_catalog.has_any_column_privilege(c.oid, 'SELECT,INSERT,UPDATE,REFERENCES')
-FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p', 'v', 'm', 'f')`, schema, table).Scan(&kind, &schemaAllowed, &objectAllowed, &columnsAllowed)
+`+postgresRelationLookup, schema, table).Scan(&kind, &schemaAllowed, &objectAllowed, &columnsAllowed)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrCatalogNotFound
 	}
@@ -157,9 +175,9 @@ func checkCatalogDatabaseName(ctx context.Context, conn *sql.Conn, d dialect.ID,
 	return nil
 }
 
-func checkCatalogObjectSource(ctx context.Context, conn *sql.Conn, d dialect.ID, schema, table string, editable bool) error {
+func checkCatalogRelationSource(ctx context.Context, conn *sql.Conn, d dialect.ID, schema, table string, editable bool) error {
 	b := &catalogBinder{dialect: d}
-	source, err := b.objectSource(schema, editable)
+	source, err := b.relationSource(schema, editable)
 	if err != nil {
 		return err
 	}

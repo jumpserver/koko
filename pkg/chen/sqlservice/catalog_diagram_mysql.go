@@ -6,9 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/jumpserver/koko/pkg/chen/dialect"
 )
@@ -54,28 +52,12 @@ func probeDiagramMyContract(ctx context.Context, conn *sql.Conn, d dialect.ID, d
 		"TABLE_CONSTRAINTS": {"TABLE_SCHEMA", "TABLE_NAME", "CONSTRAINT_NAME", "CONSTRAINT_TYPE"},
 		"KEY_COLUMN_USAGE":  {"TABLE_SCHEMA", "TABLE_NAME", "CONSTRAINT_NAME", "COLUMN_NAME", "ORDINAL_POSITION", "REFERENCED_TABLE_SCHEMA", "REFERENCED_TABLE_NAME", "REFERENCED_COLUMN_NAME"},
 	}
-	rows, e := conn.QueryContext(ctx, `SELECT TABLE_NAME,COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='information_schema' AND TABLE_NAME IN ('TABLES','COLUMNS','TABLE_CONSTRAINTS','KEY_COLUMN_USAGE','COLUMN_PRIVILEGES') ORDER BY TABLE_NAME,ORDINAL_POSITION LIMIT 513`)
-	if e != nil {
-		err = e
+	rows, err := conn.QueryContext(ctx, `SELECT TABLE_NAME,COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='information_schema' AND TABLE_NAME IN ('TABLES','COLUMNS','TABLE_CONSTRAINTS','KEY_COLUMN_USAGE','COLUMN_PRIVILEGES') ORDER BY TABLE_NAME,ORDINAL_POSITION LIMIT 513`)
+	if err != nil {
 		return
 	}
-	defer rows.Close()
-	names := []string{}
-	seen := map[string]bool{}
-	for rows.Next() {
-		var table, col string
-		if err = rows.Scan(&table, &col); err != nil {
-			return
-		}
-		if len(names) >= 512 || !utf8.ValidString(table) || !utf8.ValidString(col) || utf8.RuneCountInString(table) > 128 || utf8.RuneCountInString(col) > 128 {
-			err = errors.New("diagram capability budget exceeded")
-			return
-		}
-		key := strings.ToUpper(table) + "." + strings.ToUpper(col)
-		seen[key] = true
-		names = append(names, key)
-	}
-	if err = rows.Err(); err != nil {
+	seen, names, err := readMySQLCatalogFields(rows, 512, true)
+	if err != nil {
 		return
 	}
 	for table, cols := range required {
@@ -87,7 +69,6 @@ func probeDiagramMyContract(ctx context.Context, conn *sql.Conn, d dialect.ID, d
 		}
 	}
 	columnPrivileges = seen["COLUMN_PRIVILEGES.TABLE_SCHEMA"] && seen["COLUMN_PRIVILEGES.TABLE_NAME"]
-	sort.Strings(names)
 	contractVersion := reported
 	if version.FromVersionComment() {
 		contractVersion += "\x00" + version.Source.Query() + "\x00" + version.Product

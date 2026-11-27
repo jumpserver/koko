@@ -343,7 +343,7 @@ func (v *Server) resolveAIExecutionError(s *session, editor aiEditorContext) (*a
 	if editor.ProposalTarget == "selection" {
 		target = editor.SelectedSQL
 	}
-	if view.ConsoleID != editor.ConsoleID || view.Status != "failed" || view.Error == nil || execution.edit != nil || execution.export != nil || execution.browse != nil ||
+	if view.ConsoleID != editor.ConsoleID || view.Status != "failed" || view.Error == nil || execution.edit != nil || execution.objectPlan != nil || execution.export != nil || execution.browse != nil ||
 		execution.documentVersion != editor.Revision || strings.TrimSpace(execution.sql) == "" ||
 		(editor.ProposalTarget == "selection" && target != execution.sql) || !strings.Contains(target, execution.sql) {
 		return nil, errors.New("SQL execution error no longer matches this editor; refresh its execution context before requesting a repair")
@@ -390,9 +390,9 @@ func (v *Server) executeAITool(ctx context.Context, r *http.Request, s *session,
 		}
 		if e.Table != "" {
 			// A selected object from the browser is not verified until the account can see it.
-			err = sqlservice.CatalogObjectAccess(req.ctx, req.conn, e.Dialect, e.Schema, e.Table)
+			err = sqlservice.CatalogRelationAccess(req.ctx, req.conn, e.Dialect, e.Schema, e.Table)
 		} else {
-			_, err = sqlservice.ObjectRows(req.ctx, req.conn, e.Dialect, sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 1})
+			_, err = sqlservice.RelationRows(req.ctx, req.conn, e.Dialect, sqlservice.CatalogRelationRequest{Database: req.database, Schema: e.Schema, Limit: 1})
 		}
 		req.done()
 		if err != nil {
@@ -541,26 +541,26 @@ func (v *Server) executeAITool(ctx context.Context, r *http.Request, s *session,
 			return nil, err
 		}
 		defer req.done()
-		var objects []sqlservice.CatalogObject
+		var objects []sqlservice.CatalogRelation
 		if name == "inspect_schema" && strings.TrimSpace(args.Query) == "" && len(args.Tables) == 1 && args.Tables[0] == e.Table {
 			// InspectTableSummary checks exact visibility; no need to enumerate the schema.
-			objects = []sqlservice.CatalogObject{{Schema: e.Schema, Name: e.Table}}
+			objects = []sqlservice.CatalogRelation{{Schema: e.Schema, Name: e.Table}}
 		} else {
-			lookup := sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 100}
+			lookup := sqlservice.CatalogRelationRequest{Database: req.database, Schema: e.Schema, Limit: 100}
 			if name == "inspect_schema" && args.Query != "*" {
 				lookup.Query = args.Query
 			}
-			objects, err = sqlservice.ObjectRows(req.ctx, req.conn, e.Dialect, lookup)
+			objects, err = sqlservice.RelationRows(req.ctx, req.conn, e.Dialect, lookup)
 			if err != nil {
 				return nil, errors.New("Unable to inspect authorized schema")
 			}
 		}
 		if name == "search_schema" {
 			for len(objects) > 100 && len(objects) <= 1000 {
-				// ObjectRows returns one extra row only when another page exists.
+				// RelationRows returns one extra row only when another page exists.
 				last := objects[len(objects)-2]
 				objects = objects[:len(objects)-1]
-				page, pageErr := sqlservice.ObjectRows(req.ctx, req.conn, e.Dialect, sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 100, AfterSchema: last.Schema, AfterName: last.Name})
+				page, pageErr := sqlservice.RelationRows(req.ctx, req.conn, e.Dialect, sqlservice.CatalogRelationRequest{Database: req.database, Schema: e.Schema, Limit: 100, AfterSchema: last.Schema, AfterName: last.Name})
 				if pageErr != nil {
 					return nil, errors.New("Unable to search authorized schema")
 				}

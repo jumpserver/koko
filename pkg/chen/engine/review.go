@@ -124,7 +124,10 @@ func (v *Server) authorizeExecution(s *session, e *execution, commands []string,
 	}
 	defer e.resumeDeadline()
 	e.policyWarnings = make(map[string]core.AuthorizationDecision)
-	approved := map[string]bool{}
+	approved := map[string]core.AuthorizationDecision{}
+	if e.objectPlan != nil {
+		e.objectDecisions = map[string]core.AuthorizationDecision{}
+	}
 	seen := map[string]bool{}
 	var affectedRows *int64
 	if e.edit != nil {
@@ -133,24 +136,34 @@ func (v *Server) authorizeExecution(s *session, e *execution, commands []string,
 	}
 	for _, command := range commands {
 		key := reviews[command]
-		if seen[command] || key != "" && approved[key] {
+		if prior, ok := approved[key]; key != "" && ok && e.objectPlan != nil {
+			e.objectDecisions[command] = prior
+		}
+		if _, alreadyApproved := approved[key]; seen[command] || key != "" && alreadyApproved {
 			continue
 		}
 		seen[command] = true
-		decision, err := v.provider.AuthorizeCommand(e.ctx, s.grant, core.AuthorizationRequest{
-			SQL: command, BatchSQL: audit.SQL, AffectedRows: affectedRows, SubmitReview: submitReview, ConfirmWarnings: confirmWarnings,
-			OnReview: func(review core.ReviewStatus) {
-				review.SQL = command
-				if e.edit != nil {
-					// Grid identities can contain masked primary-key values. The
-					// user's review panel receives the same masked SQL as preview.
-					for _, change := range e.edit.commands {
-						if change.policySQL == command {
-							review.SQL = change.previewSQL
-							break
-						}
-					}
+		shown := command
+		if e.objectPlan != nil {
+			for _, step := range e.objectPlan.commands.Steps {
+				if step.PolicySQL == command {
+					shown = step.SQL
+					break
 				}
+			}
+		}
+		if e.edit != nil {
+			for _, change := range e.edit.commands {
+				if change.policySQL == command {
+					shown = change.previewSQL
+					break
+				}
+			}
+		}
+		decision, err := v.provider.AuthorizeCommand(e.ctx, s.grant, core.AuthorizationRequest{
+			SQL: command, ReviewSQL: shown, BatchSQL: audit.SQL, AffectedRows: affectedRows, SubmitReview: submitReview, ConfirmWarnings: confirmWarnings,
+			OnReview: func(review core.ReviewStatus) {
+				review.SQL = shown
 				if review.State == "pending" {
 					e.pauseDeadline()
 				}
@@ -166,7 +179,10 @@ func (v *Server) authorizeExecution(s *session, e *execution, commands []string,
 			return err
 		}
 		if key != "" {
-			approved[key] = true
+			approved[key] = decision
+		}
+		if e.objectPlan != nil {
+			e.objectDecisions[command] = decision
 		}
 		if decision.RiskLevel == model.WarningLevel && decision.ACLID != "" {
 			e.policyWarnings[command] = decision

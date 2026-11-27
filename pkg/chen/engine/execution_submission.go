@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/jumpserver/koko/pkg/chen/sqlservice"
 )
@@ -28,9 +29,10 @@ type executionRequest struct {
 
 // Internal plans are server-owned and never decoded from the HTTP body.
 type executionIntent struct {
-	export    bool
-	browse    *editBrowse
-	queryPage *queryPagePlan
+	objectPlan *objectPlan
+	export     bool
+	browse     *editBrowse
+	queryPage  *queryPagePlan
 }
 
 func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +103,7 @@ func (v *Server) admitExecution(w http.ResponseWriter, s *session, c *console, r
 		fail(w, 400, "invalid_transaction_action", "Transaction resolution requires a mode action")
 		return
 	}
-	if strings.TrimSpace(req.SQL) == "" || sqlservice.DocumentExceedsLimit(req.SQL) {
+	if intent.objectPlan == nil && strings.TrimSpace(req.SQL) == "" || sqlservice.DocumentExceedsLimit(req.SQL) {
 		fail(w, 400, "invalid_sql", "SQL is empty or too large")
 		return
 	}
@@ -117,11 +119,16 @@ func (v *Server) admitExecution(w http.ResponseWriter, s *session, c *console, r
 	}
 	if old := c.requests[req.RequestID]; old != nil {
 		s.mu.Unlock()
-		if old.consoleMode != req.ConsoleMode || old.transactionAction != req.TransactionAction || old.transactionOnPending != req.TransactionOnPending || old.transactionRevision != req.TransactionRevision || old.confirmImplicitCommit != req.ConfirmImplicitCommit || (old.queryPage != nil) != (queryPage != nil) || (queryPage != nil && old.queryPage.fingerprint != queryPage.fingerprint) || old.planMode != req.PlanMode || old.sql != req.SQL || old.submitReview != req.SubmitReview || old.confirmWarnings != req.ConfirmWarnings || (old.export != nil) != isExport || (old.export != nil && old.export.format != req.Format) || (old.browse != nil) != (browse != nil) || old.edit != nil || (browse != nil && browse.plan != nil && (old.browse == nil || old.browse.plan == nil || old.browse.plan.fingerprint != browse.plan.fingerprint)) {
+		if old.objectPlan != intent.objectPlan || old.consoleMode != req.ConsoleMode || old.transactionAction != req.TransactionAction || old.transactionOnPending != req.TransactionOnPending || old.transactionRevision != req.TransactionRevision || old.confirmImplicitCommit != req.ConfirmImplicitCommit || (old.queryPage != nil) != (queryPage != nil) || (queryPage != nil && old.queryPage.fingerprint != queryPage.fingerprint) || old.planMode != req.PlanMode || old.objectPlan == nil && old.sql != req.SQL || old.submitReview != req.SubmitReview || old.confirmWarnings != req.ConfirmWarnings || (old.export != nil) != isExport || (old.export != nil && old.export.format != req.Format) || (old.browse != nil) != (browse != nil) || old.edit != nil || (browse != nil && browse.plan != nil && (old.browse == nil || old.browse.plan == nil || old.browse.plan.fingerprint != browse.plan.fingerprint)) {
 			fail(w, 409, "idempotency_conflict", "Request ID already belongs to different SQL")
 			return
 		}
 		writeJSON(w, 202, old.snapshot())
+		return
+	}
+	if p := intent.objectPlan; p != nil && (p.used || time.Now().After(p.expires)) {
+		s.mu.Unlock()
+		fail(w, 409, "object_plan_expired", "Preview was used or expired; preview again")
 		return
 	}
 	if s.activeExecutionCountLocked() >= 256 {
@@ -131,6 +138,10 @@ func (v *Server) admitExecution(w http.ResponseWriter, s *session, c *console, r
 	}
 	ctx, cancel := context.WithCancel(c.ctx)
 	e := &execution{view: ExecutionView{ID: newID("exe_"), ConsoleID: c.id, Status: "queued", ResultIDs: []string{}, StatementResults: []StatementResult{}, AuditStatus: "pending"}, sql: req.SQL, documentVersion: req.DocumentVersion, ctx: ctx, cancel: cancel, cancelDone: make(chan struct{}), submitReview: req.SubmitReview, confirmWarnings: req.ConfirmWarnings}
+	e.objectPlan = intent.objectPlan
+	if e.objectPlan != nil {
+		e.view.ObjectPlan = e.objectPlan.outcome()
+	}
 	e.consoleMode = req.ConsoleMode
 	e.transactionAction, e.transactionOnPending, e.transactionRevision, e.confirmImplicitCommit = req.TransactionAction, req.TransactionOnPending, req.TransactionRevision, req.ConfirmImplicitCommit
 	if req.TransactionAction != "" && c.transaction.Load() != nil {
@@ -159,6 +170,9 @@ func (v *Server) admitExecution(w http.ResponseWriter, s *session, c *console, r
 	e.startDeadline(s, v.opts.QueryTimeout)
 	select {
 	case c.queue <- e:
+		if e.objectPlan != nil {
+			e.objectPlan.used = true
+		}
 		s.executions[e.view.ID] = e
 		c.requests[req.RequestID] = e
 	default:

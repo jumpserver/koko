@@ -83,7 +83,7 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d dialect.ID, scope Co
 		case d == dialect.PostgreSQL:
 			// Distinguish an inaccessible schema from a missing or unbrowsable
 			// relation only on a miss.
-			if accessErr := CatalogObjectAccess(ctx, conn, d, schema, table); accessErr != nil {
+			if accessErr := CatalogRelationAccess(ctx, conn, d, schema, table); accessErr != nil {
 				err = accessErr
 			}
 		}
@@ -223,7 +223,7 @@ AND c.relkind IN ('r','p','v','m') AND n.nspname IN (SELECT schema_name FROM inf
 		return view, err
 	}
 	b := &catalogBinder{dialect: d}
-	source, err := b.objectSource(r.Schema, false)
+	source, err := b.relationSource(r.Schema, false)
 	if err != nil {
 		return false, err
 	}

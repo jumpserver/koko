@@ -2,21 +2,14 @@ package engine
 
 import (
 	"context"
-	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
-	"unicode/utf8"
 
 	"github.com/jumpserver/koko/pkg/chen/core"
 	"github.com/jumpserver/koko/pkg/chen/dialect"
@@ -32,37 +25,10 @@ type catalogResource struct {
 	database  string
 	cursorKey [32]byte
 }
-type catalogCursor struct {
-	Contract        string `json:"oc,omitempty"`
-	DiagramContract string `json:"dc,omitempty"`
-	Direction       string `json:"direction,omitempty"`
-	Section         string `json:"section,omitempty"`
-	Sort            string `json:"sort,omitempty"`
-	Limit           int    `json:"limit,omitempty"`
-	AfterTable      string `json:"at,omitempty"`
-	Version         int    `json:"v"`
-	Session         string `json:"s"`
-	Database        string `json:"d"`
-	Operation       string `json:"o"`
-	Schema          string `json:"n,omitempty"`
-	Kind            string `json:"k,omitempty"`
-	Query           string `json:"q,omitempty"`
-	AfterSchema     string `json:"as,omitempty"`
-	AfterName       string `json:"an,omitempty"`
-	AfterOrdinal    int    `json:"ao,omitempty"`
-	Table           string `json:"t,omitempty"`
-}
 type catalogPage[T any] struct {
 	Items      []T    `json:"items"`
 	NextCursor string `json:"next_cursor,omitempty"`
 	HasMore    bool   `json:"has_more"`
-}
-type catalogScope struct {
-	operation, schema, kind, query, table, cursor string
-	section, sort, database, direction            string
-	limit                                         int
-	overviewContract                              string
-	diagramContract                               string
 }
 type catalogRequest struct {
 	session  *session
@@ -71,89 +37,10 @@ type catalogRequest struct {
 	ctx      context.Context
 	database string
 	schema   string
+	outcome  string
 	scope    catalogScope
-	after    catalogCursor
+	after    catalogPosition
 	done     func()
-}
-
-func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) {
-	s := catalogScope{operation: operation, limit: 100}
-	allowed := map[string]bool{"cursor": true, "limit": true}
-	if operation != "databases" && operation != "ai" {
-		allowed["database"] = true
-	}
-	switch operation {
-	case "diagram":
-		for _, key := range []string{"database", "schema", "section", "direction", "table"} {
-			allowed[key] = true
-		}
-	case "overview":
-		for _, key := range []string{"database", "schema", "section", "q", "sort"} {
-			allowed[key] = true
-		}
-	case "objects", "ai":
-		allowed["schema"], allowed["kind"], allowed["q"] = true, true, true
-	case "columns", "inspect", "ddl":
-		allowed["schema"], allowed["table"] = true, true
-	}
-	for key, values := range r.URL.Query() {
-		if !allowed[key] || len(values) != 1 {
-			return s, errors.New("invalid_catalog_request")
-		}
-	}
-	values := r.URL.Query()
-	s.section, s.sort, s.database = values.Get("section"), values.Get("sort"), values.Get("database")
-	if operation == "overview" {
-		if s.sort == "" {
-			s.sort = "name_asc"
-		}
-		if s.sort != "name_asc" && s.sort != "name_desc" {
-			return s, errors.New("invalid_catalog_request")
-		}
-		switch s.section {
-		case "tables", "views", "indexes", "statistics", "properties":
-		default:
-			return s, errors.New("invalid_catalog_request")
-		}
-		if s.database == "" {
-			return s, errors.New("invalid_catalog_request")
-		}
-		if (s.section == "statistics" || s.section == "properties") && (values.Get("q") != "" || values.Get("cursor") != "") {
-			return s, errors.New("invalid_catalog_request")
-		}
-	}
-	if operation == "diagram" {
-		s.direction = values.Get("direction")
-		if s.database == "" || (s.section != "nodes" && s.section != "edges") || (s.direction != "schema" && s.direction != "incoming") || s.direction == "schema" && values.Get("table") != "" || s.direction == "incoming" && (values.Get("table") == "" || values.Get("schema") == "") {
-			return s, errors.New("invalid_catalog_request")
-		}
-	}
-	s.schema, s.kind, s.query, s.table, s.cursor = values.Get("schema"), values.Get("kind"), values.Get("q"), values.Get("table"), values.Get("cursor")
-	for _, name := range []string{s.schema, s.query, s.table, s.database} {
-		if !utf8.ValidString(name) || utf8.RuneCountInString(name) > 256 || strings.ContainsRune(name, 0) {
-			return s, errors.New("invalid_catalog_request")
-		}
-	}
-	if s.kind != "" && s.kind != "table" && s.kind != "view" {
-		return s, errors.New("invalid_catalog_request")
-	}
-	if (operation == "columns" || operation == "inspect" || operation == "ddl") && s.table == "" {
-		return s, errors.New("invalid_catalog_request")
-	}
-	if len(s.cursor) > 4096 {
-		return s, errors.New("invalid_catalog_cursor")
-	}
-	if raw := values.Get("limit"); raw != "" {
-		n, err := strconv.Atoi(raw)
-		if err != nil || n < 1 {
-			return s, errors.New("invalid_catalog_request")
-		}
-		s.limit = min(n, 200)
-	}
-	if operation == "diagram" {
-		s.limit = min(s.limit, 100)
-	}
-	return s, nil
 }
 
 func (v *Server) beginCatalog(w http.ResponseWriter, r *http.Request, operation string) *catalogRequest {
@@ -171,6 +58,29 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	if err != nil {
 		fail(w, 400, err.Error(), "Invalid catalog request or page cursor")
 		return nil
+	}
+	if operation == "object-detail" || operation == "object-definition" {
+		var object struct {
+			Ref sqlservice.ObjectRef `json:"ref"`
+			OID uint32               `json:"oid"`
+			sqlservice.DefinitionPageRequest
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+		if !decode(w, r, &object) {
+			return nil
+		}
+		if !sqlservice.ValidObjectRef(object.Ref) {
+			fail(w, 400, "invalid_catalog_request", "Invalid catalog object identity")
+			return nil
+		}
+		page := object.DefinitionPageRequest
+		if !page.Valid() || page.Version != "" && (operation != "object-definition" || s.grant.Dialect() == dialect.PostgreSQL && object.OID == 0) {
+			fail(w, 400, "invalid_catalog_request", "Invalid definition page or version")
+			return nil
+		}
+		scope.definitionPage = page
+		scope.ref, scope.oid = object.Ref, object.OID
+		scope.database, scope.schema, scope.kind, scope.table = object.Ref.Database, object.Ref.Schema, string(object.Ref.Kind), object.Ref.Table
 	}
 	if editor != nil && editor.ConsoleID == "" {
 		scope.database = editor.Database
@@ -230,11 +140,15 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	}
 	var conn *sql.Conn
 	var current sqlservice.Context
-	consoleBound := editor != nil && editor.ConsoleID != ""
+	consoleID := r.PathValue("cid")
+	if editor != nil {
+		consoleID = editor.ConsoleID
+	}
+	consoleBound := consoleID != ""
 	targeted := !consoleBound && scope.database != "" && separateCatalogDatabase(s.grant.Dialect())
 	if consoleBound {
 		lookup := r.Clone(ctx)
-		lookup.SetPathValue("cid", editor.ConsoleID)
+		lookup.SetPathValue("cid", consoleID)
 		c := v.findConsole(w, lookup, s)
 		if c == nil {
 			finish()
@@ -242,7 +156,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		}
 		if !c.mu.TryLock() {
 			finish()
-			fail(w, 409, "console_busy", "AI metadata is unavailable while this console is executing")
+			fail(w, 409, "console_busy", "Metadata is unavailable while this console is executing")
 			return nil
 		}
 		if err := ctx.Err(); err != nil {
@@ -338,7 +252,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		return nil
 	}
 	if consoleBound {
-		if current.Schema == "" || database != editor.Database || current.Schema != editor.Schema {
+		if editor != nil && (current.Schema == "" || database != editor.Database || current.Schema != editor.Schema) {
 			finish()
 			fail(w, 409, "catalog_scope_changed", "SQL editor scope changed; reopen the query in the current database and schema")
 			return nil
@@ -360,7 +274,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	}
 	request := &catalogRequest{session: s, resource: resource, conn: conn, ctx: ctx, database: database, schema: current.Schema, scope: scope, done: finish}
 	if scope.cursor != "" {
-		after, err := resource.decodeCursor(scope.cursor, s.id, database, scope)
+		after, err := request.decodeCursor(scope.cursor)
 		if err != nil {
 			finish()
 			fail(w, 400, "invalid_catalog_cursor", "Page cursor does not match this catalog request")
@@ -388,6 +302,12 @@ func (v *Server) catalogAudit(req *catalogRequest, outcome string, count int) er
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(req.ctx), 3*time.Second)
 	defer cancel()
 	output := fmt.Sprintf("outcome=%s database=%q schema=%q table=%q kind=%s returned=%d", outcome, req.database, req.scope.schema, req.scope.table, req.scope.kind, count)
+	if req.scope.ref.Name != "" {
+		output += fmt.Sprintf(" object=%q oid=%d input_types=%q", req.scope.ref.Name, req.scope.oid, req.scope.ref.InputTypes)
+	}
+	if req.scope.collection != "" {
+		output += " collection=" + req.scope.collection
+	}
 	if req.scope.operation == "diagram" {
 		output += fmt.Sprintf(" direction=%s section=%s", req.scope.direction, req.scope.section)
 	}
@@ -400,9 +320,13 @@ func (v *Server) finishCatalog(w http.ResponseWriter, r *http.Request, req *cata
 	if req.ctx.Err() != nil {
 		err = req.ctx.Err()
 	}
-	outcome := "succeeded"
+	outcome := req.outcome
+	if outcome == "" {
+		outcome = "succeeded"
+	}
 	if err != nil {
 		outcome = "failed"
+		count = 0
 	}
 	if auditErr := v.catalogAudit(req, outcome, count); auditErr != nil {
 		fail(w, 503, "audit_persistence_failed", "Catalog result could not be audited")
@@ -437,6 +361,12 @@ func catalogError(w http.ResponseWriter, r *http.Request, s *session, err error)
 		fail(w, 410, "session_closed", "Session is closed")
 	case errors.Is(err, sqlservice.ErrCatalogForbidden):
 		fail(w, 403, "catalog_forbidden", "Catalog access is denied")
+	case errors.Is(err, sqlservice.ErrCatalogUnsupported):
+		fail(w, 422, "catalog_operation_unsupported", "This operation is not currently supported for the connected database version.")
+	case errors.Is(err, errRoutineCatalogChanged):
+		fail(w, 409, "catalog_contract_changed", "Catalog version changed; refresh the object list")
+	case errors.Is(err, sqlservice.ErrObjectChanged):
+		fail(w, 409, "catalog_object_changed", "Object definition changed; read it again")
 	case errors.Is(err, sqlservice.ErrDiagramContractChanged):
 		fail(w, 409, "diagram_contract_changed", "Catalog product, version or fields changed; refresh the diagram")
 	case errors.Is(err, sqlservice.ErrOverviewContractChanged):
@@ -452,6 +382,23 @@ func catalogError(w http.ResponseWriter, r *http.Request, s *session, err error)
 	}
 }
 
+type catalogName struct {
+	Name string `json:"name"`
+}
+
+func (req *catalogRequest) namePage(rows []sqlservice.CatalogSchema) catalogPage[catalogName] {
+	page := catalogPage[catalogName]{Items: []catalogName{}}
+	if len(rows) > req.scope.limit {
+		rows = rows[:req.scope.limit]
+		page.HasMore = true
+		page.NextCursor = req.nextCursor(catalogPosition{AfterName: rows[len(rows)-1].Name})
+	}
+	for _, row := range rows {
+		page.Items = append(page.Items, catalogName{Name: row.Name})
+	}
+	return page
+}
+
 func (v *Server) catalogDatabases(w http.ResponseWriter, r *http.Request) {
 	req := v.beginCatalog(w, r, "databases")
 	if req == nil {
@@ -459,25 +406,12 @@ func (v *Server) catalogDatabases(w http.ResponseWriter, r *http.Request) {
 	}
 	defer req.done()
 	items, err := sqlservice.DatabaseRows(req.ctx, req.conn, req.session.grant.Dialect(), req.database, req.after.AfterName, req.scope.limit)
-	type databaseItem struct {
-		Name string `json:"name"`
-	}
 	result := struct {
 		Database string `json:"database"`
 		Schema   string `json:"schema"`
-		catalogPage[databaseItem]
-	}{Database: req.database, Schema: req.schema, catalogPage: catalogPage[databaseItem]{Items: []databaseItem{}}}
-	if len(items) > req.scope.limit {
-		result.HasMore = true
-		items = items[:req.scope.limit]
-	}
-	for _, item := range items {
-		result.Items = append(result.Items, databaseItem{item.Name})
-	}
-	if result.HasMore {
-		result.NextCursor = req.resource.encodeCursor(req.session.id, req.database, req.scope, "", items[len(items)-1].Name, 0)
-	}
-	if v.finishCatalog(w, r, req, len(items), err) {
+		catalogPage[catalogName]
+	}{req.database, req.schema, req.namePage(items)}
+	if v.finishCatalog(w, r, req, len(result.Items), err) {
 		writeJSON(w, 200, result)
 	}
 }
@@ -489,24 +423,11 @@ func (v *Server) catalogSchemas(w http.ResponseWriter, r *http.Request) {
 	}
 	defer req.done()
 	items, err := sqlservice.SchemaRows(req.ctx, req.conn, req.session.grant.Dialect(), req.database, req.after.AfterName, req.scope.limit)
-	type schemaItem struct {
-		Name string `json:"name"`
-	}
 	result := struct {
 		Database string `json:"database"`
-		catalogPage[schemaItem]
-	}{Database: req.database, catalogPage: catalogPage[schemaItem]{Items: []schemaItem{}}}
-	if len(items) > req.scope.limit {
-		result.HasMore = true
-		items = items[:req.scope.limit]
-	}
-	for _, item := range items {
-		result.Items = append(result.Items, schemaItem{item.Name})
-	}
-	if result.HasMore {
-		result.NextCursor = req.resource.encodeCursor(req.session.id, req.database, req.scope, "", items[len(items)-1].Name, 0)
-	}
-	if v.finishCatalog(w, r, req, len(items), err) {
+		catalogPage[catalogName]
+	}{req.database, req.namePage(items)}
+	if v.finishCatalog(w, r, req, len(result.Items), err) {
 		writeJSON(w, 200, result)
 	}
 }
@@ -516,16 +437,20 @@ func (v *Server) catalogObjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer req.done()
-	items, err := sqlservice.ObjectRows(req.ctx, req.conn, req.session.grant.Dialect(), sqlservice.CatalogObjectRequest{Database: req.database, Schema: req.scope.schema, Kind: req.scope.kind, Query: req.scope.query, AfterSchema: req.after.AfterSchema, AfterName: req.after.AfterName, Limit: req.scope.limit})
-	if items == nil {
-		items = []sqlservice.CatalogObject{}
+	if req.scope.collection != "" {
+		v.catalogRoutines(w, r, req)
+		return
 	}
-	result := catalogPage[sqlservice.CatalogObject]{Items: items}
+	items, err := sqlservice.RelationRows(req.ctx, req.conn, req.session.grant.Dialect(), req.relationRequest())
+	if items == nil {
+		items = []sqlservice.CatalogRelation{}
+	}
+	result := catalogPage[sqlservice.CatalogRelation]{Items: items}
 	if len(items) > req.scope.limit {
 		result.HasMore = true
 		result.Items = items[:req.scope.limit]
 		last := result.Items[len(result.Items)-1]
-		result.NextCursor = req.resource.encodeCursor(req.session.id, req.database, req.scope, last.Schema, last.Name, 0)
+		result.NextCursor = req.nextCursor(catalogPosition{AfterSchema: last.Schema, AfterName: last.Name})
 	}
 	if v.finishCatalog(w, r, req, len(result.Items), err) {
 		writeJSON(w, 200, result)
@@ -547,52 +472,9 @@ func (v *Server) catalogColumns(w http.ResponseWriter, r *http.Request) {
 		result.Items = append(result.Items, sqlservice.Column{Name: item.Name, DataType: item.DataType, Nullable: item.Nullable, Comment: item.Comment})
 	}
 	if result.HasMore {
-		result.NextCursor = req.resource.encodeCursor(req.session.id, req.database, req.scope, "", "", items[len(items)-1].Ordinal)
+		result.NextCursor = req.nextCursor(catalogPosition{AfterOrdinal: items[len(items)-1].Ordinal})
 	}
-	if v.finishCatalog(w, r, req, len(items), err) {
+	if v.finishCatalog(w, r, req, len(result.Items), err) {
 		writeJSON(w, 200, result)
 	}
-}
-
-func (c *catalogResource) encodeCursor(session, database string, scope catalogScope, afterSchema, afterName string, afterOrdinal int, afterTable ...string) string {
-	value := catalogCursor{Version: 1, Session: session, Database: database, Operation: scope.operation, Schema: scope.schema, Kind: scope.kind, Query: scope.query, Table: scope.table, AfterSchema: afterSchema, AfterName: afterName, AfterOrdinal: afterOrdinal}
-	if scope.operation == "overview" || scope.operation == "diagram" {
-		value.Contract = scope.overviewContract
-		value.DiagramContract = scope.diagramContract
-		value.Direction = scope.direction
-		value.Section = scope.section
-		value.Sort = scope.sort
-		value.Limit = scope.limit
-	}
-	if len(afterTable) > 0 {
-		value.AfterTable = afterTable[0]
-	}
-	data, _ := json.Marshal(value)
-	mac := hmac.New(sha256.New, c.cursorKey[:])
-	_, _ = mac.Write(data)
-	return base64.RawURLEncoding.EncodeToString(data) + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-}
-func (c *catalogResource) decodeCursor(encoded, session, database string, scope catalogScope) (catalogCursor, error) {
-	var value catalogCursor
-	parts := strings.Split(encoded, ".")
-	if len(parts) != 2 {
-		return value, errors.New("invalid cursor")
-	}
-	data, err := base64.RawURLEncoding.DecodeString(parts[0])
-	if err != nil {
-		return value, err
-	}
-	signature, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return value, err
-	}
-	mac := hmac.New(sha256.New, c.cursorKey[:])
-	_, _ = mac.Write(data)
-	if !hmac.Equal(signature, mac.Sum(nil)) {
-		return value, errors.New("invalid cursor")
-	}
-	if json.Unmarshal(data, &value) != nil || (scope.operation == "overview" || scope.operation == "diagram") && (value.Direction != scope.direction || value.Section != scope.section || value.Sort != scope.sort || value.Limit != scope.limit) || value.Version != 1 || value.Session != session || value.Database != database || value.Operation != scope.operation || value.Schema != scope.schema || value.Kind != scope.kind || value.Query != scope.query || value.Table != scope.table {
-		return value, errors.New("cursor scope mismatch")
-	}
-	return value, nil
 }

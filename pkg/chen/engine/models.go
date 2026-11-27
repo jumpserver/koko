@@ -66,11 +66,13 @@ type ConsoleView struct {
 	State       string           `json:"state"`
 }
 type StatementResult struct {
+	ResultRole   string `json:"result_role,omitempty"`
 	ResultID     string `json:"result_id,omitempty"`
 	SourceSQL    string `json:"source_sql,omitempty"`
 	RowsAffected string `json:"rows_affected,omitempty"`
 }
 type ExecutionView struct {
+	ObjectPlan       *ObjectPlanOutcome     `json:"object_plan,omitempty"`
 	CancelReason     string                 `json:"cancel_reason,omitempty"`
 	maskedDiagnostic bool                   // the stored database error (including any script warning) is safe for AI
 	Revision         uint64                 `json:"revision"`
@@ -98,6 +100,8 @@ type Column struct {
 	DataType string `json:"data_type"`
 }
 type Result struct {
+	CursorSource    *cursorSource `json:"cursor_source,omitempty"`
+	objectRole      string
 	SourceSQL       string     `json:"source_sql,omitempty"` // exact server-bound statement, including script result provenance
 	QueryPage       *QueryPage `json:"query_page,omitempty"`
 	querySource     *queryPagePlan
@@ -131,12 +135,15 @@ type Event struct {
 }
 
 type execution struct {
-	restoreReadContext    func() error    // worker-owned; restore before publishing source-bound reads
-	consoleMode           bool            // raw console boundaries; ordinary query parsing is unchanged
-	confirmationDecisions map[string]bool // protected by mu; immutable identities survive retries
-	confirmationResponse  chan bool       // protected by mu; one response per pending confirmation
-	replayOutput          string          // worker-owned, contains displayed masked values only
-	auditRows             int             // worker-owned current statement result count
+	objectStep            int // worker-owned position in the immutable object plan
+	objectPlan            *objectPlan
+	objectDecisions       map[string]core.AuthorizationDecision // worker-owned, whole-plan policy outcomes
+	restoreReadContext    func() error                          // worker-owned; restore before publishing source-bound reads
+	consoleMode           bool                                  // raw console boundaries; ordinary query parsing is unchanged
+	confirmationDecisions map[string]bool                       // protected by mu; immutable identities survive retries
+	confirmationResponse  chan bool                             // protected by mu; one response per pending confirmation
+	replayOutput          string                                // worker-owned, contains displayed masked values only
+	auditRows             int                                   // worker-owned current statement result count
 	transactionAction     string
 	transactionOnPending  string
 	transactionRevision   uint64
@@ -191,6 +198,11 @@ func (e *execution) snapshot() ExecutionView {
 	}
 	v.ResultIDs = append([]string{}, v.ResultIDs...)
 	v.StatementResults = append([]StatementResult{}, v.StatementResults...)
+	if v.ObjectPlan != nil {
+		data := *v.ObjectPlan
+		data.Steps = append([]ObjectStepOutcome(nil), data.Steps...)
+		v.ObjectPlan = &data
+	}
 	if v.Edit != nil {
 		copy := *v.Edit
 		v.Edit = &copy
@@ -207,6 +219,7 @@ func terminal(s string) bool {
 }
 
 type console struct {
+	objectBindings      string           // fixed output variable namespace on this connection, protected by mu
 	sockets             *databaseSockets // physical transports captured at login; immutable after publication
 	manual              bool             // protected by mu
 	manualTx            driver.Tx        // worker-owned on the pinned physical connection
@@ -229,7 +242,8 @@ type console struct {
 	catalogAuditAt      map[string]time.Time // protected by console.mu
 }
 type session struct {
-	editPlans      map[string]*editPlan // protected by mu; bounded, never client-owned SQL
+	objectPlans    map[string]*objectPlan // guarded by mu
+	editPlans      map[string]*editPlan   // protected by mu; bounded, never client-owned SQL
 	exports        map[string]*exportJob
 	exportRequests map[string]*exportJob
 	aiTasks        map[string]*aiTask // protected by mu; bounded and canceled with the session
