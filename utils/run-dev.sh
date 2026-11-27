@@ -9,8 +9,7 @@ case "${KAEL_ENABLED:-true}" in
     *) echo "Invalid KAEL_ENABLED: $KAEL_ENABLED" >&2; exit 1 ;;
 esac
 
-usql_dir=$(./utils/setup-usql.sh)
-export PATH="$usql_dir:$PATH"
+export PATH="$bin_dir:$PATH"
 if [ "$enable_kael" = true ]; then
     CGO_ENABLED=0 go build -trimpath -o "$bin_dir/kael" ./cmd/kael
 fi

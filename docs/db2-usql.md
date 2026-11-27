@@ -1,6 +1,6 @@
 # Db2 Web CLI
 
-KoKo uses the published usql v0.2.9 binary for Db2 LUW connections. It embeds a
+KoKo builds its bundled usql client for Db2 LUW connections. It embeds a
 community pure Go DRDA driver, so no IBM CLI installation or libdb2.so is needed.
 Core must also advertise Db2 as a KoKo Web CLI protocol; its existing Chen Web GUI
 connection remains available.
@@ -23,18 +23,15 @@ The usql Db2 driver always verifies server certificates; allowing invalid
 certificates is unsupported. Real-server TLS/mTLS was not validated by the
 plain-TCP QA test.
 
-`Dockerfile-base` and the development installer select v0.2.9. `Dockerfile`
-inherits usql from its pinned `koko-base` image without downloading it again.
-When upgrading usql, build and publish the base image first, then update the
-`koko-base` tag in `Dockerfile`; offline application builds reuse that dependency.
+The database client is built from `tools/usql` with its own driver dependencies.
 
 The essential protocol/DSN/audit tests run with `go test ./pkg/srvconn ./pkg/proxy`.
 For the opt-in read-only KoKo PTY integration test, put a plain Db2 URL with an
-explicit port in a private file and run with the published binary on PATH:
+explicit port in a private file and run with the bundled binary on PATH:
 
 ```sh
-USQL_BIN_DIR="$(./utils/setup-usql.sh)"
-PATH="$USQL_BIN_DIR:$PATH" KOKO_DB2_TEST_DSN_FILE=/path/to/private-dsn \
+make usql
+PATH="$PWD/build:$PATH" KOKO_DB2_TEST_DSN_FILE=/path/to/private-dsn \
   GOMAXPROCS=2 go test -p 2 ./pkg/proxy -run '^TestLiveDB2USQL$' -v
 ```
 
