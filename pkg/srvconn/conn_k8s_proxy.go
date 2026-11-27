@@ -68,6 +68,7 @@ func (k *KubectlProxyConn) Start() error {
 	logger.Infof("kubeconfig: %s", k.configPath)
 	k.proxyCmd = exec.Command("kubectl", "proxy",
 		"--disable-filter=true",
+		"--append-server-path=true",
 		fmt.Sprintf("--kubeconfig=%s", k.configPath),
 		fmt.Sprintf("--unix-socket=%s", k.UnixPath()),
 		"--api-prefix=/")
