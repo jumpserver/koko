@@ -182,40 +182,61 @@ func readPostgresTriggerDetail(ctx context.Context, conn *sql.Conn, q postgresOb
 
 // The definition is decompiled only inside the owner check. pg_get_*def on
 // its own can reveal a body even to roles without EXECUTE or table ownership.
-func PostgreSQLObjectDefinition(ctx context.Context, conn *sql.Conn, ref ObjectRef, oid uint32, authorize func(string) error) (ObjectDefinition, error) {
-	result := ObjectDefinition{Ref: ref}
+func postgresDefinitionSource(ctx context.Context, conn *sql.Conn, ref ObjectRef, oid uint32) (postgresObjectLookup, string, error) {
 	q, err := postgresObject(ctx, conn, ref, oid)
+	if err != nil {
+		return q, "", err
+	}
+	object, owner, source, rowVersion := "p.oid", "p.proowner", "pg_get_functiondef", "p.xmin::text,p.ctid::text"
+	dependencies := `(SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(ns.nspname,ty.typname) ORDER BY a.pos)
+ FROM pg_catalog.unnest(pg_catalog.array_append(COALESCE(p.proallargtypes,p.proargtypes::pg_catalog.oid[]),p.prorettype)) WITH ORDINALITY a(id,pos)
+ JOIN pg_catalog.pg_type ty ON ty.oid=a.id JOIN pg_catalog.pg_namespace ns ON ns.oid=ty.typnamespace)`
+	if ref.Kind == TriggerKind {
+		object, owner, source, rowVersion = "t.oid", "c.relowner", "pg_get_triggerdef", "t.xmin::text,t.ctid::text"
+		dependencies = `(SELECT pg_catalog.jsonb_build_array(ns.nspname,p.proname,p.oid)
+    FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace ns ON ns.oid=p.pronamespace WHERE p.oid=t.tgfoid)`
+	}
+	// The decompiler qualifies identifiers using this connection's search_path.
+	// A tuple updated twice in one transaction keeps its xmin but changes ctid.
+	// Include names of referenced types/functions so a rename also invalidates it.
+	q.from = ` FROM (SELECT ` + object + ` AS oid,pg_catalog.jsonb_build_array($1::text,$2::text,$3::text,$4::text,` + object + "," + rowVersion + "," + dependencies + `) AS version,
+ CASE WHEN pg_catalog.pg_has_role(` + owner + `,'USAGE') THEN pg_catalog.` + source + "(" + object + ") END AS body " + q.from + " WHERE " + q.where + " OFFSET 0) resolved"
+	return q, source, nil
+}
+
+// Expose bound identity values to the policy matcher; the driver still binds
+// the original values on the selected physical connection.
+func (q postgresObjectLookup) policySQL(query string) string {
+	args := make([]string, 0, 2*len(q.args))
+	for i, arg := range q.args {
+		var literal string
+		switch v := arg.(type) {
+		case string:
+			literal = "E'" + strings.NewReplacer(`\`, `\\`, "'", "''").Replace(v) + "'"
+		case uint32:
+			literal = strconv.FormatUint(uint64(v), 10)
+		}
+		args = append(args, "$"+strconv.Itoa(i+1), literal)
+	}
+	return strings.NewReplacer(args...).Replace(query)
+}
+
+func PostgreSQLObjectDefinition(ctx context.Context, conn *sql.Conn, ref ObjectRef, oid uint32, authorize func(string) error) (ObjectDefinition, error) {
+	q, source, err := postgresDefinitionSource(ctx, conn, ref, oid)
+	result := ObjectDefinition{Ref: ref, Source: source}
 	if err != nil {
 		return result, err
 	}
-	object, owner, source := "p.oid", "p.proowner", "pg_get_functiondef"
-	if ref.Kind == TriggerKind {
-		object, owner, source = "t.oid", "c.relowner", "pg_get_triggerdef"
-	}
-	result.Source = source
-	query := `SELECT resolved.oid,pg_catalog.length(body),pg_catalog.left(body,` + strconv.Itoa(MaxDocumentCodeUnits) + `) FROM
- (SELECT ` + object + ` AS oid,CASE WHEN pg_catalog.pg_has_role(` + owner + `,'USAGE') THEN pg_catalog.` + source + "(" + object + ") END AS body " + q.from + " WHERE " + q.where + " OFFSET 0) resolved"
-	// Authorize the command with its bound values visible to the policy matcher.
-	// The driver executes the same fixed query using native parameter binding.
+	query := "SELECT resolved.oid,pg_catalog.length(body),pg_catalog.left(body," + strconv.Itoa(MaxDocumentCodeUnits) + "),version" + q.from
 	if authorize != nil {
-		args := make([]string, 0, 2*len(q.args))
-		for i, arg := range q.args {
-			var literal string
-			switch v := arg.(type) {
-			case string:
-				literal = "E'" + strings.NewReplacer(`\`, `\\`, "'", "''").Replace(v) + "'"
-			case uint32:
-				literal = strconv.FormatUint(uint64(v), 10)
-			}
-			args = append(args, "$"+strconv.Itoa(i+1), literal)
-		}
-		if err := authorize(strings.NewReplacer(args...).Replace(query)); err != nil {
+		if err := authorize(q.policySQL(query)); err != nil {
 			return result, err
 		}
 	}
 	var length sql.NullInt64
 	var body sql.NullString
-	if err := conn.QueryRowContext(ctx, query, q.args...).Scan(&result.OID, &length, &body); err != nil {
+	var version string
+	if err := conn.QueryRowContext(ctx, query, q.args...).Scan(&result.OID, &length, &body, &version); err != nil {
 		return result, postgresObjectReadError(err)
 	}
 	result.Status = "restricted"
@@ -224,7 +245,7 @@ func PostgreSQLObjectDefinition(ctx context.Context, conn *sql.Conn, ref ObjectR
 		result.Status = "truncated"
 		if int64(utf8.RuneCountInString(result.Text)) == length.Int64 {
 			result.Status = "complete"
-			result.Version = definitionFingerprint(result.Text)
+			result.Version = definitionFingerprint(version)
 		}
 	}
 	return result, nil

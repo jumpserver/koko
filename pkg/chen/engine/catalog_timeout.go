@@ -28,9 +28,9 @@ func catalogQueryContext(request, session context.Context, operation string) (co
 
 func catalogQueueTimeout(operation string) time.Duration {
 	switch operation {
-	case "inspect", "ai", "overview", "diagram":
+	case "inspect", "object-detail", "ai", "overview", "diagram":
 		return catalogInspectionTimeout
-	case "ddl":
+	case "ddl", "object-definition":
 		return 30 * time.Second
 	default:
 		return 3 * time.Second

@@ -34,10 +34,11 @@ type ObjectRef struct {
 }
 
 type ObjectSummary struct {
-	Ref       ObjectRef `json:"ref"`
-	OID       uint32    `json:"oid,omitempty"`
-	Label     string    `json:"label"`
-	Signature string    `json:"signature,omitempty"`
+	Ref        ObjectRef `json:"ref"`
+	OID        uint32    `json:"oid,omitempty"`
+	Label      string    `json:"label"`
+	Signature  string    `json:"signature,omitempty"`
+	ObjectType string    `json:"object_type,omitempty"`
 }
 
 type RoutineListRequest struct {

@@ -11,19 +11,20 @@ import (
 
 // The flat JSON field names are part of the v1 cursor contract.
 type catalogCursorScope struct {
-	Version    int    `json:"v"`
-	Session    string `json:"s"`
-	Database   string `json:"d"`
-	Operation  string `json:"o"`
-	Collection string `json:"collection,omitempty"`
-	Schema     string `json:"n,omitempty"`
-	Kind       string `json:"k,omitempty"`
-	Query      string `json:"q,omitempty"`
-	Table      string `json:"t,omitempty"`
-	Direction  string `json:"direction,omitempty"`
-	Section    string `json:"section,omitempty"`
-	Sort       string `json:"sort,omitempty"`
-	Limit      int    `json:"limit,omitempty"`
+	Version     int    `json:"v"`
+	Session     string `json:"s"`
+	Database    string `json:"d"`
+	Operation   string `json:"o"`
+	Collection  string `json:"collection,omitempty"`
+	Schema      string `json:"n,omitempty"`
+	Kind        string `json:"k,omitempty"`
+	Query       string `json:"q,omitempty"`
+	Table       string `json:"t,omitempty"`
+	FunctionOID uint32 `json:"f_oid,omitempty"`
+	Direction   string `json:"direction,omitempty"`
+	Section     string `json:"section,omitempty"`
+	Sort        string `json:"sort,omitempty"`
+	Limit       int    `json:"limit,omitempty"`
 }
 
 type catalogPosition struct {
@@ -54,6 +55,7 @@ func (req *catalogRequest) cursorScope() catalogCursorScope {
 	}
 	if s.collection != "" {
 		scope.Version, scope.Collection, scope.Limit = 2, s.collection, s.limit
+		scope.FunctionOID = s.functionOID
 	}
 	return scope
 }

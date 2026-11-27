@@ -37,6 +37,7 @@ type catalogRequest struct {
 	ctx      context.Context
 	database string
 	schema   string
+	outcome  string
 	scope    catalogScope
 	after    catalogPosition
 	done     func()
@@ -57,6 +58,22 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	if err != nil {
 		fail(w, 400, err.Error(), "Invalid catalog request or page cursor")
 		return nil
+	}
+	if operation == "object-detail" || operation == "object-definition" {
+		var object struct {
+			Ref sqlservice.ObjectRef `json:"ref"`
+			OID uint32               `json:"oid"`
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+		if !decode(w, r, &object) {
+			return nil
+		}
+		if !sqlservice.ValidObjectRef(object.Ref) {
+			fail(w, 400, "invalid_catalog_request", "Invalid catalog object identity")
+			return nil
+		}
+		scope.ref, scope.oid = object.Ref, object.OID
+		scope.database, scope.schema, scope.kind, scope.table = object.Ref.Database, object.Ref.Schema, string(object.Ref.Kind), object.Ref.Table
 	}
 	if editor != nil && editor.ConsoleID == "" {
 		scope.database = editor.Database
@@ -116,11 +133,15 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	}
 	var conn *sql.Conn
 	var current sqlservice.Context
-	consoleBound := editor != nil && editor.ConsoleID != ""
+	consoleID := r.PathValue("cid")
+	if editor != nil {
+		consoleID = editor.ConsoleID
+	}
+	consoleBound := consoleID != ""
 	targeted := !consoleBound && scope.database != "" && separateCatalogDatabase(s.grant.Dialect())
 	if consoleBound {
 		lookup := r.Clone(ctx)
-		lookup.SetPathValue("cid", editor.ConsoleID)
+		lookup.SetPathValue("cid", consoleID)
 		c := v.findConsole(w, lookup, s)
 		if c == nil {
 			finish()
@@ -128,7 +149,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		}
 		if !c.mu.TryLock() {
 			finish()
-			fail(w, 409, "console_busy", "AI metadata is unavailable while this console is executing")
+			fail(w, 409, "console_busy", "Metadata is unavailable while this console is executing")
 			return nil
 		}
 		if err := ctx.Err(); err != nil {
@@ -224,7 +245,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		return nil
 	}
 	if consoleBound {
-		if current.Schema == "" || database != editor.Database || current.Schema != editor.Schema {
+		if editor != nil && (current.Schema == "" || database != editor.Database || current.Schema != editor.Schema) {
 			finish()
 			fail(w, 409, "catalog_scope_changed", "SQL editor scope changed; reopen the query in the current database and schema")
 			return nil
@@ -274,6 +295,9 @@ func (v *Server) catalogAudit(req *catalogRequest, outcome string, count int) er
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(req.ctx), 3*time.Second)
 	defer cancel()
 	output := fmt.Sprintf("outcome=%s database=%q schema=%q table=%q kind=%s returned=%d", outcome, req.database, req.scope.schema, req.scope.table, req.scope.kind, count)
+	if req.scope.ref.Name != "" {
+		output += fmt.Sprintf(" object=%q oid=%d input_types=%q", req.scope.ref.Name, req.scope.oid, req.scope.ref.InputTypes)
+	}
 	if req.scope.collection != "" {
 		output += " collection=" + req.scope.collection
 	}
@@ -289,9 +313,13 @@ func (v *Server) finishCatalog(w http.ResponseWriter, r *http.Request, req *cata
 	if req.ctx.Err() != nil {
 		err = req.ctx.Err()
 	}
-	outcome := "succeeded"
+	outcome := req.outcome
+	if outcome == "" {
+		outcome = "succeeded"
+	}
 	if err != nil {
 		outcome = "failed"
+		count = 0
 	}
 	if auditErr := v.catalogAudit(req, outcome, count); auditErr != nil {
 		fail(w, 503, "audit_persistence_failed", "Catalog result could not be audited")
@@ -329,7 +357,7 @@ func catalogError(w http.ResponseWriter, r *http.Request, s *session, err error)
 	case errors.Is(err, sqlservice.ErrCatalogUnsupported):
 		fail(w, 422, "catalog_operation_unsupported", "This operation is not currently supported for the connected database version.")
 	case errors.Is(err, errRoutineCatalogChanged):
-		fail(w, 409, "catalog_contract_changed", "Catalog version changed; refresh the routine list")
+		fail(w, 409, "catalog_contract_changed", "Catalog version changed; refresh the object list")
 	case errors.Is(err, sqlservice.ErrDiagramContractChanged):
 		fail(w, 409, "diagram_contract_changed", "Catalog product, version or fields changed; refresh the diagram")
 	case errors.Is(err, sqlservice.ErrOverviewContractChanged):
@@ -400,7 +428,7 @@ func (v *Server) catalogObjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer req.done()
-	if req.scope.collection == "routine" {
+	if req.scope.collection != "" {
 		v.catalogRoutines(w, r, req)
 		return
 	}

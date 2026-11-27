@@ -14,6 +14,9 @@ type catalogScope struct {
 	operation, schema, kind, query, table, cursor  string
 	section, sort, database, direction, collection string
 	limit                                          int
+	functionOID                                    uint32
+	ref                                            sqlservice.ObjectRef
+	oid                                            uint32
 }
 
 func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) {
@@ -24,6 +27,7 @@ func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) 
 	}
 	if operation == "objects" {
 		allowed["collection"] = true
+		allowed["table"], allowed["function_oid"] = true, true
 	}
 	if operation != "databases" && operation != "ai" {
 		allowed["database"] = true
@@ -41,6 +45,9 @@ func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) 
 		allowed["schema"], allowed["kind"], allowed["q"] = true, true, true
 	case "columns", "inspect", "ddl":
 		allowed["schema"], allowed["table"] = true, true
+	}
+	if operation == "object-detail" || operation == "object-definition" {
+		allowed = map[string]bool{}
 	}
 	values := r.URL.Query()
 	for key, entries := range values {
@@ -86,12 +93,32 @@ func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) 
 		if s.kind != "" && s.kind != "table" && s.kind != "view" {
 			return s, errors.New("invalid_catalog_request")
 		}
+	case "all":
+		if s.kind != "" {
+			return s, errors.New("invalid_catalog_request")
+		}
+		s.collection = "all"
+	case "trigger":
+		s.collection = "trigger"
+		if s.kind != "" && s.kind != "trigger" || s.table != "" && s.schema == "" {
+			return s, errors.New("invalid_catalog_request")
+		}
+		if raw, exists := values["function_oid"]; exists {
+			n, err := strconv.ParseUint(raw[0], 10, 32)
+			if err != nil || n == 0 {
+				return s, errors.New("invalid_catalog_request")
+			}
+			s.functionOID = uint32(n)
+		}
 	case "routine":
 		s.collection = "routine"
 		if s.kind != "" && !sqlservice.ObjectKind(s.kind).IsRoutine() {
 			return s, errors.New("invalid_catalog_request")
 		}
 	default:
+		return s, errors.New("invalid_catalog_request")
+	}
+	if operation == "objects" && s.collection != "trigger" && (values.Has("table") || values.Has("function_oid")) {
 		return s, errors.New("invalid_catalog_request")
 	}
 	if (operation == "columns" || operation == "inspect" || operation == "ddl") && s.table == "" {
