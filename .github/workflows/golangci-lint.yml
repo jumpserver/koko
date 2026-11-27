@@ -25,6 +25,14 @@ jobs:
         run: |
           echo "PKG_CONFIG_PATH=$(./utils/setup-libghostty-vt.sh)/lib/pkgconfig" >> "$GITHUB_ENV"
 
+      # The root module's ./... does not descend into the standalone usql module.
+      - name: Test the WebCLI module
+        working-directory: tools/usql
+        env:
+          GOWORK: 'off'
+          CGO_ENABLED: '0'
+        run: go test -mod=readonly ./...
+
       - uses: golangci/golangci-lint-action@v9
         with:
           # Optional: version of golangci-lint to use in form of v1.2 or v1.2.3 or `latest` to use the latest version

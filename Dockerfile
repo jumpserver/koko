@@ -4,7 +4,7 @@ ARG TARGETARCH
 
 COPY . .
 
-RUN make chen-resources DESTDIR=/opt/koko/release \
+RUN make bundle-resources DESTDIR=/opt/koko/release \
     && mv /opt/koko/locale /opt/koko/release \
     && mv /opt/koko/config_example.yml /opt/koko/release \
     && mv /opt/koko/entrypoint.sh /opt/koko/release \
@@ -12,9 +12,9 @@ RUN make chen-resources DESTDIR=/opt/koko/release \
     && chmod 755 /opt/koko/release/entrypoint.sh /opt/koko/release/init-kubectl.sh
 
 ARG VERSION=dev
-RUN /opt/koko/bin/usql --drivers | grep -qx mongodb \
-    && /opt/koko/bin/usql --drivers | grep -qx redis \
-    && GOMAXPROCS=2 GOFLAGS=-p=2 make build -s VERSION="$VERSION"
+RUN GOPROXY=off GOMAXPROCS=2 GOFLAGS=-p=2 make build -s VERSION="$VERSION" \
+    && ./build/usql --drivers | grep -qx mongodb \
+    && ./build/usql --drivers | grep -qx redis
 
 FROM jumpserver/guacd:1.5.5-trixie
 ARG TARGETARCH
@@ -57,6 +57,7 @@ RUN install -d -m 0700 /opt/kael/data
 
 COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl_aliases
 COPY --from=stage-build /opt/koko/bin /usr/local/bin
+COPY --from=stage-build /opt/koko/build/usql /usr/local/bin/usql
 COPY --from=stage-build /opt/koko/release .
 
 COPY s6-overlay/cont-init.d/ /etc/cont-init.d/

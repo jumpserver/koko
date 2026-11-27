@@ -24,9 +24,16 @@ KOKOLDFLAGS+=-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$(CipherKey)'
 
 KOKOBUILD=CGO_ENABLED=1 go build -trimpath -ldflags "$(KOKOLDFLAGS) ${LDFLAGS}"
 
+# usql remains a separate module and PTY child. Do not apply KoKo's driver
+# replacements or CGO settings to its build.
+define build_usql
+	GOWORK=off CGO_ENABLED=0 GOOS=$(1) GOARCH=$(2) go -C tools/usql build -mod=readonly -trimpath -ldflags "$(LDFLAGS) -X 'github.com/xo/usql/text.CommandVersion=$(VERSION)'" -o "$(abspath $(3))" .
+endef
+
 define make_artifact_full
 	GOOS=$(1) GOARCH=$(2) $(KOKOBUILD) -o $(BUILDDIR)/$(NAME)-$(1)-$(2) $(KOKOSRCFILE)
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/locale/
+	$(call build_usql,$(1),$(2),$(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/usql)
 	cp $(BUILDDIR)/$(NAME)-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/$(NAME)
 	cp README.md $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/README.md
 	cp LICENSE $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/LICENSE
@@ -34,7 +41,7 @@ define make_artifact_full
 	cp entrypoint.sh $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/entrypoint.sh
 	cp utils/init-kubectl.sh $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/init-kubectl.sh
 	cp -r locale/* $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/locale/
-	$(MAKE) chen-resources DESTDIR="$(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)"
+	$(MAKE) bundle-resources DESTDIR="$(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)"
 
 	cd $(BUILDDIR) && tar -czvf $(NAME)-$(VERSION)-$(1)-$(2).tar.gz $(NAME)-$(VERSION)-$(1)-$(2)
 	rm -rf $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(1)-$(2)
@@ -50,7 +57,7 @@ define build_koko
 endef
 
 .PHONY: build
-build:
+build: usql
 	$(call build_koko,$(BUILDDIR)/$(NAME))
 	GOARCH=$(GOARCH) GOOS=$(GOOS) CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS) -X 'main.Version=$(VERSION)'" -o "$(BUILDDIR)/kael" ./cmd/kael
 
@@ -60,6 +67,10 @@ chen-resources:
 	mkdir -p "$(DESTDIR)/licenses/chen"
 	cp pkg/chen/standalone/standalone_backends_example.yaml "$(DESTDIR)/"
 	for driver in omni go-db2 go-ora; do cp "pkg/chen/third_party/$$driver/LICENSE" "$(DESTDIR)/licenses/chen/$$driver-LICENSE" || exit 1; done
+
+.PHONY: bundle-resources
+bundle-resources: chen-resources
+	cp tools/usql/UPSTREAM-LICENSE "$(DESTDIR)/licenses/usql-LICENSE"
 
 all:
 	$(call make_artifact_full,darwin,arm64)
@@ -106,7 +117,7 @@ lint:
 
 .PHONY: usql
 usql:
-	@./utils/setup-usql.sh
+	$(call build_usql,$(GOOS),$(GOARCH),$(BUILDDIR)/usql)
 
 .PHONY: guacd
 guacd:
@@ -116,4 +127,5 @@ guacd:
 run dev: KOKOBUILD = CGO_ENABLED=1 go build -trimpath
 run dev:
 	$(call build_koko,$(BUILDDIR)/dev/koko)
+	$(call build_usql,$(GOOS),$(GOARCH),$(BUILDDIR)/dev/usql)
 	@./utils/run-dev.sh "$@" "$(abspath $(BUILDDIR)/dev)"

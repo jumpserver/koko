@@ -18,15 +18,12 @@ binary arguments, subscriptions, MONITOR and Cluster routing. Stateful Cluster
 commands require a direct node connection. See the matching usql README for
 the full supported scope.
 
-## Release order
+## Packaging
 
-`Dockerfile-base` and the development installer select usql v0.2.8. Run the
-existing base image workflow for the integration branch first. The workflow
-publishes the new base image and updates the base tag in `Dockerfile`. Both
-Dockerfiles require `usql --drivers` to advertise `mongodb` and `redis`.
-
-Build the final KoKo image with that updated tag. The base tool bundle drops
-mongosh and its crypt library, and the runtime image drops redis-tools.
+The application image builds the client from `tools/usql`, checks that this
+binary advertises both `mongodb` and `redis`, and installs it on PATH.
+The base image only caches the Go dependencies for this module; no separate
+client tag, mongosh, or redis-tools installation is needed.
 
 ## Verification
 

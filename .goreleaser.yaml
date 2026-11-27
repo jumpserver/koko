@@ -36,6 +36,18 @@ builds:
       - -X 'main.Goversion={{ .Env.GOVERSION }}'
       - -X 'main.Version={{ .Tag }}'
       - -X 'github.com/jumpserver/koko/pkg/config.CipherKey={{ .Env.CipherKey }}'
+  - id: usql
+    dir: tools/usql
+    main: .
+    binary: usql
+    goos: [linux, darwin]
+    goarch: [amd64, arm64, mips64le, ppc64le, s390x, riscv64, loong64]
+    env:
+      - CGO_ENABLED=0
+      - GOWORK=off
+    flags: [-mod=readonly, -trimpath]
+    ldflags:
+      - -w -s -X 'github.com/xo/usql/text.CommandVersion={{ .Tag }}'
 
 archives:
   - format: tar.gz
@@ -47,6 +59,8 @@ archives:
       - src: pkg/chen/standalone/standalone_backends_example.yaml
         strip_parent: true
       - pkg/chen/third_party/*/LICENSE
+      - src: tools/usql/UPSTREAM-LICENSE
+        dst: licenses/usql-LICENSE
       - entrypoint.sh
       - locale/*
       - src: utils/init-kubectl.sh
