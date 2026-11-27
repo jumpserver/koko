@@ -681,22 +681,18 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 	if !ok {
 		return nil, ok
 	}
-	sess, err := sshClient.AcquireSession()
-	if err != nil {
-		logger.Errorf("Cache ssh client new session failed: %s", err)
-		return nil, false
-	}
 	pty := s.UserConn.Pty()
 	charset := s.getCharset()
-	cacheConn, err := srvconn.NewSSHConnection(sess, srvconn.SSHCharset(charset),
+	// This runs before the connecting message is shown, so a cached client
+	// that no longer answers must not block here.
+	timeout := time.Duration(config.GlobalConfig.SSHTimeout) * time.Second
+	sess, cacheConn, err := sshClient.NewSSHConnectionTimeout(timeout, srvconn.SSHCharset(charset),
 		srvconn.SSHPtyWin(srvconn.Windows{
 			Width:  pty.Window.Width,
 			Height: pty.Window.Height,
 		}), srvconn.SSHTerm(pty.Term))
 	if err != nil {
-		logger.Errorf("Cache ssh session failed: %s", err)
-		_ = sess.Close()
-		sshClient.ReleaseSession(sess)
+		logger.Errorf("Cache ssh client(%s) new session failed: %s", sshClient, err)
 		srvconn.ReleaseClientCacheKey(key, sshClient)
 		return nil, false
 	}
