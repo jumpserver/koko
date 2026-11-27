@@ -189,6 +189,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	currentInFlight := false
 	completedStatements := 0
 	objectTransaction := false
+	mysqlObject := e.objectPlan != nil && d.UsesMySQLSyntax() && e.objectPlan.req.Action != "readDefinition"
 	var objectPolicies map[string]string
 	confirmedCancel := false
 	triggeredWarnings := map[string]core.AuditRecord{}
@@ -350,6 +351,20 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		v.update(s, e, func(x *ExecutionView) {
 			if o := x.ObjectPlan; o != nil {
+				if userSQLStarted && (e.objectPlan.req.Action == "invoke" || e.objectPlan.commands.Steps[e.objectStep].ReplacesExisting) {
+					o.SideEffectsPossible = true
+				}
+				if rolledBack || status == "unknown" {
+					for i := range o.Steps {
+						if o.Steps[i].Durability == "pending" {
+							if rolledBack {
+								o.Steps[i].Durability = "rolled_back"
+							} else {
+								o.Steps[i].Durability = "unknown"
+							}
+						}
+					}
+				}
 				if step := &o.Steps[e.objectStep]; step.Status == "sent" {
 					step.Status = status
 				}
@@ -358,6 +373,8 @@ func (v *Server) run(s *session, c *console, e *execution) {
 					o.Outcome = "rolled_back"
 				case status == "unknown":
 					o.Outcome = "unknown"
+				case completedStatements == len(o.Steps):
+					o.Outcome = "committed"
 				case completedStatements > 0:
 					o.Outcome = "partial"
 				default:
@@ -374,6 +391,11 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				x.Transaction.TransactionView = *current
 			}
 		})
+		if mysqlObject && userSQLStarted {
+			if !v.clearFailedObjectVariables(s, c, e, objectPolicies, auditStatus != "failed" && api.Code != "audit_persistence_failed" && status != "unknown") {
+				auditStatus = "failed"
+			}
+		}
 		if (d == dialect.Dameng || d == dialect.DB2) && databaseTouched && (e.ctx.Err() != nil || e.cancelRequested.Load() || confirmedCancel) {
 			invalidateEditConnection(s, c)
 		}
@@ -559,7 +581,12 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	if e.consoleMode {
 		analyze = sqlservice.AnalyzeConsole
 	}
-	analysis, err := analyze(d, runSQL, opts)
+	var analysis sqlservice.Analysis
+	if e.objectPlan != nil {
+		analysis, err = sqlservice.AnalyzeObjectCommands(d, e.objectPlan.commands, opts)
+	} else {
+		analysis, err = analyze(d, runSQL, opts)
+	}
 	// Generated windows may exceed the pinned TiDB grammar. Their source was
 	// admitted by the AST; only server-owned wrapping and bounded integers differ.
 	if e.queryPage != nil {
@@ -725,7 +752,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		// AST facts remain valid while parser options are unchanged. Reuse them
 		// for dispatch and edit provenance instead of reparsing each consumer.
-		if e.queryPage == nil && !(e.planMode != "" && specialPlanDialect(d)) && (statement.Facts == nil || current != opts) {
+		if e.objectPlan == nil && e.queryPage == nil && !(e.planMode != "" && specialPlanDialect(d)) && (statement.Facts == nil || current != opts) {
 			checked, err := analyze(d, statement.SQL, current)
 			if err != nil || len(checked.Statements) != 1 {
 				failure(errors.New("sql_context_changed"), &APIError{"sql_context_changed", "Statement boundaries changed with the connection SQL mode; run statements separately"})
@@ -746,7 +773,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		if e.browse != nil || e.queryPage != nil || e.planMode != "" {
 			commands = append([]string{e.sql}, commands...)
 		}
-		if c.manual {
+		if c.manual && (!mysqlObject || statementIndex == 0) {
 			if risk, _ := objectTransactionRisk(e, d, statement); risk {
 				commands = append(commands, "COMMIT")
 			}
@@ -825,7 +852,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				}
 			}
 		}
-		if c.manual && e.planMode == "" {
+		if c.manual && e.planMode == "" && (!mysqlObject || statementIndex == 0) {
 			if statement.Kind == "raw" {
 				failure(errors.New("raw_console_manual_mode"), &APIError{"raw_console_manual_mode", "This raw command has unknown transaction behavior; switch to automatic transaction mode before executing it"})
 				return
@@ -880,6 +907,12 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			return
 		}
 		if e.objectPlan != nil {
+			if mysqlObject && statementIndex == 0 && c.manual {
+				if err := v.checkObjectFingerprint(e.ctx, s, c, e.objectPlan); err != nil {
+					failure(err, objectPlanAPIError(err))
+					return
+				}
+			}
 			if statementIndex > 0 && e.objectPlan.commands.Steps[statementIndex-1].VerifyAfter {
 				if err := v.checkObjectFingerprint(e.ctx, s, c, e.objectPlan); err != nil {
 					failure(err, objectPlanAPIError(err))
@@ -976,7 +1009,18 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			})
 		}
 		if e.objectPlan != nil {
-			v.update(s, e, func(view *ExecutionView) { view.ObjectPlan.Steps[statementIndex].Status = "succeeded" })
+			v.update(s, e, func(view *ExecutionView) {
+				step := &view.ObjectPlan.Steps[statementIndex]
+				step.Status = "succeeded"
+				switch {
+				case e.objectPlan.commands.Steps[statementIndex].SessionVariables:
+					step.Durability = "session"
+				case objectTransaction || c.manualTx != nil:
+					step.Durability = "pending"
+				default:
+					step.Durability = "committed"
+				}
+			})
 		}
 		if c.manual && e.planMode == "" {
 			risk, _ := objectTransactionRisk(e, d, statement)
@@ -1062,6 +1106,12 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				x.ObjectPlan.Outcome = "committed"
 				if c.manualTx != nil {
 					x.ObjectPlan.Outcome = "staged"
+				} else {
+					for i := range x.ObjectPlan.Steps {
+						if x.ObjectPlan.Steps[i].Durability == "pending" {
+							x.ObjectPlan.Steps[i].Durability = "committed"
+						}
+					}
 				}
 			}
 		}

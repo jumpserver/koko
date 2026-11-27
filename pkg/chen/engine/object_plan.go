@@ -26,16 +26,18 @@ type objectPlan struct {
 }
 
 type ObjectStepOutcome struct {
+	Durability string `json:"durability,omitempty"`
 	Status     string `json:"status"`
 	ResultRole string `json:"result_role,omitempty"`
 }
 type ObjectPlanOutcome struct {
-	PlanID           string               `json:"plan_id"`
-	Action           string               `json:"action"`
-	Ref              sqlservice.ObjectRef `json:"ref"`
-	Steps            []ObjectStepOutcome  `json:"steps"`
-	Outcome          string               `json:"outcome"`
-	ResultsTruncated bool                 `json:"results_truncated,omitempty"`
+	SideEffectsPossible bool                 `json:"side_effects_possible,omitempty"`
+	PlanID              string               `json:"plan_id"`
+	Action              string               `json:"action"`
+	Ref                 sqlservice.ObjectRef `json:"ref"`
+	Steps               []ObjectStepOutcome  `json:"steps"`
+	Outcome             string               `json:"outcome"`
+	ResultsTruncated    bool                 `json:"results_truncated,omitempty"`
 }
 
 func (p *objectPlan) outcome() *ObjectPlanOutcome {
@@ -100,6 +102,7 @@ func (v *Server) previewObjectPlan(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	req.BindingID = newID("")[:24]
 	commands, err := v.objectCommands(ctx, s, c, req)
 	if err != nil {
 		api := objectPlanAPIError(err)
@@ -117,9 +120,13 @@ func (v *Server) previewObjectPlan(w http.ResponseWriter, r *http.Request) {
 		fail(w, 409, api.Code, api.Message)
 		return
 	}
-	analysis, err := sqlservice.AnalyzeWithOptions(s.grant.Dialect(), sqlText, opts)
+	analysis, err := sqlservice.AnalyzeObjectCommands(s.grant.Dialect(), commands, opts)
 	if err != nil || len(analysis.Statements) != len(commands.Steps) {
-		fail(w, 400, "invalid_object_plan", "The native parser could not verify the object command boundaries")
+		message := "The native parser could not verify the object command boundaries"
+		if err != nil {
+			message = err.Error()
+		}
+		fail(w, 400, "invalid_object_plan", message)
 		return
 	}
 	p := &objectPlan{id: newID("obj_"), consoleID: c.id, req: req, sql: sqlText, commands: commands, revision: tx.Revision, expires: time.Now().Add(15 * time.Minute)}
@@ -131,6 +138,13 @@ func (v *Server) previewObjectPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	encoded, _ := json.Marshal(req)
 	p.bytes = len(encoded) + len(p.sql)*2
+	if commands.Recovery != nil {
+		captured, _ := json.Marshal(commands.Recovery)
+		p.bytes += len(captured)
+	}
+	for _, step := range commands.Steps {
+		p.bytes += len(step.ParserSQL) + len(step.PolicySQL) + len(step.BoundSQL)
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed || s.grant.Check() != nil || c.closed.Load() {
@@ -153,7 +167,7 @@ func (v *Server) previewObjectPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.objectPlans[p.id] = p
-	writeJSON(w, 200, map[string]any{"plan_id": p.id, "action": req.Action, "ref": commands.Ref, "steps": commands.Steps, "sql": p.sql, "expires_at": p.expires, "transaction_revision": tx.Revision, "manual": tx.Manual, "requires_implicit_commit": p.requiresImplicit})
+	writeJSON(w, 200, map[string]any{"plan_id": p.id, "recovery": commands.Recovery, "action": req.Action, "ref": commands.Ref, "steps": commands.Steps, "sql": p.sql, "expires_at": p.expires, "transaction_revision": tx.Revision, "manual": tx.Manual, "requires_implicit_commit": p.requiresImplicit})
 }
 
 func (v *Server) applyObjectPlan(w http.ResponseWriter, r *http.Request) {
@@ -259,6 +273,9 @@ func (v *Server) objectPolicies(ctx context.Context, s *session, commands []stri
 func objectTransactionRisk(e *execution, d dialect.ID, s sqlservice.Statement) (bool, bool) {
 	// CALL in an explicit PostgreSQL transaction cannot commit it. Keep the
 	// selected console's transaction unless the operator chose a top-level CALL.
+	if e.objectPlan != nil && d.UsesMySQLSyntax() && e.objectPlan.req.Action != "readDefinition" {
+		return true, false
+	}
 	if e.objectPlan != nil && e.objectPlan.req.Action == "invoke" && d == dialect.PostgreSQL && s.Kind == "call" && !e.confirmImplicitCommit {
 		return false, false
 	}
