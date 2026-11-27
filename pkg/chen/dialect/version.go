@@ -12,7 +12,9 @@ import (
 // A vendor suffix can contain a separate product release.
 func MySQLCompatibilityNumber(reported string) int {
 	var major, minor, patch int
-	fmt.Sscanf(reported, "%d.%d.%d", &major, &minor, &patch)
+	if n, err := fmt.Sscanf(reported, "%d.%d.%d", &major, &minor, &patch); err != nil && n == 0 {
+		return 0
+	}
 	return major*10000 + minor*100 + patch
 }
 
