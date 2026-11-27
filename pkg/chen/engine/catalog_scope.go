@@ -11,14 +11,17 @@ import (
 )
 
 type catalogScope struct {
-	operation, schema, kind, query, table, cursor string
-	section, sort, database, direction            string
-	limit                                         int
+	operation, schema, kind, query, table, cursor  string
+	section, sort, database, direction, collection string
+	limit                                          int
 }
 
 func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) {
 	s := catalogScope{operation: operation, limit: 100}
 	allowed := map[string]bool{"cursor": true, "limit": true}
+	if operation == "capabilities" {
+		allowed = map[string]bool{}
+	}
 	if operation == "objects" {
 		allowed["collection"] = true
 	}
@@ -77,11 +80,18 @@ func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) 
 			return s, errors.New("invalid_catalog_request")
 		}
 	}
-	// An omitted collection is the original relation-only endpoint.
-	if collection := values.Get("collection"); collection != "" && collection != "relation" {
-		return s, errors.New("invalid_catalog_request")
-	}
-	if s.kind != "" && s.kind != "table" && s.kind != "view" {
+	switch values.Get("collection") {
+	case "", "relation":
+		// An omitted collection and an explicit relation share v1 cursors.
+		if s.kind != "" && s.kind != "table" && s.kind != "view" {
+			return s, errors.New("invalid_catalog_request")
+		}
+	case "routine":
+		s.collection = "routine"
+		if s.kind != "" && !sqlservice.ObjectKind(s.kind).IsRoutine() {
+			return s, errors.New("invalid_catalog_request")
+		}
+	default:
 		return s, errors.New("invalid_catalog_request")
 	}
 	if (operation == "columns" || operation == "inspect" || operation == "ddl") && s.table == "" {

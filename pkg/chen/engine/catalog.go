@@ -274,6 +274,9 @@ func (v *Server) catalogAudit(req *catalogRequest, outcome string, count int) er
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(req.ctx), 3*time.Second)
 	defer cancel()
 	output := fmt.Sprintf("outcome=%s database=%q schema=%q table=%q kind=%s returned=%d", outcome, req.database, req.scope.schema, req.scope.table, req.scope.kind, count)
+	if req.scope.collection != "" {
+		output += " collection=" + req.scope.collection
+	}
 	if req.scope.operation == "diagram" {
 		output += fmt.Sprintf(" direction=%s section=%s", req.scope.direction, req.scope.section)
 	}
@@ -323,6 +326,10 @@ func catalogError(w http.ResponseWriter, r *http.Request, s *session, err error)
 		fail(w, 410, "session_closed", "Session is closed")
 	case errors.Is(err, sqlservice.ErrCatalogForbidden):
 		fail(w, 403, "catalog_forbidden", "Catalog access is denied")
+	case errors.Is(err, sqlservice.ErrCatalogUnsupported):
+		fail(w, 422, "catalog_operation_unsupported", "This operation is not currently supported for the connected database version.")
+	case errors.Is(err, errRoutineCatalogChanged):
+		fail(w, 409, "catalog_contract_changed", "Catalog version changed; refresh the routine list")
 	case errors.Is(err, sqlservice.ErrDiagramContractChanged):
 		fail(w, 409, "diagram_contract_changed", "Catalog product, version or fields changed; refresh the diagram")
 	case errors.Is(err, sqlservice.ErrOverviewContractChanged):
@@ -393,6 +400,10 @@ func (v *Server) catalogObjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer req.done()
+	if req.scope.collection == "routine" {
+		v.catalogRoutines(w, r, req)
+		return
+	}
 	items, err := sqlservice.RelationRows(req.ctx, req.conn, req.session.grant.Dialect(), req.relationRequest())
 	if items == nil {
 		items = []sqlservice.CatalogRelation{}

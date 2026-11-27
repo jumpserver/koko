@@ -57,6 +57,7 @@ func (v *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+apiPath+"/sessions/{sid}/catalog/databases", v.catalogDatabases)
 	mux.HandleFunc("GET "+apiPath+"/sessions/{sid}/catalog/schemas", v.catalogSchemas)
 	mux.HandleFunc("GET "+apiPath+"/sessions/{sid}/catalog/objects", v.catalogObjects)
+	mux.HandleFunc("GET "+apiPath+"/sessions/{sid}/catalog/capabilities", v.catalogCapabilities)
 	mux.HandleFunc("GET "+apiPath+"/sessions/{sid}/catalog/columns", v.catalogColumns)
 	mux.HandleFunc("GET "+apiPath+"/sessions/{sid}/catalog/inspect", v.catalogInspect)
 	mux.HandleFunc("GET "+apiPath+"/sessions/{sid}/catalog/ddl", v.catalogDDL)
