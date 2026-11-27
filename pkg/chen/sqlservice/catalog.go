@@ -14,8 +14,9 @@ import (
 const MaxCatalogPageSize = 200
 
 var (
-	ErrCatalogForbidden = errors.New("catalog access forbidden")
-	ErrCatalogNotFound  = errors.New("catalog object not found")
+	ErrCatalogUnsupported = errors.New("catalog operation unsupported")
+	ErrCatalogForbidden   = errors.New("catalog access forbidden")
+	ErrCatalogNotFound    = errors.New("catalog object not found")
 )
 
 type CatalogSchema struct {
