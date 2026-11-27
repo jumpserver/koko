@@ -203,6 +203,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	completedStatements := 0
 	objectTransaction := false
 	mysqlObject := e.objectPlan != nil && d.UsesMySQLSyntax() && e.objectPlan.req.Action != "readDefinition"
+	mysqlInvoke := mysqlObject && e.objectPlan.req.Action == "invoke"
 	var objectPolicies map[string]string
 	confirmedCancel := false
 	triggeredWarnings := map[string]core.AuditRecord{}
@@ -288,6 +289,11 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			}
 		}
 	}()
+	unknownTransaction := func() *APIError {
+		invalidateEditConnection(s, c)
+		v.publishTransaction(s, c, e, "unknown")
+		return &APIError{"transaction_outcome_unknown", "SQL left an unverified transaction state; reconnect and verify the data"}
+	}
 	failure := func(err error, api *APIError) {
 		e.finishDatabaseWork()
 		runErr = err
@@ -313,6 +319,22 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		if status == "canceled" && e.deadlineExpired.Load() {
 			api = safeDatabaseError(context.DeadlineExceeded)
+		}
+		var nativeStepStatus string
+		if mysqlInvoke && currentInFlight && !c.lost.Load() && !c.closed.Load() {
+			// An ERR packet (including SIGNAL) has no transaction flags. A
+			// protocol ping refreshes them without changing the transaction.
+			probe, done := context.WithTimeout(context.Background(), databaseCleanupTimeout)
+			probeErr := c.conn.PingContext(probe)
+			state := editTxUnknown
+			if probeErr == nil {
+				state, probeErr = editTransactionState(probe, c, d)
+			}
+			done()
+			if probeErr != nil || state != editTxIdle {
+				nativeStepStatus = status
+				api, status = unknownTransaction(), "unknown"
+			}
 		}
 		rolledBack := false
 		if c.manual && e.transactionAction == "" && (userSQLStarted || preflightStartedTransaction) && c.manualTx != nil {
@@ -392,6 +414,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				}
 				if step := &o.Steps[e.objectStep]; step.Status == "sent" {
 					step.Status = status
+					if nativeStepStatus != "" {
+						step.Status, step.Durability = nativeStepStatus, "unknown"
+					}
 				}
 				switch {
 				case rolledBack:
@@ -1039,6 +1064,15 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				x.StatementResults = append(x.StatementResults, StatementResult{RowsAffected: strconv.FormatInt(affected, 10)})
 			})
 		}
+		unverifiedTransaction := false
+		if c.manual && e.planMode == "" || mysqlInvoke {
+			if risk, _ := objectTransactionRisk(e, d, statement); risk {
+				// A MySQL procedure can open a transaction and return with it
+				// still active, including on an automatic console.
+				state, probeErr := editTransactionState(e.ctx, c, d)
+				unverifiedTransaction = probeErr != nil || state != editTxIdle
+			}
+		}
 		if e.objectPlan != nil {
 			v.update(s, e, func(view *ExecutionView) {
 				step := &view.ObjectPlan.Steps[statementIndex]
@@ -1046,6 +1080,8 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				switch {
 				case e.objectPlan.commands.Steps[statementIndex].SessionVariables:
 					step.Durability = "session"
+				case unverifiedTransaction:
+					step.Durability = "unknown"
 				case objectTransaction || c.manualTx != nil:
 					step.Durability = "pending"
 				default:
@@ -1053,17 +1089,10 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				}
 			})
 		}
-		if c.manual && e.planMode == "" {
-			risk, _ := objectTransactionRisk(e, d, statement)
-			if risk {
-				state, probeErr := editTransactionState(e.ctx, c, d)
-				if probeErr != nil || state != editTxIdle {
-					invalidateEditConnection(s, c)
-					v.publishTransaction(s, c, e, "unknown")
-					failure(errors.New("transaction_outcome_unknown"), &APIError{"transaction_outcome_unknown", "SQL left an unverified transaction state; reconnect and verify the data"})
-					return
-				}
-			}
+		if unverifiedTransaction {
+			api := unknownTransaction()
+			failure(api, api)
+			return
 		}
 		currentInFlight = false
 		// MySQL SLEEP can return a normal row after KILL QUERY. An accepted
