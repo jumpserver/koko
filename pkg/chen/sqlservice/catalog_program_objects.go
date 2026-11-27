@@ -29,13 +29,14 @@ type ObjectDetail struct {
 }
 
 type ObjectDefinition struct {
-	Environment map[string]string `json:"environment,omitempty"`
-	Ref         ObjectRef         `json:"ref"`
-	OID         uint32            `json:"oid,omitempty"`
-	Status      string            `json:"status"`
-	Text        string            `json:"text,omitempty"`
-	Source      string            `json:"source"`
-	Version     string            `json:"version,omitempty"`
+	DefaultPositions []int             `json:"default_positions,omitempty"`
+	Environment      map[string]string `json:"environment,omitempty"`
+	Ref              ObjectRef         `json:"ref"`
+	OID              uint32            `json:"oid,omitempty"`
+	Status           string            `json:"status"`
+	Text             string            `json:"text,omitempty"`
+	Source           string            `json:"source"`
+	Version          string            `json:"version,omitempty"`
 }
 
 func definitionFingerprint(body string) string {

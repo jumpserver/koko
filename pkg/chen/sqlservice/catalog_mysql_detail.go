@@ -123,6 +123,10 @@ func myObjectProperties(ctx context.Context, conn *sql.Conn, p MySQLObjectProfil
 	return props, nil
 }
 
+func (p MySQLObjectProfile) defaultsFromDefinition(kind ObjectKind) bool {
+	return kind == ProcedureKind && p.Product == dialect.MariaDB && (p.Version.Major > 11 || p.Version.Major == 11 && p.Version.Minor >= 8) && !p.has("PARAMETERS", "PARAMETER_DEFAULT")
+}
+
 func MySQLObjectDetail(ctx context.Context, conn *sql.Conn, d dialect.ID, ref ObjectRef) (ObjectDetail, error) {
 	result := ObjectDetail{ObjectSummary: ObjectSummary{Ref: ref, Label: ref.Name}}
 	if err := catalogScopeAccess(ctx, conn, d, ref.Database, ref.Schema); err != nil {
@@ -163,6 +167,9 @@ func MySQLObjectDetail(ctx context.Context, conn *sql.Conn, d dialect.ID, ref Ob
 			return result, err
 		}
 		props["parameters_available"] = true
+		if p.defaultsFromDefinition(ref.Kind) {
+			props["defaults_from_definition"] = true
+		}
 		if ref.Kind == FunctionKind {
 			props["return_type"] = props["dtd_identifier"]
 		}
@@ -322,6 +329,17 @@ func MySQLObjectDefinition(ctx context.Context, conn *sql.Conn, d dialect.ID, re
 		return result, nil
 	}
 	result.Status = "complete"
+	// MariaDB 11.8 introduced parameter defaults before the PARAMETERS view
+	// exposed them. Derive only their positions after the SHOW CREATE ACL check.
+	if profile.defaultsFromDefinition(ref.Kind) {
+		defaults, e := mysqlRoutineDefaultPositions(result.Text, ref, AnalyzeOptions{MySQLSQLMode: result.Environment["sql_mode"]})
+		if e == nil {
+			for pos := range defaults {
+				result.DefaultPositions = append(result.DefaultPositions, pos)
+			}
+			slices.Sort(result.DefaultPositions)
+		}
+	}
 	evidence, err := json.Marshal([]any{ref, result.Text, result.Environment, after})
 	if err != nil {
 		return ObjectDefinition{}, err

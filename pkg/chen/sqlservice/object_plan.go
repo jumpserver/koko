@@ -32,6 +32,7 @@ type CursorFetch struct {
 }
 
 type ObjectPlanRequest struct {
+	BindingID     string               `json:"-"` // Random console-owned namespace for transient output bindings.
 	Cursor        *CursorFetch         `json:"cursor,omitempty"`
 	ResultColumns []ObjectResultColumn `json:"result_columns,omitempty"`
 	Action        string               `json:"action"`
@@ -45,15 +46,20 @@ type ObjectPlanRequest struct {
 }
 
 type ObjectStep struct {
-	PolicySQL   string `json:"-"`
-	VerifyAfter bool   `json:"-"`
-	SQL         string `json:"sql"` // Actual command with typed values rendered for preview and ACL.
-	BoundSQL    string `json:"-"`
-	Args        []any  `json:"-"`
-	ResultRole  string `json:"result_role,omitempty"`
+	ParserSQL        string `json:"-"`
+	Cleanup          bool   `json:"-"`
+	SessionVariables bool   `json:"-"`
+	ReplacesExisting bool   `json:"-"` // A rejected native replacement can still remove the old object.
+	PolicySQL        string `json:"-"`
+	VerifyAfter      bool   `json:"-"`
+	SQL              string `json:"sql"` // Actual command with typed values rendered for preview and ACL.
+	BoundSQL         string `json:"-"`
+	Args             []any  `json:"-"`
+	ResultRole       string `json:"result_role,omitempty"`
 }
 
 type ObjectCommands struct {
+	Recovery    *ObjectRecovery
 	Ref         ObjectRef
 	Steps       []ObjectStep
 	Fingerprint string
@@ -64,6 +70,9 @@ var ErrObjectChanged = errors.New("object or console context changed; reload the
 // A rebuild on the pinned connection after approval verifies the same effective
 // identity, native object and exact commands before the worker may send them.
 func BuildObjectCommands(ctx context.Context, conn *sql.Conn, d dialect.ID, req ObjectPlanRequest, authorize func(string) error, mask func(string, string) (string, bool)) (ObjectCommands, error) {
+	if d.UsesMySQLSyntax() {
+		return buildMySQLCommands(ctx, conn, d, req, authorize, mask)
+	}
 	if d != dialect.PostgreSQL {
 		return ObjectCommands{}, ErrCatalogUnsupported
 	}
