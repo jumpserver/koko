@@ -54,7 +54,7 @@ func buildMySQLCommands(ctx context.Context, conn *sql.Conn, d dialect.ID, req O
 	if env.Database != req.Ref.Database {
 		return out, errors.New("choose a console connected to the selected database")
 	}
-	hasRoles := p.Product == dialect.MariaDB || p.Product == dialect.MySQL && p.Version.Major >= 8
+	hasRoles := p.supportsCurrentRole()
 	if hasRoles {
 		if err = conn.QueryRowContext(ctx, `SELECT COALESCE(CURRENT_ROLE(),'')`).Scan(&env.Role); err != nil {
 			return out, err

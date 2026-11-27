@@ -46,6 +46,21 @@ func oceanBaseEventDDL(v dialect.Version, banner string) bool {
 	return err == nil && bp >= 2
 }
 
+// CURRENT_ROLE is native to MySQL 8, MariaDB and the OceanBase MySQL
+// role-management releases. Capture it on the same connection as the plan.
+func (p MySQLObjectProfile) supportsCurrentRole() bool {
+	switch p.Product {
+	case dialect.MySQL:
+		return p.Version.Major >= 8
+	case dialect.MariaDB:
+		return true
+	case dialect.OceanBaseMySQL:
+		v := p.Version
+		return v.Major == 4 && (v.Minor > 3 || v.Minor == 3 && v.Patch >= 1 || v.Minor == 2 && v.Patch >= 3)
+	}
+	return false
+}
+
 func (p MySQLObjectProfile) has(table string, cols ...string) bool {
 	for _, column := range cols {
 		if !p.fields[table+"."+column] {
