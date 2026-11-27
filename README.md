@@ -93,5 +93,11 @@ docker compose up --build
 
 By default, Koko connects to `http://host.docker.internal:8080`, exposes SSH on port `2222`, HTTP on port `5050`, and the Web Proxy on port `5001`. Set `CORE_HOST`, `KOKO_SSH_PORT`, `KOKO_HTTP_PORT`, or `KOKO_WEB_PROXY_PORT` to override them. The Web Proxy accepts all target hosts after establishing a session with the existing Koko connect ticket and Core connection token. Unauthenticated HTTP and CONNECT requests receive 407; the deployment host allowlist has been removed. Established Web sessions use the shared Koko session registry for permission checks and administrative tasks.
 
+## License
+
+Copyright (c) 2014-2026 FIT2CLOUD, All rights reserved.
+
+Licensed under the GNU General Public License version 3 (GPLv3), consistent with the [JumpServer main repository](https://github.com/jumpserver/jumpserver). See [LICENSE](LICENSE) for the full license text.
+
 ## Acknowledgments
 This project depends on [usql](https://github.com/xo/usql) for database connections. We appreciate their support.
